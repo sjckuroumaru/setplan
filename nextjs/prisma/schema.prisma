@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ユーザーテーブル
+model User {
+  id              String    @id @default(uuid())
+  employeeNumber  String    @unique
+  username        String    @unique
+  email           String    @unique
+  password        String
+  lastName        String
+  firstName       String
+  department      String?
+  isAdmin         Boolean   @default(false)
+  status          String    @default("active") // active, inactive
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  dailySchedules  DailySchedule[]
+  issues          Issue[]
+  assignedIssues  Issue[]    @relation("AssignedUser")
+  comments        Comment[]
+
+  @@map("users")
+}
+
+// プロジェクトテーブル
+model Project {
+  id               String    @id @default(uuid())
+  projectNumber    String    @unique
+  projectName      String
+  description      String?
+  status           String    @default("planning") // planning, developing, active, suspended, completed
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime?
+  actualStartDate  DateTime?
+  actualEndDate    DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  schedulePlans    SchedulePlan[]
+  scheduleActuals  ScheduleActual[]
+  issues           Issue[]
+
+  @@map("projects")
+}
+
+// 日別基本情報テーブル
+model DailySchedule {
+  id           String    @id @default(uuid())
+  userId       String
+  scheduleDate DateTime  @db.Date
+  checkInTime  String?   // "09:00" 形式
+  checkOutTime String?   // "18:00" 形式
+  reflection   String?   @db.Text  // 所感
+  status       String    @default("planned") // planned, in_progress, completed
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  user         User      @relation(fields: [userId], references: [id])
+  plans        SchedulePlan[]
+  actuals      ScheduleActual[]
+
+  @@unique([userId, scheduleDate])
+  @@map("daily_schedules")
+}
+
+// 予定項目テーブル
+model SchedulePlan {
+  id            String        @id @default(uuid())
+  scheduleId    String
+  projectId     String?       // プロジェクト関連の場合
+  content       String        // 予定内容
+  details       String?       @db.Text
+  displayOrder  Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  schedule      DailySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  project       Project?      @relation(fields: [projectId], references: [id])
+
+  @@map("schedule_plans")
+}
+
+// 実績項目テーブル
+model ScheduleActual {
+  id            String        @id @default(uuid())
+  scheduleId    String
+  projectId     String?       // プロジェクト関連の場合
+  content       String        // 実績内容
+  hours         Float         // 実績時間
+  details       String?       @db.Text
+  displayOrder  Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  schedule      DailySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  project       Project?      @relation(fields: [projectId], references: [id])
+
+  @@map("schedule_actuals")
+}
+
+// 課題管理テーブル
+model Issue {
+  id              String    @id @default(uuid())
+  projectId       String
+  title           String
+  description     String    @db.Text
+  status          String    @default("open") // open, in_progress, resolved, closed
+  priority        String    @default("medium") // low, medium, high, critical
+  category        String?   // bug, feature, improvement, task
+  reporterId      String
+  assigneeId      String?
+  dueDate         DateTime?
+  resolvedAt      DateTime?
+  
+  // ガントチャート用フィールド
+  startDate       DateTime?
+  endDate         DateTime?
+  progress        Int       @default(0)
+  dependencies    String?   @db.Text // JSON配列形式で依存タスクIDを格納
+  parentIssueId   String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  project         Project   @relation(fields: [projectId], references: [id])
+  reporter        User      @relation(fields: [reporterId], references: [id])
+  assignee        User?     @relation("AssignedUser", fields: [assigneeId], references: [id])
+  parentIssue     Issue?    @relation("IssueHierarchy", fields: [parentIssueId], references: [id])
+  childIssues     Issue[]   @relation("IssueHierarchy")
+  comments        Comment[]
+
+  @@map("issues")
+}
+
+// コメントテーブル
+model Comment {
+  id          String    @id @default(uuid())
+  issueId     String
+  userId      String
+  content     String    @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  issue       Issue     @relation(fields: [issueId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@map("comments")
+}
+
