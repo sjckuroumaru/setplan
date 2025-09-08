@@ -100,6 +100,9 @@ cp .env.example .env.local
 DATABASE_URL="postgresql://setplan_user:setplan_password@localhost:5432/setplan_db?schema=public"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-secret-key-here"  # 本番環境では必ず変更
+# Next.js
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_AxZQdAQmxUCP182K_uFk8IIKwEmkdTMgRjwMyrcCCgaQnbE"
 ```
 
 5. **データベースマイグレーション**
@@ -109,8 +112,10 @@ npx prisma migrate dev
 
 6. **テストデータの投入（オプション）**
 ```bash
-npm run db:seed-test
+npm run db:seed
 ```
+
+- 最初の管理者は admin@setplan.co.jp, password
 
 7. **アプリケーションの起動**
 ```bash
