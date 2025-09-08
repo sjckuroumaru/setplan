@@ -391,7 +391,12 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                             <FormItem>
                               <FormLabel>予定内容 *</FormLabel>
                               <FormControl>
-                                <Input placeholder="例: 定例会議" {...field} disabled={readOnly} />
+                                <Textarea 
+                                  placeholder="例: 定例会議"
+                                  className="min-h-[120px]"
+                                  {...field} 
+                                  disabled={readOnly} 
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -404,11 +409,10 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                         name={`plans.${index}.details`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>詳細</FormLabel>
+                            <FormLabel>備考</FormLabel>
                             <FormControl>
-                              <Textarea 
-                                placeholder="予定の詳細..."
-                                className="min-h-[60px]"
+                              <Input 
+                                placeholder="備考..."
                                 {...field}
                                 value={field.value || ""}
                                 disabled={readOnly}
@@ -465,7 +469,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                 <Card key={field.id} className="p-4">
                   <div className="flex items-start gap-4">
                     <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-4">
                         <FormField
                           control={form.control}
                           name={`actuals.${index}.projectId`}
@@ -495,7 +499,12 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                               <FormItem>
                                 <FormLabel>実績内容{isRequired ? " *" : ""}</FormLabel>
                                 <FormControl>
-                                  <Input placeholder="例: 資料作成" {...field} disabled={readOnly} />
+                                  <Textarea 
+                                    placeholder="例: 資料作成" 
+                                    className="min-h-[120px]"
+                                    {...field} 
+                                    disabled={readOnly} 
+                                  />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -518,6 +527,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                                     step="0.25"
                                     min="0"
                                     placeholder="2.5" 
+                                    className="w-24"
                                     {...field}
                                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                     disabled={readOnly}
@@ -538,11 +548,10 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                         name={`actuals.${index}.details`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>詳細</FormLabel>
+                            <FormLabel>備考</FormLabel>
                             <FormControl>
-                              <Textarea 
-                                placeholder="実績の詳細..."
-                                className="min-h-[60px]"
+                              <Input 
+                                placeholder="備考..."
                                 {...field}
                                 value={field.value || ""}
                                 disabled={readOnly}
