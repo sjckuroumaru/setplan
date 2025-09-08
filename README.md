@@ -242,15 +242,7 @@ npx prisma migrate reset --force
 
 ## ライセンス
 
-[ライセンス情報をここに記載]
-
-## 貢献
-
-[貢献ガイドラインをここに記載]
-
-## サポート
-
-問題が発生した場合は、[Issue](リポジトリのIssueページURL)を作成してください。
+Released under the MIT license
 
 ---
 

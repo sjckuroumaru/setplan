@@ -239,7 +239,7 @@ export default function GanttChartPage() {
                     style={{
                       height: headerHeight + 4,
                       display: "grid",
-                      gridTemplateColumns: "250px 150px 70px 100px 100px",
+                      gridTemplateColumns: "200px 250px 150px 70px 100px 100px",
                       alignItems: "center",
                       borderBottom: "1px solid #e2e8f0",
                       fontWeight: 600,
@@ -247,7 +247,8 @@ export default function GanttChartPage() {
                       backgroundColor: "white",
                     }}
                   >
-                    <div style={{ paddingLeft: "16px" }}>課題名</div>
+                    <div style={{ paddingLeft: "16px" }}>案件名</div>
+                    <div style={{ paddingLeft: "8px" }}>課題名</div>
                     <div style={{ paddingLeft: "8px" }}>担当者</div>
                     <div style={{ paddingLeft: "8px" }}>進捗</div>
                     <div style={{ paddingLeft: "8px" }}>開始日</div>
@@ -264,7 +265,7 @@ export default function GanttChartPage() {
                             key={task.id}
                             style={{
                               display: "grid",
-                              gridTemplateColumns: "250px 150px 70px 100px 100px",
+                              gridTemplateColumns: "200px 250px 150px 70px 100px 100px",
                               alignItems: "center",
                               height: "51px",
                               borderBottom: "1px solid #e2e8f0",
@@ -275,9 +276,18 @@ export default function GanttChartPage() {
                             onClick={() => task.type !== "empty" && handleTaskClick(task as Task)}
                           >
                             <div 
-                              className="flex items-center gap-2 min-w-0"
+                              className="truncate"
                               style={{
                                 paddingLeft: "16px",
+                                paddingRight: "8px",
+                              }}
+                            >
+                              {taskData?.project?.projectName || "-"}
+                            </div>
+                            <div 
+                              className="flex items-center gap-2 min-w-0"
+                              style={{
+                                paddingLeft: "8px",
                               }}
                             >
                               <span className="truncate pr-2">{task.name}</span>
