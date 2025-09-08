@@ -22,6 +22,7 @@ model User {
   department      String?
   isAdmin         Boolean   @default(false)
   status          String    @default("active") // active, inactive
+  sealImagePath   String?   // 担当者印画像パス
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -30,6 +31,7 @@ model User {
   issues          Issue[]
   assignedIssues  Issue[]    @relation("AssignedUser")
   comments        Comment[]
+  estimates       Estimate[]
 
   @@map("users")
 }
@@ -163,5 +165,94 @@ model Comment {
   user        User      @relation(fields: [userId], references: [id])
 
   @@map("comments")
+}
+
+// 自社情報テーブル
+model Company {
+  id              String    @id @default(uuid())
+  name            String
+  postalCode      String?
+  address         String?
+  building        String?
+  representative  String?
+  phone           String?
+  fax             String?
+  remarks         String?   @db.Text
+  sealImagePath   String?   // 会社印画像パス
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("companies")
+}
+
+// 顧客テーブル
+model Customer {
+  id              String    @id @default(uuid())
+  name            String
+  postalCode      String?
+  address         String?
+  building        String?
+  representative  String?
+  phone           String?
+  fax             String?
+  remarks         String?   @db.Text
+  status          String    @default("active") // active, inactive
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  estimates       Estimate[]
+
+  @@map("customers")
+}
+
+// 見積書テーブル
+model Estimate {
+  id              String    @id @default(uuid())
+  estimateNumber  String    @unique
+  customerId      String
+  honorific       String    @default("御中")
+  subject         String
+  issueDate       DateTime  @default(now())
+  validUntil      DateTime
+  userId          String
+  taxType         String    @default("exclusive") // inclusive(税込), exclusive(税別)
+  taxRate         Int       @default(10)
+  roundingType    String    @default("floor") // floor(切り捨て), ceil(切り上げ), round(四捨五入)
+  subtotal        Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount       Decimal   @default(0) @db.Decimal(15, 2)
+  totalAmount     Decimal   @default(0) @db.Decimal(15, 2)
+  remarks         String?   @db.Text
+  status          String    @default("draft") // draft, sent, accepted, rejected, expired
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  customer        Customer  @relation(fields: [customerId], references: [id])
+  user            User      @relation(fields: [userId], references: [id])
+  items           EstimateItem[]
+
+  @@map("estimates")
+}
+
+// 見積明細テーブル
+model EstimateItem {
+  id              String    @id @default(uuid())
+  estimateId      String
+  name            String
+  quantity        Decimal   @default(1) @db.Decimal(10, 2)
+  unit            String?
+  unitPrice       Decimal   @default(0) @db.Decimal(15, 2)
+  taxType         String    @default("taxable") // taxable(課税), non-taxable(非課税), tax-included(税込)
+  amount          Decimal   @default(0) @db.Decimal(15, 2)
+  remarks         String?   @db.Text
+  displayOrder    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  estimate        Estimate  @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@map("estimate_items")
 }
 

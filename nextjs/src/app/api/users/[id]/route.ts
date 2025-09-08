@@ -53,6 +53,7 @@ export async function GET(
         department: true,
         isAdmin: true,
         status: true,
+        sealImagePath: true,
         createdAt: true,
         updatedAt: true,
       },

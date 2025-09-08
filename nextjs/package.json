@@ -35,6 +35,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@react-pdf/renderer": "^4.3.0",
     "@sjckuroumaru/gantt-task-react": "github:sjckuroumaru/gantt-task-react#react19",
     "@vercel/blob": "^1.1.1",
     "bcryptjs": "^3.0.2",

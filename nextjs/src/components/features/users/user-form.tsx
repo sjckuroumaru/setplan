@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -18,6 +18,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { Upload, X, Image as ImageIcon } from "lucide-react"
+import { toast } from "sonner"
 
 const baseUserFormSchema = z.object({
   employeeNumber: z.string().min(1, "社員番号は必須です"),
@@ -52,6 +54,7 @@ interface User {
   department: string | null
   isAdmin: boolean
   status: string
+  sealImagePath?: string | null
 }
 
 interface UserFormProps {
@@ -65,6 +68,8 @@ interface UserFormProps {
 export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }: UserFormProps) {
   // 編集モードかどうかに応じて適切なスキーマを選択
   const formSchema = isEdit ? editUserFormSchema : createUserFormSchema
+  const [sealImageUrl, setSealImageUrl] = useState<string | null>(user?.sealImagePath || null)
+  const [isUploadingSeal, setIsUploadingSeal] = useState(false)
   
   const form = useForm<UserFormValues>({
     resolver: zodResolver(formSchema as any),
@@ -94,6 +99,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
         isAdmin: user.isAdmin,
         status: user.status as "active" | "inactive",
       })
+      setSealImageUrl(user.sealImagePath || null)
     }
   }, [user, form])
 
@@ -104,6 +110,73 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
       await onSubmit(dataWithoutPassword as UserFormValues)
     } else {
       await onSubmit(data)
+    }
+  }
+
+  const handleSealUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user?.id) return
+    
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // ファイルサイズチェック（5MB以下）
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("ファイルサイズは5MB以下にしてください")
+      return
+    }
+
+    // ファイルタイプチェック
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("PNG、JPEG、WebP形式の画像のみアップロード可能です")
+      return
+    }
+
+    try {
+      setIsUploadingSeal(true)
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch(`/api/users/${user.id}/seal`, {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error("アップロードに失敗しました")
+      }
+
+      const data = await response.json()
+      setSealImageUrl(data.sealImagePath)
+      toast.success("押印画像をアップロードしました")
+    } catch (error) {
+      console.error("Upload error:", error)
+      toast.error("押印画像のアップロードに失敗しました")
+    } finally {
+      setIsUploadingSeal(false)
+    }
+  }
+
+  const handleSealRemove = async () => {
+    if (!user?.id) return
+
+    try {
+      setIsUploadingSeal(true)
+      const response = await fetch(`/api/users/${user.id}/seal`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("削除に失敗しました")
+      }
+
+      setSealImageUrl(null)
+      toast.success("押印画像を削除しました")
+    } catch (error) {
+      console.error("Delete error:", error)
+      toast.error("押印画像の削除に失敗しました")
+    } finally {
+      setIsUploadingSeal(false)
     }
   }
 
@@ -281,6 +354,65 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
                 />
               </div>
             </div>
+
+            {/* 押印画像 */}
+            {isEdit && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">押印画像</h3>
+                <div className="flex items-center gap-4">
+                  {sealImageUrl ? (
+                    <div className="relative">
+                      <div className="w-24 h-24 border rounded-lg overflow-hidden bg-gray-50">
+                        <img
+                          src={sealImageUrl}
+                          alt="押印"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={handleSealRemove}
+                        disabled={isUploadingSeal}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center bg-gray-50">
+                      <ImageIcon className="h-8 w-8 text-gray-400" />
+                    </div>
+                  )}
+                  
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      id="seal-upload"
+                      className="hidden"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={handleSealUpload}
+                      disabled={isUploadingSeal}
+                    />
+                    <label htmlFor="seal-upload">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isUploadingSeal}
+                        onClick={() => document.getElementById("seal-upload")?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {isUploadingSeal ? "アップロード中..." : "押印画像をアップロード"}
+                      </Button>
+                    </label>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      PNG、JPEG、WebP形式（5MB以下）
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-4">
               <Button

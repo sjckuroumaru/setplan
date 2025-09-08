@@ -12,6 +12,9 @@ import {
   Calendar,
   CheckSquare,
   GitBranch,
+  Building2,
+  FileText,
+  Settings,
   X,
   ChevronLeft,
   ChevronRight,
@@ -73,6 +76,22 @@ const menuItems: MenuItem[] = [
     title: "ガントチャート",
     href: "/gantt",
     icon: GitBranch,
+  },
+  {
+    title: "顧客管理",
+    href: "/customers",
+    icon: Building2,
+  },
+  {
+    title: "見積管理",
+    href: "/estimates",
+    icon: FileText,
+  },
+  {
+    title: "設定",
+    href: "/settings/company",
+    icon: Settings,
+    adminOnly: true,
   },
 ]
 
