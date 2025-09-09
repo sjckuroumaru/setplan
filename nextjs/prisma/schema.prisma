@@ -32,6 +32,8 @@ model User {
   assignedIssues  Issue[]    @relation("AssignedUser")
   comments        Comment[]
   estimates       Estimate[]
+  invoices        Invoice[]
+  purchaseOrders  PurchaseOrder[]
 
   @@map("users")
 }
@@ -169,18 +171,25 @@ model Comment {
 
 // 自社情報テーブル
 model Company {
-  id              String    @id @default(uuid())
-  name            String
-  postalCode      String?
-  address         String?
-  building        String?
-  representative  String?
-  phone           String?
-  fax             String?
-  remarks         String?   @db.Text
-  sealImagePath   String?   // 会社印画像パス
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                      String    @id @default(uuid())
+  name                    String
+  postalCode              String?
+  address                 String?
+  building                String?
+  representative          String?
+  phone                   String?
+  fax                     String?
+  remarks                 String?   @db.Text
+  sealImagePath           String?   // 会社印画像パス
+  // 請求書用追加フィールド
+  qualifiedInvoiceNumber  String?   // 適格請求書発行事業者登録番号（例: "T1234567890123"）
+  bankName                String?   // 銀行名
+  branchName              String?   // 支店名
+  accountType             String?   // 口座種別（普通/当座）
+  accountNumber           String?   // 口座番号
+  accountHolder           String?   // 口座名義
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@map("companies")
 }
@@ -202,6 +211,8 @@ model Customer {
 
   // Relations
   estimates       Estimate[]
+  invoices        Invoice[]
+  purchaseOrders  PurchaseOrder[]
 
   @@map("customers")
 }
@@ -231,6 +242,7 @@ model Estimate {
   customer        Customer  @relation(fields: [customerId], references: [id])
   user            User      @relation(fields: [userId], references: [id])
   items           EstimateItem[]
+  invoice         Invoice?  // 変換後の請求書
 
   @@map("estimates")
 }
@@ -254,5 +266,118 @@ model EstimateItem {
   estimate        Estimate  @relation(fields: [estimateId], references: [id], onDelete: Cascade)
 
   @@map("estimate_items")
+}
+
+// 請求書テーブル
+model Invoice {
+  id              String    @id @default(uuid())
+  invoiceNumber   String    @unique
+  estimateId      String?   @unique // 元見積書との紐付け（1対1）
+  customerId      String
+  honorific       String    @default("御中")
+  subject         String
+  issueDate       DateTime  @default(now())
+  dueDate         DateTime
+  userId          String
+  taxType         String    @default("exclusive") // inclusive(税込), exclusive(税別)
+  taxRate         Int       @default(10)
+  roundingType    String    @default("floor") // floor(切り捨て), ceil(切り上げ), round(四捨五入)
+  subtotal        Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount       Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount8      Decimal   @default(0) @db.Decimal(15, 2) // 8%税額
+  taxAmount10     Decimal   @default(0) @db.Decimal(15, 2) // 10%税額
+  totalAmount     Decimal   @default(0) @db.Decimal(15, 2)
+  remarks         String?   @db.Text
+  status          String    @default("draft") // draft, sent, paid, overdue, cancelled
+  paidAmount      Decimal   @default(0) @db.Decimal(15, 2) // 入金済み金額
+  paidDate        DateTime? // 入金日
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  estimate        Estimate? @relation(fields: [estimateId], references: [id])
+  customer        Customer  @relation(fields: [customerId], references: [id])
+  user            User      @relation(fields: [userId], references: [id])
+  items           InvoiceItem[]
+
+  @@map("invoices")
+}
+
+// 請求明細テーブル
+model InvoiceItem {
+  id              String    @id @default(uuid())
+  invoiceId       String
+  name            String
+  quantity        Decimal   @default(1) @db.Decimal(10, 2)
+  unit            String?
+  unitPrice       Decimal   @default(0) @db.Decimal(15, 2)
+  taxType         String    @default("taxable") // taxable(課税), non-taxable(非課税), tax-included(税込)
+  taxRate         Int       @default(10) // 8, 10, 0
+  amount          Decimal   @default(0) @db.Decimal(15, 2)
+  remarks         String?   @db.Text
+  displayOrder    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_items")
+}
+
+// 発注書テーブル
+model PurchaseOrder {
+  id                String    @id @default(uuid())
+  orderNumber       String    @unique
+  supplierId        String    // 発注先（顧客テーブル参照）
+  honorific         String    @default("御中")
+  subject           String
+  issueDate         DateTime  @default(now())
+  deliveryDate      DateTime? // 納期
+  completionPeriod  String?   // 研修完了期間
+  deliveryLocation  String?   // 納入場所
+  paymentTerms      String?   // お支払い条件
+  userId            String
+  taxType           String    @default("exclusive") // inclusive(税込), exclusive(税別)
+  taxRate           Int       @default(10)
+  roundingType      String    @default("floor") // floor(切り捨て), ceil(切り上げ), round(四捨五入)
+  subtotal          Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount         Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount8        Decimal   @default(0) @db.Decimal(15, 2) // 8%税額
+  taxAmount10       Decimal   @default(0) @db.Decimal(15, 2) // 10%税額
+  totalAmount       Decimal   @default(0) @db.Decimal(15, 2)
+  remarks           String?   @db.Text
+  status            String    @default("draft") // draft, sent, confirmed, delivered, accepted, cancelled
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  supplier          Customer  @relation(fields: [supplierId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
+  items             PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+// 発注明細テーブル
+model PurchaseOrderItem {
+  id                String    @id @default(uuid())
+  purchaseOrderId   String
+  name              String
+  quantity          Decimal   @default(1) @db.Decimal(10, 2)
+  unit              String?
+  unitPrice         Decimal   @default(0) @db.Decimal(15, 2)
+  taxType           String    @default("taxable") // taxable(課税), non-taxable(非課税), tax-included(税込)
+  taxRate           Int       @default(10) // 8, 10, 0
+  amount            Decimal   @default(0) @db.Decimal(15, 2)
+  remarks           String?   @db.Text
+  displayOrder      Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  purchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_order_items")
 }
 

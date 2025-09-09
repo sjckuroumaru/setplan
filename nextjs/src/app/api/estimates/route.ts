@@ -2,34 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateEstimateNumber } from "@/lib/estimate-number"
-import { calculateEstimateAmount } from "@/lib/estimate-calc"
+import { generateDocumentNumber, calculateAmounts } from "@/lib/utils/document"
+import { EstimateFormSchema } from "@/lib/validations/document"
 import { z } from "zod"
 import { Decimal } from "@prisma/client/runtime/library"
-
-const EstimateItemSchema = z.object({
-  name: z.string().min(1, "項目名は必須です"),
-  quantity: z.number().positive("数量は正の数である必要があります"),
-  unit: z.string().optional(),
-  unitPrice: z.number().min(0, "単価は0以上である必要があります"),
-  taxType: z.enum(["taxable", "non-taxable", "tax-included"]),
-  remarks: z.string().optional(),
-  displayOrder: z.number().optional(),
-})
-
-const EstimateSchema = z.object({
-  customerId: z.string().min(1, "顧客は必須です"),
-  honorific: z.string().default("御中"),
-  subject: z.string().min(1, "件名は必須です"),
-  issueDate: z.string().optional(),
-  validUntil: z.string().optional(),
-  taxType: z.enum(["inclusive", "exclusive"]).default("exclusive"),
-  taxRate: z.number().default(10),
-  roundingType: z.enum(["floor", "ceil", "round"]).default("floor"),
-  remarks: z.string().optional(),
-  status: z.enum(["draft", "sent", "accepted", "rejected", "expired"]).default("draft"),
-  items: z.array(EstimateItemSchema),
-})
 
 // GET - 見積一覧取得
 export async function GET(request: NextRequest) {
@@ -57,10 +33,8 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
-    // 管理者以外は自分の見積のみ表示
-    if (!session.user.isAdmin) {
-      where.userId = session.user.id
-    }
+    // 全ユーザーが全ての見積書を閲覧可能
+    // （編集・削除は別途制限）
 
     // 見積データ取得
     const [estimates, total] = await Promise.all([
@@ -107,10 +81,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const validatedData = EstimateSchema.parse(body)
+    const validatedData = EstimateFormSchema.parse(body)
 
     // 見積番号を生成
-    const estimateNumber = await generateEstimateNumber()
+    const prefix = "EST-"
+    const date = new Date()
+    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
+    
+    // 今月の見積数を取得
+    const estimateCount = await prisma.estimate.count({
+      where: {
+        estimateNumber: {
+          startsWith: `${prefix}${yearMonth}`
+        }
+      }
+    })
+    const estimateNumber = generateDocumentNumber(prefix, estimateCount)
 
     // 日付の処理
     const issueDate = validatedData.issueDate 
@@ -122,12 +108,22 @@ export async function POST(request: NextRequest) {
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // デフォルトは1ヶ月後
 
     // 金額計算
-    const { subtotal, taxAmount, totalAmount } = calculateEstimateAmount(
-      validatedData.items,
-      validatedData.taxRate,
-      validatedData.taxType as "inclusive" | "exclusive",
-      validatedData.roundingType as "floor" | "ceil" | "round"
+    const calculationResult = calculateAmounts(
+      validatedData.items.map((item, index) => ({
+        ...item,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount || (parseFloat(item.quantity) * parseFloat(item.unitPrice)).toString(),
+        taxRate: item.taxRate || validatedData.taxRate,
+        displayOrder: item.displayOrder ?? index
+      })),
+      {
+        taxType: validatedData.taxType,
+        taxRate: validatedData.taxRate,
+        roundingType: validatedData.roundingType
+      }
     )
+    const { subtotal, taxAmount, totalAmount } = calculationResult
 
     // トランザクションで見積と明細を作成
     const estimate = await prisma.$transaction(async (tx) => {
@@ -148,7 +144,7 @@ export async function POST(request: NextRequest) {
           taxAmount,
           totalAmount,
           remarks: validatedData.remarks || "大幅な内容変更が生じた際には、再度お見積りさせて頂きます。",
-          status: validatedData.status,
+          status: "draft",
         },
       })
 
@@ -161,7 +157,7 @@ export async function POST(request: NextRequest) {
           unit: item.unit,
           unitPrice: new Decimal(item.unitPrice),
           taxType: item.taxType,
-          amount: new Decimal(item.quantity).mul(new Decimal(item.unitPrice)),
+          amount: new Decimal(parseFloat(item.quantity) * parseFloat(item.unitPrice)),
           remarks: item.remarks,
           displayOrder: item.displayOrder ?? index,
         }))

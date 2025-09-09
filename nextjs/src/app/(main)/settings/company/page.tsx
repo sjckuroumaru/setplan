@@ -39,6 +39,13 @@ const formSchema = z.object({
   phone: z.string().optional(),
   fax: z.string().optional(),
   remarks: z.string().optional(),
+  // 請求書用追加フィールド
+  qualifiedInvoiceNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  branchName: z.string().optional(),
+  accountType: z.string().optional(),
+  accountNumber: z.string().optional(),
+  accountHolder: z.string().optional(),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -62,6 +69,12 @@ export default function CompanySettingsPage() {
       phone: "",
       fax: "",
       remarks: "",
+      qualifiedInvoiceNumber: "",
+      bankName: "",
+      branchName: "",
+      accountType: "",
+      accountNumber: "",
+      accountHolder: "",
     },
   })
 
@@ -91,6 +104,12 @@ export default function CompanySettingsPage() {
               phone: data.company.phone || "",
               fax: data.company.fax || "",
               remarks: data.company.remarks || "",
+              qualifiedInvoiceNumber: data.company.qualifiedInvoiceNumber || "",
+              bankName: data.company.bankName || "",
+              branchName: data.company.branchName || "",
+              accountType: data.company.accountType || "",
+              accountNumber: data.company.accountNumber || "",
+              accountHolder: data.company.accountHolder || "",
             })
             setSealImageUrl(data.company.sealImagePath)
           }
@@ -349,6 +368,140 @@ export default function CompanySettingsPage() {
                         {...field} 
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? "保存中..." : "保存"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>請求書設定</CardTitle>
+          <CardDescription>
+            請求書の発行に必要な情報を入力してください
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="qualifiedInvoiceNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>適格請求書発行事業者登録番号</FormLabel>
+                      <FormControl>
+                        <Input placeholder="T1234567890123" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        インボイス制度の登録番号
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving ? "保存中..." : "保存"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>振込先情報</CardTitle>
+          <CardDescription>
+            請求書に記載する振込先口座情報を入力してください
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="bankName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>銀行名</FormLabel>
+                      <FormControl>
+                        <Input placeholder="〇〇銀行" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="branchName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>支店名</FormLabel>
+                      <FormControl>
+                        <Input placeholder="〇〇支店" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="accountType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>口座種別</FormLabel>
+                      <FormControl>
+                        <Input placeholder="普通" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="accountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>口座番号</FormLabel>
+                      <FormControl>
+                        <Input placeholder="1234567" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="accountHolder"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>口座名義</FormLabel>
+                    <FormControl>
+                      <Input placeholder="カブシキガイシャサンプル" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      カタカナで入力してください
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

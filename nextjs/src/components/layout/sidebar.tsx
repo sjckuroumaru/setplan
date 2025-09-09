@@ -14,6 +14,8 @@ import {
   GitBranch,
   Building2,
   FileText,
+  Receipt,
+  ShoppingCart,
   Settings,
   X,
   ChevronLeft,
@@ -86,6 +88,16 @@ const menuItems: MenuItem[] = [
     title: "見積管理",
     href: "/estimates",
     icon: FileText,
+  },
+  {
+    title: "請求書管理",
+    href: "/invoices",
+    icon: Receipt,
+  },
+  {
+    title: "発注書管理",
+    href: "/purchase-orders",
+    icon: ShoppingCart,
   },
   {
     title: "設定",

@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
   customerMessage: {
     fontSize: 9,
     lineHeight: 1.6,
-    marginTop: 5,
-    marginBottom: 10,
+    marginTop: 3,
+    marginBottom: 5,
     color: "#495057",
   },
   companyInfo: {
@@ -168,11 +168,13 @@ const styles = StyleSheet.create({
   },
   tableCol4: {
     flex: 1.2,
-    textAlign: "center",
+    textAlign: "right",
+    paddingRight: 5,
   },
   tableCol5: {
     flex: 1.2,
-    textAlign: "center",
+    textAlign: "right",
+    paddingRight: 5,
   },
   tableHeaderText: {
     fontSize: 8,

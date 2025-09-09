@@ -33,7 +33,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import {
@@ -46,6 +45,9 @@ import {
   Download,
   Eye,
 } from "lucide-react"
+import { StatusBadge } from "@/components/documents/status-badge"
+import { formatCurrency, formatDateShort } from "@/lib/utils/document"
+import { ESTIMATE_STATUS, type EstimateStatus } from "@/types/document"
 
 interface Estimate {
   id: string
@@ -54,7 +56,7 @@ interface Estimate {
   issueDate: string
   validUntil: string
   totalAmount: string
-  status: string
+  status: EstimateStatus
   customer: {
     id: string
     name: string
@@ -64,22 +66,6 @@ interface Estimate {
     lastName: string
     firstName: string
   }
-}
-
-const statusLabels: Record<string, string> = {
-  draft: "下書き",
-  sent: "送付済",
-  accepted: "承認済",
-  rejected: "却下",
-  expired: "期限切れ",
-}
-
-const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  draft: "secondary",
-  sent: "default",
-  accepted: "default",
-  rejected: "destructive",
-  expired: "outline",
 }
 
 export default function EstimatesPage() {
@@ -161,39 +147,13 @@ export default function EstimatesPage() {
 
   // PDF直接ダウンロード
   const handlePDFDownload = async (id: string, estimateNumber: string) => {
-    try {
-      const response = await fetch(`/api/estimates/${id}/pdf`)
-      if (!response.ok) throw new Error()
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `estimate-${estimateNumber}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-      
-      toast.success("PDFをダウンロードしました")
-    } catch (error) {
-      toast.error("PDFのダウンロードに失敗しました")
-    }
+    const { downloadPDF } = await import("@/lib/pdf-utils")
+    await downloadPDF(
+      `/api/estimates/${id}/pdf`,
+      `${estimateNumber}.pdf`
+    )
   }
 
-  // 金額フォーマット
-  const formatCurrency = (amount: string) => {
-    const num = parseFloat(amount)
-    return new Intl.NumberFormat("ja-JP", {
-      style: "currency",
-      currency: "JPY",
-    }).format(num)
-  }
-
-  // 日付フォーマット
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("ja-JP")
-  }
 
   if (isLoading) {
     return (
@@ -287,15 +247,17 @@ export default function EstimatesPage() {
                     <TableCell className="max-w-[200px] truncate">
                       {estimate.subject}
                     </TableCell>
-                    <TableCell>{formatDate(estimate.issueDate)}</TableCell>
-                    <TableCell>{formatDate(estimate.validUntil)}</TableCell>
+                    <TableCell>{formatDateShort(estimate.issueDate)}</TableCell>
+                    <TableCell>{formatDateShort(estimate.validUntil)}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(estimate.totalAmount)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariants[estimate.status]}>
-                        {statusLabels[estimate.status]}
-                      </Badge>
+                      <StatusBadge 
+                        status={estimate.status} 
+                        config={ESTIMATE_STATUS[estimate.status]}
+                        showIcon={true}
+                      />
                     </TableCell>
                     <TableCell>
                       {estimate.user.lastName} {estimate.user.firstName}

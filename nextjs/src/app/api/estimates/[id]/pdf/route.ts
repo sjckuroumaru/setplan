@@ -102,7 +102,7 @@ export async function GET(
     // レスポンスヘッダーの設定
     const headers = new Headers()
     headers.set("Content-Type", "application/pdf")
-    headers.set("Content-Disposition", `attachment; filename="estimate-${estimate.estimateNumber}.pdf"`)
+    headers.set("Content-Disposition", `attachment; filename="${estimate.estimateNumber}.pdf"`)
 
     return new NextResponse(pdfBuffer as any, {
       status: 200,

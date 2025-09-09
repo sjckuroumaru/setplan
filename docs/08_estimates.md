@@ -114,21 +114,32 @@ Misocaのような使いやすいUIを目指し、自社情報、顧客情報、
   - 作成日
 - 宛先情報
   - 顧客名 + 敬称
+  - 顧客住所
 - 見積概要
   - 件名
   - 見積金額（税込）
   - 見積有効期限
 - 請求元情報
-  - 自社情報
-  - 会社印
+  - 自社情報（会社名、住所、電話番号、FAX番号）
+  - 会社印（右上にオーバーレイ表示）
   - 担当者名
-  - 担当者印
+  - 担当者印（右下にオーバーレイ表示）
 - 明細部
   - 項目一覧（表形式）
-  - 小計
-  - 消費税
-  - 合計金額
-- 備考欄
+    - 項目名
+    - 数量（中央揃え）
+    - 単位（中央揃え）
+    - 単価（右揃え）
+    - 金額（右揃え）
+  - 小計（右揃え）
+  - 消費税（右揃え）
+  - 合計金額（右揃え、強調表示）
+- 見積条件・備考欄
+
+**PDF生成方式：**
+- サーバーサイドでReact PDFを使用して生成
+- 直接ダウンロード方式（画面遷移なし）
+- 日本語フォント（Noto Sans JP）対応
 
 ### 4. ユーザー情報拡張
 
@@ -234,27 +245,61 @@ Misocaのような使いやすいUIを目指し、自社情報、顧客情報、
 ### 2. 見積書管理
 - `/estimates` - 見積書一覧
 - `/estimates/new` - 見積書新規作成
-- `/estimates/[id]` - 見積書詳細
+- `/estimates/[id]` - 見積書詳細（PDF直接ダウンロード機能付き）
 - `/estimates/[id]/edit` - 見積書編集
-- `/estimates/[id]/pdf` - PDF出力
 
 ### 3. ユーザー設定
 - `/users/[id]/edit` - 印鑑アップロードの追加
+
+## API エンドポイント
+
+### 見積書API
+- `GET /api/estimates` - 見積書一覧取得
+- `POST /api/estimates` - 見積書新規作成
+- `GET /api/estimates/[id]` - 見積書詳細取得
+- `PUT /api/estimates/[id]` - 見積書更新
+- `DELETE /api/estimates/[id]` - 見積書削除
+- `GET /api/estimates/[id]/pdf` - PDF生成・ダウンロード
+- `POST /api/estimates/[id]/duplicate` - 見積書複製
+
+### 顧客API
+- `GET /api/customers` - 顧客一覧取得
+- `POST /api/customers` - 顧客新規作成
+- `GET /api/customers/[id]` - 顧客詳細取得
+- `PUT /api/customers/[id]` - 顧客更新
+- `DELETE /api/customers/[id]` - 顧客削除
+
+### 自社情報API
+- `GET /api/company` - 自社情報取得
+- `PUT /api/company` - 自社情報更新
+- `POST /api/company/seal` - 会社印アップロード
+- `DELETE /api/company/seal` - 会社印削除
+
+### ユーザー印鑑API
+- `POST /api/users/[id]/seal` - ユーザー印鑑アップロード
+- `DELETE /api/users/[id]/seal` - ユーザー印鑑削除
 
 ## UI/UX要件
 
 ### 見積書作成画面
 - リアルタイム金額計算
 - 明細行の動的追加・削除
-- ドラッグ&ドロップによる明細順序変更
 - 顧客選択時の自動情報入力
 - 自動保存機能（下書き状態）
+- 見積条件のデフォルトテキスト設定
+
+### 見積書詳細画面
+- 見積書情報の表示
+- PDF直接ダウンロード機能（ページ遷移なし）
+- 編集・複製・削除のアクション
+- ステータス管理
 
 ### 一覧画面
-- カード形式またはテーブル形式の切り替え
+- テーブル形式での表示
 - ステータスバッジ表示
 - クイックアクション（PDF出力、複製、削除）
-- 一括操作機能
+- ページネーション機能
+- 検索・フィルタ機能
 
 ## セキュリティ要件
 
@@ -267,11 +312,30 @@ Misocaのような使いやすいUIを目指し、自社情報、顧客情報、
 ## 技術要件
 
 ### 使用技術
-- PDF生成：React PDF
+- PDF生成：@react-pdf/renderer（サーバーサイド生成）
 - 画像ストレージ：Vercel Blob
 - バリデーション：Zod
+- フォーム管理：React Hook Form
+- 状態管理：React hooks
+- API：Next.js App Router API Routes
+- 認証：NextAuth.js
+
+## 実装上の注意点
+
+### Next.js 15対応
+- 動的ルートのparamsがPromiseとして扱われる
+- API RouteでのZodError処理は`error.flatten()`を使用
+- フォームバリデーションでzodResolverに型アサーション必要
+
+### PDFダウンロード
+- 見積書詳細画面から直接ダウンロード
+- `/estimates/[id]/pdf`ページは廃止
+- blob URLを使用したクライアントサイドダウンロード
 
 ## 今後の拡張予定
 
 - 請求書機能
 - 納品書機能
+- 見積書テンプレート機能
+- メール送信機能
+- 承認ワークフロー

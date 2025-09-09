@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateEstimateNumber } from "@/lib/estimate-number"
+import { generateDocumentNumber } from "@/lib/utils/document"
 
 // POST - 見積複製
 export async function POST(
@@ -29,7 +29,19 @@ export async function POST(
     }
 
     // 新しい見積番号を生成
-    const estimateNumber = await generateEstimateNumber()
+    const prefix = "EST-"
+    const date = new Date()
+    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
+    
+    // 今月の見積数を取得
+    const estimateCount = await prisma.estimate.count({
+      where: {
+        estimateNumber: {
+          startsWith: `${prefix}${yearMonth}`
+        }
+      }
+    })
+    const estimateNumber = generateDocumentNumber(prefix, estimateCount)
 
     // 現在の日付で新規作成
     const now = new Date()

@@ -29,6 +29,7 @@ import {
   Calendar,
   User,
   Building2,
+  Receipt,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -153,23 +154,30 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
 
   // PDF直接ダウンロード
   const handlePDFDownload = async () => {
-    try {
-      const response = await fetch(`/api/estimates/${resolvedParams.id}/pdf`)
-      if (!response.ok) throw new Error()
+    if (!estimate) return
+    
+    const { downloadPDF } = await import("@/lib/pdf-utils")
+    await downloadPDF(
+      `/api/estimates/${resolvedParams.id}/pdf`,
+      `${estimate.estimateNumber}.pdf`
+    )
+  }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `estimate-${estimate?.estimateNumber || resolvedParams.id}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+  // 請求書作成
+  const handleCreateInvoice = async () => {
+    try {
+      const response = await fetch("/api/invoices/from-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estimateId: resolvedParams.id }),
+      })
+      if (!response.ok) throw new Error()
       
-      toast.success("PDFをダウンロードしました")
+      const data = await response.json()
+      toast.success("請求書を作成しました")
+      router.push(`/invoices/${data.invoice.id}`)
     } catch (error) {
-      toast.error("PDFのダウンロードに失敗しました")
+      toast.error("請求書の作成に失敗しました")
     }
   }
 
@@ -241,6 +249,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           >
             <Copy className="mr-2 h-4 w-4" />
             複製
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleCreateInvoice}
+          >
+            <Receipt className="mr-2 h-4 w-4" />
+            請求書作成
           </Button>
           <Button
             onClick={handlePDFDownload}
