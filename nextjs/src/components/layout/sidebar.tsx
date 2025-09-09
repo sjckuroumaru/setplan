@@ -20,6 +20,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Files,
   type LucideIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,12 +35,13 @@ interface SidebarProps {
 
 interface MenuItem {
   title: string
-  href: string
+  href?: string
   icon: LucideIcon
   adminOnly?: boolean
   subItems?: {
     title: string
     href: string
+    icon?: LucideIcon
   }[]
 }
 
@@ -47,17 +50,6 @@ const menuItems: MenuItem[] = [
     title: "ダッシュボード",
     href: "/dashboard",
     icon: LayoutDashboard,
-  },
-  {
-    title: "ユーザー管理",
-    href: "/users",
-    icon: Users,
-    adminOnly: true,
-  },
-  {
-    title: "案件管理",
-    href: "/projects",
-    icon: Briefcase,
   },
   {
     title: "予定実績",
@@ -80,30 +72,51 @@ const menuItems: MenuItem[] = [
     icon: GitBranch,
   },
   {
-    title: "顧客管理",
-    href: "/customers",
-    icon: Building2,
-  },
-  {
-    title: "見積管理",
-    href: "/estimates",
-    icon: FileText,
-  },
-  {
-    title: "請求書管理",
-    href: "/invoices",
-    icon: Receipt,
-  },
-  {
-    title: "発注書管理",
-    href: "/purchase-orders",
-    icon: ShoppingCart,
+    title: "書類管理",
+    icon: Files,
+    subItems: [
+      { 
+        title: "見積書管理",
+        href: "/estimates",
+        icon: FileText,
+      },
+      {
+        title: "請求書管理",
+        href: "/invoices",
+        icon: Receipt,
+      },
+      {
+        title: "発注書管理",
+        href: "/purchase-orders",
+        icon: ShoppingCart,
+      }
+    ],
   },
   {
     title: "設定",
-    href: "/settings/company",
     icon: Settings,
-    adminOnly: true,
+    subItems: [
+      {
+        title: "顧客管理",
+        href: "/customers",
+        icon: Building2,
+      },
+      {
+        title: "案件管理",
+        href: "/projects",
+        icon: Briefcase,
+      },
+      {
+        title: "ユーザー管理",
+        href: "/users",
+        icon: Users,
+      },
+      {
+        title: "自社情報",
+        href: "/settings/company",
+        icon: Settings,
+      }
+    ],
   },
 ]
 
@@ -111,9 +124,19 @@ export function Sidebar({ isOpen = true, onClose, className }: SidebarProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
   
   // 管理者権限を持つユーザーか確認
   const isAdmin = session?.user?.isAdmin || false
+
+  // アコーディオンの開閉を切り替える
+  const toggleExpanded = (title: string) => {
+    setExpandedItems(prev =>
+      prev.includes(title)
+        ? prev.filter(item => item !== title)
+        : [...prev, title]
+    )
+  }
 
   return (
     <>
@@ -159,41 +182,86 @@ export function Sidebar({ isOpen = true, onClose, className }: SidebarProps) {
           </div>
           <nav className="space-y-1 p-4">
             {menuItems
-              .filter((item) => !item.adminOnly || (item.adminOnly && isAdmin))
               .map((item) => {
+                // 設定メニューの場合、サブアイテムをフィルタリング
+                if (item.title === "設定" && item.subItems) {
+                  const filteredSubItems = item.subItems.filter((subItem) => {
+                    // ユーザー管理は管理者のみ表示
+                    if (subItem.title === "ユーザー管理") {
+                      return isAdmin
+                    }
+                    return true
+                  })
+                  item = { ...item, subItems: filteredSubItems }
+                }
+
                 const Icon = item.icon
-                const isActive = pathname === item.href || 
-                  (item.subItems && item.subItems.some(sub => pathname === sub.href))
+                const isActive = item.href 
+                  ? pathname === item.href
+                  : item.subItems?.some(sub => pathname === sub.href)
+                const isExpanded = expandedItems.includes(item.title)
 
                 return (
-                <div key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                      isActive && "bg-accent text-accent-foreground",
-                      isCollapsed && "justify-center px-2"
-                    )}
-                    title={isCollapsed ? item.title : undefined}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {!isCollapsed && item.title}
-                  </Link>
+                <div key={item.title}>
+                  {item.href ? (
+                    // 通常のメニューアイテム（リンクあり）
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                        isActive && "bg-accent text-accent-foreground",
+                        isCollapsed && "justify-center px-2"
+                      )}
+                      title={isCollapsed ? item.title : undefined}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {!isCollapsed && item.title}
+                    </Link>
+                  ) : (
+                    // アコーディオンメニュー（リンクなし）
+                    <button
+                      onClick={() => toggleExpanded(item.title)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                        isActive && "bg-accent text-accent-foreground",
+                        isCollapsed && "justify-center px-2"
+                      )}
+                      title={isCollapsed ? item.title : undefined}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {!isCollapsed && (
+                        <>
+                          <span className="flex-1 text-left">{item.title}</span>
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 transition-transform",
+                              isExpanded && "rotate-180"
+                            )}
+                          />
+                        </>
+                      )}
+                    </button>
+                  )}
                   
-                  {item.subItems && !isCollapsed && (
+                  {/* サブアイテム */}
+                  {item.subItems && !isCollapsed && isExpanded && (
                     <div className="ml-7 mt-1 space-y-1">
-                      {item.subItems.map((subItem) => (
-                        <Link
-                          key={subItem.href}
-                          href={subItem.href}
-                          className={cn(
-                            "block rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                            pathname === subItem.href && "bg-accent text-accent-foreground"
-                          )}
-                        >
-                          {subItem.title}
-                        </Link>
-                      ))}
+                      {item.subItems.map((subItem) => {
+                        const SubIcon = subItem.icon
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            className={cn(
+                              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                              pathname === subItem.href && "bg-accent text-accent-foreground"
+                            )}
+                          >
+                            {SubIcon && <SubIcon className="h-3.5 w-3.5" />}
+                            {subItem.title}
+                          </Link>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
