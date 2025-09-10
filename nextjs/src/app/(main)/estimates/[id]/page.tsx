@@ -30,6 +30,7 @@ import {
   User,
   Building2,
   Receipt,
+  ShoppingCart,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -181,6 +182,24 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
     }
   }
 
+  // 発注書作成
+  const handleCreatePurchaseOrder = async () => {
+    try {
+      const response = await fetch("/api/purchase-orders/from-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estimateId: resolvedParams.id }),
+      })
+      if (!response.ok) throw new Error()
+      
+      const data = await response.json()
+      toast.success("発注書を作成しました")
+      router.push(`/purchase-orders/${data.purchaseOrder.id}`)
+    } catch (error) {
+      toast.error("発注書の作成に失敗しました")
+    }
+  }
+
   const formatCurrency = (amount: string) => {
     const num = parseFloat(amount)
     return new Intl.NumberFormat("ja-JP", {
@@ -256,6 +275,13 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           >
             <Receipt className="mr-2 h-4 w-4" />
             請求書作成
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleCreatePurchaseOrder}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            発注書作成
           </Button>
           <Button
             onClick={handlePDFDownload}

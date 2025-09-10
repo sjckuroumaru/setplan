@@ -255,6 +255,15 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
+      // itemsのデータを整形（数値を文字列に変換し、必要なフィールドを追加）
+      const formattedItems = data.items.map((item, index) => ({
+        ...item,
+        quantity: item.quantity.toString(),
+        unitPrice: item.unitPrice.toString(),
+        amount: (item.quantity * item.unitPrice).toString(),
+        displayOrder: index,
+      }))
+
       const response = await fetch(`/api/invoices/${resolvedParams.id}`, {
         method: "PUT",
         headers: {
@@ -262,6 +271,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
         },
         body: JSON.stringify({
           ...data,
+          items: formattedItems,
           ...calculatedAmounts,
         }),
       })

@@ -158,7 +158,7 @@ export async function PUT(
       return updated
     })
 
-    return NextResponse.json(updatedOrder)
+    return NextResponse.json({ purchaseOrder: updatedOrder })
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 })
