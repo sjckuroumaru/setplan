@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { config } from "@/lib/config"
 import { z } from "zod"
 
 async function checkAuthentication() {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get("page") || "1")
-    const limit = parseInt(searchParams.get("limit") || "20")
+    const limit = parseInt(searchParams.get("limit") || config.pagination.defaultLimit.toString())
     const status = searchParams.get("status")
     const priority = searchParams.get("priority")
     const projectId = searchParams.get("projectId")

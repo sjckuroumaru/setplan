@@ -243,16 +243,16 @@ export default function CompanySettingsPage() {
         </AlertDescription>
       </Alert>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>基本情報</CardTitle>
-          <CardDescription>
-            会社の基本情報を入力してください
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>基本情報</CardTitle>
+              <CardDescription>
+                会社の基本情報を入力してください
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <FormField
                 control={form.control}
                 name="name"
@@ -372,66 +372,44 @@ export default function CompanySettingsPage() {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
 
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "保存中..." : "保存"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>請求書設定</CardTitle>
+              <CardDescription>
+                請求書の発行に必要な情報を入力してください
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="qualifiedInvoiceNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>適格請求書発行事業者登録番号</FormLabel>
+                    <FormControl>
+                      <Input placeholder="T1234567890123" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      インボイス制度の登録番号
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>請求書設定</CardTitle>
-          <CardDescription>
-            請求書の発行に必要な情報を入力してください
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="qualifiedInvoiceNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>適格請求書発行事業者登録番号</FormLabel>
-                      <FormControl>
-                        <Input placeholder="T1234567890123" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        インボイス制度の登録番号
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "保存中..." : "保存"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>振込先情報</CardTitle>
-          <CardDescription>
-            請求書に記載する振込先口座情報を入力してください
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>振込先情報</CardTitle>
+              <CardDescription>
+                請求書に記載する振込先口座情報を入力してください
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -506,16 +484,16 @@ export default function CompanySettingsPage() {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
 
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? "保存中..." : "保存"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "保存中..." : "保存"}
+            </Button>
+          </div>
+        </form>
+      </Form>
 
       <Card>
         <CardHeader>

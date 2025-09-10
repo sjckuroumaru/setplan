@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { usePagination } from "@/hooks/use-pagination"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -106,13 +109,6 @@ interface Stats {
   highPriority: number
 }
 
-interface PaginationInfo {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
-
 // ステータスの定義
 const statusConfig = {
   open: { label: "未対応", icon: CircleDot, color: "bg-blue-500" },
@@ -136,12 +132,16 @@ export default function IssuesPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [stats, setStats] = useState<Stats>({ total: 0, open: 0, inProgress: 0, resolved: 0, closed: 0, highPriority: 0 })
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  })
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: config.pagination.defaultLimit })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
@@ -163,15 +163,14 @@ export default function IssuesPage() {
   }, [session, status, router])
 
   // データ取得
-  const fetchIssues = async (pageNumber?: number) => {
+  const fetchIssues = async (pageNumber: number) => {
     try {
       setLoading(true)
       setError("")
       
       const params = new URLSearchParams()
       
-      const currentPage = pageNumber !== undefined ? pageNumber : pagination.page
-      params.append("page", currentPage.toString())
+      params.append("page", pageNumber.toString())
       params.append("limit", pagination.limit.toString())
       
       if (searchQuery) params.append("search", searchQuery)
@@ -233,23 +232,22 @@ export default function IssuesPage() {
     if (session) {
       fetchProjects()
       fetchUsers()
-      fetchIssues(1)
     }
   }, [session])
 
   // フィルター変更時にページを1に戻す
   useEffect(() => {
     if (session) {
-      setPagination(prev => ({ ...prev, page: 1 }))
+      resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter])
+  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, resetToFirstPage])
 
-  // データ取得（ページやフィルター変更時）
+  // データ取得
   useEffect(() => {
     if (session) {
-      fetchIssues(pagination.page)
+      fetchIssues(currentPage)
     }
-  }, [session, pagination.page, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter])
+  }, [session, currentPage, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter])
 
   // 課題削除
   const handleDelete = async () => {
@@ -273,7 +271,7 @@ export default function IssuesPage() {
       
       toast.success("課題を削除しました")
       setDeleteIssueId(null)
-      fetchIssues(pagination.page)
+      fetchIssues(currentPage)
     } catch (error) {
       console.warn("Delete issue warning:", error)
       const errorMessage = error instanceof Error ? error.message : "削除に失敗しました"
@@ -619,37 +617,16 @@ export default function IssuesPage() {
       </Card>
 
       {/* ページネーション */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (pagination.page > 1) {
-                setPagination(prev => ({ ...prev, page: prev.page - 1 }))
-              }
-            }}
-            disabled={pagination.page <= 1 || loading}
-          >
-            前へ
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            {pagination.page} / {pagination.totalPages}ページ （{pagination.total}件）
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (pagination.page < pagination.totalPages) {
-                setPagination(prev => ({ ...prev, page: prev.page + 1 }))
-              }
-            }}
-            disabled={pagination.page >= pagination.totalPages || loading}
-          >
-            次へ
-          </Button>
-        </div>
-      )}
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.total}
+        onPreviousPage={goToPreviousPage}
+        onNextPage={goToNextPage}
+        hasPreviousPage={hasPreviousPage}
+        hasNextPage={hasNextPage}
+        loading={loading}
+      />
 
       {/* 削除確認ダイアログ */}
       <Dialog open={!!deleteIssueId} onOpenChange={() => setDeleteIssueId(null)}>

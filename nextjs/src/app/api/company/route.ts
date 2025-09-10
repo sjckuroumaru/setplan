@@ -13,6 +13,13 @@ const CompanySchema = z.object({
   phone: z.string().optional(),
   fax: z.string().optional(),
   remarks: z.string().optional(),
+  // 請求書用追加フィールド
+  qualifiedInvoiceNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  branchName: z.string().optional(),
+  accountType: z.string().optional(),
+  accountNumber: z.string().optional(),
+  accountHolder: z.string().optional(),
 })
 
 // GET - 自社情報取得

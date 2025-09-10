@@ -1,8 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { usePagination } from "@/hooks/use-pagination"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -84,13 +87,6 @@ interface Schedule {
   actuals: ScheduleActual[]
 }
 
-interface PaginationInfo {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
-
 const statusLabels = {
   planned: "予定",
   in_progress: "進行中", 
@@ -107,12 +103,16 @@ export default function SchedulesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  })
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: config.pagination.defaultLimit })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
@@ -150,14 +150,13 @@ export default function SchedulesPage() {
   }
 
   // 予定実績一覧取得
-  const fetchSchedules = useCallback(async (pageNumber?: number) => {
+  const fetchSchedules = async (pageNumber: number) => {
     try {
       setLoading(true)
       setError("")
       
-      const currentPage = pageNumber !== undefined ? pageNumber : pagination.page
       const params = new URLSearchParams({
-        page: currentPage.toString(),
+        page: pageNumber.toString(),
         limit: pagination.limit.toString(),
       })
       
@@ -183,7 +182,7 @@ export default function SchedulesPage() {
     } finally {
       setLoading(false)
     }
-  }, [pagination.limit, searchQuery, userFilter, startDate, endDate])
+  }
 
   // 初回読み込み
   useEffect(() => {
@@ -192,20 +191,19 @@ export default function SchedulesPage() {
     }
   }, [session])
 
-  // フィルター変更時
+  // フィルター変更時はページを1に戻す
   useEffect(() => {
     if (session) {
-      setPagination(prev => ({ ...prev, page: 1 }))
-      fetchSchedules(1)
+      resetToFirstPage()
     }
-  }, [session, searchQuery, userFilter, startDate, endDate])
+  }, [searchQuery, userFilter, startDate, endDate, resetToFirstPage])
 
-  // ページ変更時にデータ取得
+  // データ取得
   useEffect(() => {
-    if (session && pagination.page > 1) {
-      fetchSchedules()
+    if (session) {
+      fetchSchedules(currentPage)
     }
-  }, [session, pagination.page, fetchSchedules])
+  }, [session, currentPage, searchQuery, userFilter, startDate, endDate])
 
   // 予定実績削除
   const handleDelete = async () => {
@@ -226,7 +224,7 @@ export default function SchedulesPage() {
       
       toast.success("予定実績を削除しました")
       setDeleteScheduleId(null)
-      fetchSchedules(pagination.page)
+      fetchSchedules(currentPage)
     } catch (error) {
       console.warn("Delete schedule error:", error)
       toast.error(error instanceof Error ? error.message : "削除に失敗しました")
@@ -481,37 +479,16 @@ export default function SchedulesPage() {
           </Card>
 
           {/* ページネーション */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (pagination.page > 1) {
-                    setPagination(prev => ({ ...prev, page: prev.page - 1 }))
-                  }
-                }}
-                disabled={pagination.page <= 1 || loading}
-              >
-                前へ
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {pagination.page} / {pagination.totalPages}ページ （{pagination.total}件）
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (pagination.page < pagination.totalPages) {
-                    setPagination(prev => ({ ...prev, page: prev.page + 1 }))
-                  }
-                }}
-                disabled={pagination.page >= pagination.totalPages || loading}
-              >
-                次へ
-              </Button>
-            </div>
-          )}
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
+            onPreviousPage={goToPreviousPage}
+            onNextPage={goToNextPage}
+            hasPreviousPage={hasPreviousPage}
+            hasNextPage={hasNextPage}
+            loading={loading}
+          />
         </TabsContent>
       </Tabs>
 

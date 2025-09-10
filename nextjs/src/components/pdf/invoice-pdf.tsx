@@ -453,7 +453,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, customer, compa
               )}
               {company.qualifiedInvoiceNumber && (
                 <Text style={styles.qualifiedInvoiceNumber}>
-                  適格請求書発行事業者登録番号: {company.qualifiedInvoiceNumber}
+                  登録番号: {company.qualifiedInvoiceNumber}
                 </Text>
               )}
               {company.sealImagePath && (
