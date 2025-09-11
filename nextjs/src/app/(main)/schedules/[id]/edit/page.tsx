@@ -91,7 +91,7 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
   // ユーザー一覧取得（管理者のみ）
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users")
+      const response = await fetch("/api/users?basic=true")
       const data = await response.json()
       if (response.ok) {
         setUsers(data.users)

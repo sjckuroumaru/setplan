@@ -127,7 +127,7 @@ export default function CalendarPage() {
   // ユーザー一覧取得
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users")
+      const response = await fetch("/api/users?basic=true")
       const data = await response.json()
       if (response.ok) {
         setUsers(data.users.map((user: any) => ({

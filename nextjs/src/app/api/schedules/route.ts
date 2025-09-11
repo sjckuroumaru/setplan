@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const userId = searchParams.get("userId")
+    const search = searchParams.get("search")
 
     const skip = (page - 1) * limit
 
@@ -78,6 +79,32 @@ export async function GET(request: NextRequest) {
       where.scheduleDate = {
         lte: new Date(endDate),
       }
+    }
+
+    // 検索条件（予定内容と実績内容で検索）
+    if (search) {
+      where.OR = [
+        {
+          plans: {
+            some: {
+              content: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+        {
+          actuals: {
+            some: {
+              content: {
+                contains: search,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      ]
     }
 
     const [schedules, total] = await Promise.all([

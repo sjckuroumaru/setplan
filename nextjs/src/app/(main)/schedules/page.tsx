@@ -136,7 +136,7 @@ export default function SchedulesPage() {
   // ユーザー一覧取得（全ユーザーが使用可能）
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users")
+      const response = await fetch("/api/users?basic=true")
       const data = await response.json()
       if (response.ok) {
         setUsers(data.users.map((user: any) => ({
@@ -372,14 +372,14 @@ export default function SchedulesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>日付</TableHead>
-                    <TableHead>ユーザー</TableHead>
-                    <TableHead>出社</TableHead>
-                    <TableHead>退社</TableHead>
-                    <TableHead>実績時間</TableHead>
-                    <TableHead>予定</TableHead>
-                    <TableHead>実績</TableHead>
-                    <TableHead>操作</TableHead>
+                    <TableHead className="w-24">日付</TableHead>
+                    <TableHead className="w-32">ユーザー</TableHead>
+                    <TableHead className="w-20">出社</TableHead>
+                    <TableHead className="w-20">退社</TableHead>
+                    <TableHead className="w-24">実績時間</TableHead>
+                    <TableHead className="max-w-xs">予定</TableHead>
+                    <TableHead className="max-w-xs">実績</TableHead>
+                    <TableHead className="w-24">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -419,30 +419,30 @@ export default function SchedulesPage() {
                             {getTotalHours(schedule.actuals).toFixed(1)}h
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {schedule.plans.slice(0, 3).map((plan, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
+                        <TableCell className="max-w-xs">
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {schedule.plans.slice(0, 2).map((plan, index) => (
+                              <Badge key={index} variant="outline" className="text-xs max-w-[150px] truncate">
                                 {plan.content}
                               </Badge>
                             ))}
-                            {schedule.plans.length > 3 && (
+                            {schedule.plans.length > 2 && (
                               <Badge variant="outline" className="text-xs">
-                                +{schedule.plans.length - 3}
+                                +{schedule.plans.length - 2}
                               </Badge>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {schedule.actuals.slice(0, 3).map((actual, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
+                        <TableCell className="max-w-xs">
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {schedule.actuals.slice(0, 2).map((actual, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs max-w-[150px] truncate">
                                 {actual.content}
                               </Badge>
                             ))}
-                            {schedule.actuals.length > 3 && (
+                            {schedule.actuals.length > 2 && (
                               <Badge variant="secondary" className="text-xs">
-                                +{schedule.actuals.length - 3}
+                                +{schedule.actuals.length - 2}
                               </Badge>
                             )}
                           </div>
