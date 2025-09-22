@@ -31,9 +31,9 @@ export async function GET(request: NextRequest) {
     // 開始日・終了日が設定されている課題のみ取得（ガントチャートに表示可能）
     where.startDate = { not: null }
     where.endDate = { not: null }
-    
-    // 対応中（in_progress）の課題のみ取得
-    where.status = "in_progress"
+
+    // 完了（closed）ステータスのタスクは除外
+    where.status = { not: "closed" }
     
     if (startDate && endDate) {
       where.OR = [

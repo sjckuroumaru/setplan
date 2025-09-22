@@ -52,6 +52,9 @@ import {
   CheckCircle2,
   CalendarClock,
   Percent,
+  ArrowDownCircle,
+  MinusCircle,
+  ArrowUpCircle,
 } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
 
@@ -499,19 +502,19 @@ export default function EditIssuePage({ params }: { params: Promise<{ id: string
                       </SelectItem>
                       <SelectItem value="high">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-red-500" />
+                          <ArrowUpCircle className="h-4 w-4 text-red-500" />
                           高
                         </div>
                       </SelectItem>
                       <SelectItem value="medium">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                          <MinusCircle className="h-4 w-4 text-yellow-500" />
                           中
                         </div>
                       </SelectItem>
                       <SelectItem value="low">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <ArrowDownCircle className="h-4 w-4 text-blue-500" />
                           低
                         </div>
                       </SelectItem>

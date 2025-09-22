@@ -18,6 +18,7 @@ async function checkAuthentication() {
 const updateIssueSchema = z.object({
   title: z.string().min(1, "タイトルは必須です").max(255, "タイトルは255文字以内で入力してください").optional(),
   description: z.string().min(1, "説明は必須です").max(10000, "説明は10000文字以内で入力してください").optional(),
+  projectId: z.string().optional(),
   status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "medium", "high", "critical"]).optional(),
   category: z.string().max(100, "カテゴリは100文字以内で入力してください").optional(),
@@ -172,6 +173,17 @@ export async function PUT(
       return NextResponse.json({ error: "更新権限がありません" }, { status: 403 })
     }
 
+    // プロジェクトの存在確認（指定されている場合）
+    if (validatedData.projectId) {
+      const project = await prisma.project.findUnique({
+        where: { id: validatedData.projectId },
+      })
+
+      if (!project) {
+        return NextResponse.json({ error: "指定されたプロジェクトが見つかりません" }, { status: 404 })
+      }
+    }
+
     // 担当者の存在確認（指定されている場合）
     if (validatedData.assigneeId) {
       const assignee = await prisma.user.findUnique({
@@ -185,9 +197,10 @@ export async function PUT(
 
     // 更新データの準備
     const updateData: any = {}
-    
+
     if (validatedData.title !== undefined) updateData.title = validatedData.title
     if (validatedData.description !== undefined) updateData.description = validatedData.description
+    if (validatedData.projectId !== undefined) updateData.projectId = validatedData.projectId
     if (validatedData.status !== undefined) {
       updateData.status = validatedData.status
       // ステータスが解決済みになった場合、解決日時を設定

@@ -357,27 +357,6 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
               編集
             </Button>
           </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <UserPlus className="mr-2 h-4 w-4" />
-                ウォッチャーを追加
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Paperclip className="mr-2 h-4 w-4" />
-                ファイルを添付
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                削除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -512,6 +491,12 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="critical">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-600" />
+                        緊急
+                      </div>
+                    </SelectItem>
                     <SelectItem value="high">
                       <div className="flex items-center gap-2">
                         <ArrowUpCircle className="h-4 w-4 text-red-500" />
