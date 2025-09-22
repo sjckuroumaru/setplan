@@ -514,16 +514,18 @@ export default function IssuesPage() {
                           {issue.id.slice(0, 8)}
                         </Link>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-md">
                         <div>
-                          <Link 
+                          <Link
                             href={`/issues/${issue.id}`}
-                            className="font-medium hover:underline"
+                            className="font-medium hover:underline line-clamp-1"
                           >
                             {issue.title}
                           </Link>
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {issue.description}
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {issue.description.length > 100
+                              ? `${issue.description.substring(0, 100)}...`
+                              : issue.description}
                           </p>
                         </div>
                       </TableCell>
