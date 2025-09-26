@@ -266,6 +266,9 @@ export default function EVMAnalysisPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   現時点で完了すべき作業の価値
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (計画進捗率 × 総予算)
+                </p>
               </CardContent>
             </Card>
 
@@ -279,6 +282,9 @@ export default function EVMAnalysisPage() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   実際に完了した作業の価値
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (実績時間 / 計画時間 × 総予算)
                 </p>
               </CardContent>
             </Card>
@@ -294,6 +300,9 @@ export default function EVMAnalysisPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   実際に発生したコスト
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (実績時間 × 時間単価)
+                </p>
               </CardContent>
             </Card>
 
@@ -307,6 +316,9 @@ export default function EVMAnalysisPage() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   プロジェクト完了時の総コスト予測
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (AC + (BAC - EV / CPI))
                 </p>
               </CardContent>
             </Card>
@@ -325,6 +337,9 @@ export default function EVMAnalysisPage() {
                 <p className="text-xs text-muted-foreground mt-1">
                   {evmData.metrics.sv >= 0 ? "計画より進んでいます" : "計画より遅れています"}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (EV - PV)
+                </p>
               </CardContent>
             </Card>
 
@@ -341,6 +356,9 @@ export default function EVMAnalysisPage() {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {evmData.metrics.cv >= 0 ? "予算内です" : "予算を超過しています"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (EV - AC)
                 </p>
               </CardContent>
             </Card>
@@ -359,6 +377,9 @@ export default function EVMAnalysisPage() {
                 }`}>
                   {evmData.metrics.spi}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (EV / PV)
+                </p>
                 <Badge variant={
                   evmData.metrics.spi >= 1 ? "default" :
                   evmData.metrics.spi >= 0.8 ? "secondary" : "destructive"
@@ -383,6 +404,9 @@ export default function EVMAnalysisPage() {
                 }`}>
                   {evmData.metrics.cpi}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  (EV / AC)
+                </p>
                 <Badge variant={
                   evmData.metrics.cpi >= 1 ? "default" :
                   evmData.metrics.cpi >= 0.8 ? "secondary" : "destructive"
