@@ -19,7 +19,8 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 
-const baseProjectFormSchema = z.object({
+// フォーム内部で使用する型（すべてstring）
+const formSchema = z.object({
   projectNumber: z.string().min(1, "案件番号は必須です"),
   projectName: z.string().min(1, "案件名は必須です"),
   description: z.string().optional(),
@@ -28,9 +29,26 @@ const baseProjectFormSchema = z.object({
   plannedEndDate: z.string().optional(),
   actualStartDate: z.string().optional(),
   actualEndDate: z.string().optional(),
+  budget: z.string().optional(),
+  hourlyRate: z.string().optional(),
 })
 
-type ProjectFormValues = z.infer<typeof baseProjectFormSchema>
+// フォーム内部の型定義
+type FormData = z.infer<typeof formSchema>
+
+// 外部APIに送信する型（budgetとhourlyRateは数値）
+type ProjectFormValues = {
+  projectNumber: string
+  projectName: string
+  description?: string
+  status: "planning" | "developing" | "active" | "suspended" | "completed"
+  plannedStartDate?: string
+  plannedEndDate?: string
+  actualStartDate?: string
+  actualEndDate?: string
+  budget?: number
+  hourlyRate?: number
+}
 
 interface Project {
   id: string
@@ -42,6 +60,8 @@ interface Project {
   plannedEndDate: string | null
   actualStartDate: string | null
   actualEndDate: string | null
+  budget: string | null
+  hourlyRate: string | null
   createdAt: string
   updatedAt: string
 }
@@ -70,8 +90,8 @@ const formatDateForInput = (dateString: string | null) => {
 }
 
 export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = false }: ProjectFormProps) {
-  const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(baseProjectFormSchema),
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       projectNumber: project?.projectNumber || "",
       projectName: project?.projectName || "",
@@ -81,6 +101,8 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       plannedEndDate: formatDateForInput(project?.plannedEndDate || null),
       actualStartDate: formatDateForInput(project?.actualStartDate || null),
       actualEndDate: formatDateForInput(project?.actualEndDate || null),
+      budget: project?.budget || "",
+      hourlyRate: project?.hourlyRate || "",
     },
   })
 
@@ -95,19 +117,34 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
         plannedEndDate: formatDateForInput(project.plannedEndDate),
         actualStartDate: formatDateForInput(project.actualStartDate),
         actualEndDate: formatDateForInput(project.actualEndDate),
+        budget: project.budget || "",
+        hourlyRate: project.hourlyRate || "",
       })
     }
   }, [project, form])
 
-  const handleSubmit = async (data: ProjectFormValues) => {
-    await onSubmit(data)
+  const handleSubmit = async (data: FormData) => {
+    // フォームデータをAPIの型に変換
+    const submitData: ProjectFormValues = {
+      projectNumber: data.projectNumber,
+      projectName: data.projectName,
+      description: data.description,
+      status: data.status,
+      plannedStartDate: data.plannedStartDate,
+      plannedEndDate: data.plannedEndDate,
+      actualStartDate: data.actualStartDate,
+      actualEndDate: data.actualEndDate,
+      budget: data.budget ? parseFloat(data.budget) : undefined,
+      hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : undefined,
+    }
+    await onSubmit(submitData)
   }
 
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle>
-          {isEdit ? "プロジェクト編集" : "新規プロジェクト作成"}
+          {isEdit ? "案件編集" : "新規案件作成"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -154,7 +191,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
                       <FormLabel>説明</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="プロジェクトの詳細説明..."
+                          placeholder="案件の詳細説明..."
                           className="min-h-[100px]"
                           {...field}
                           value={field.value || ""}
@@ -233,7 +270,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
                         <Input type="date" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormDescription>
-                        プロジェクトが実際に開始された日付
+                        案件が実際に開始された日付
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -250,7 +287,56 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
                         <Input type="date" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormDescription>
-                        プロジェクトが実際に終了した日付
+                        案件が実際に終了した日付
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* 予算情報 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">予算情報</h3>
+
+                <FormField
+                  control={form.control}
+                  name="budget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>予算（円）</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="1000000"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        プロジェクトの総予算
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="hourlyRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>時間単価（円/時間）</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="5000"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        1時間あたりの単価（EVM分析で使用）
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

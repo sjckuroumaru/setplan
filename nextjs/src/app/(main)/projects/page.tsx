@@ -103,7 +103,7 @@ export default function ProjectsPage() {
     }
   }, [session, status, router])
 
-  // プロジェクト一覧取得
+  // 案件一覧取得
   const fetchProjects = async () => {
     try {
       setLoading(true)
@@ -121,7 +121,7 @@ export default function ProjectsPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "プロジェクト一覧の取得に失敗しました")
+        throw new Error(data.error || "案件一覧の取得に失敗しました")
       }
 
       setProjects(data.projects)
@@ -155,7 +155,7 @@ export default function ProjectsPage() {
     }
   }, [session, pagination.page, searchQuery, statusFilter])
 
-  // プロジェクト削除
+  // 案件削除
   const handleDelete = async () => {
     if (!deleteProjectId) return
 
@@ -168,14 +168,14 @@ export default function ProjectsPage() {
       
       if (!response.ok) {
         const data = await response.json()
-        const errorMessage = data.error || "プロジェクトの削除に失敗しました"
+        const errorMessage = data.error || "案件の削除に失敗しました"
         toast.error(errorMessage)
         console.warn("Delete project warning:", errorMessage)
         setDeleteProjectId(null)
         return
       }
       
-      toast.success("プロジェクトを削除しました")
+      toast.success("案件を削除しました")
       setDeleteProjectId(null)
       fetchProjects()
     } catch (error) {
@@ -209,7 +209,7 @@ export default function ProjectsPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">案件管理</h2>
           <p className="text-muted-foreground">
-            プロジェクトの管理と進捗追跡
+            案件の管理と進捗追跡
           </p>
         </div>
         {session.user.isAdmin && (
@@ -264,7 +264,7 @@ export default function ProjectsPage() {
         </CardContent>
       </Card>
 
-      {/* プロジェクト一覧テーブル */}
+      {/* 案件一覧テーブル */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -293,7 +293,7 @@ export default function ProjectsPage() {
               ) : projects.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">
-                    プロジェクトが見つかりません
+                    案件が見つかりません
                   </TableCell>
                 </TableRow>
               ) : (
@@ -395,9 +395,9 @@ export default function ProjectsPage() {
       <Dialog open={!!deleteProjectId} onOpenChange={() => setDeleteProjectId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>プロジェクトの削除</DialogTitle>
+            <DialogTitle>案件の削除</DialogTitle>
             <DialogDescription>
-              本当にこのプロジェクトを削除しますか？関連する予定実績や課題がある場合は削除できません。
+              本当にこの案件を削除しますか？関連する予定実績や課題がある場合は削除できません。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

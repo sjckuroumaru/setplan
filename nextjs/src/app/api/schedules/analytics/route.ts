@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     })
 
 
-    // ユーザー別プロジェクト別実績時間の集計
+    // ユーザー別案件別実績時間の集計
     const userProjectHours: any = {}
     const projectTotals: any = {}
     const tableData: any[] = []
@@ -90,9 +90,9 @@ export async function GET(request: NextRequest) {
       }
 
       schedule.actuals.forEach(actual => {
-        // プロジェクトフィルタリング（クライアント側で適用）
+        // 案件フィルタリング（クライアント側で適用）
         if (projectId && projectId !== "all") {
-          // 指定されたプロジェクトIDと一致しない場合はスキップ
+          // 指定された案件IDと一致しない場合はスキップ
           if (actual.projectId !== projectId) {
             return
           }
@@ -100,14 +100,14 @@ export async function GET(request: NextRequest) {
 
         const projectName = actual.project?.projectName || "その他"
         
-        // ユーザー別プロジェクト別集計
+        // ユーザー別案件別集計
         if (!userProjectHours[userName][projectName]) {
           userProjectHours[userName][projectName] = 0
         }
         userProjectHours[userName][projectName] += actual.hours
         userProjectHours[userName].total += actual.hours
         
-        // プロジェクト別総計
+        // 案件別総計
         if (!projectTotals[projectName]) {
           projectTotals[projectName] = 0
         }
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     // レスポンスデータの整形
     const userProjectData = Object.values(userProjectHours)
     
-    // プロジェクト別配分データ
+    // 案件別配分データ
     const totalHours = Object.values(projectTotals).reduce((sum: number, hours: any) => sum + hours, 0)
     const projectDistribution = Object.entries(projectTotals).map(([name, value]: [string, any]) => ({
       name,

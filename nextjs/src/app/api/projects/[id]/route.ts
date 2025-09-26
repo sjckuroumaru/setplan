@@ -14,6 +14,8 @@ const updateProjectSchema = z.object({
   plannedEndDate: z.string().optional(),
   actualStartDate: z.string().optional(),
   actualEndDate: z.string().optional(),
+  budget: z.number().optional(),
+  hourlyRate: z.number().optional(),
 })
 
 async function checkAdminPermission() {
@@ -26,7 +28,7 @@ async function checkAdminPermission() {
   return true
 }
 
-// GET - 個別プロジェクト取得
+// GET - 個別案件取得
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -51,23 +53,25 @@ export async function GET(
         plannedEndDate: true,
         actualStartDate: true,
         actualEndDate: true,
+        budget: true,
+        hourlyRate: true,
         createdAt: true,
         updatedAt: true,
       },
     })
 
     if (!project) {
-      return NextResponse.json({ error: "プロジェクトが見つかりません" }, { status: 404 })
+      return NextResponse.json({ error: "案件が見つかりません" }, { status: 404 })
     }
 
     return NextResponse.json({ project })
   } catch (error) {
     console.warn("Project fetch error:", error)
-    return NextResponse.json({ error: "プロジェクト情報の取得に失敗しました" }, { status: 500 })
+    return NextResponse.json({ error: "案件情報の取得に失敗しました" }, { status: 500 })
   }
 }
 
-// PUT - プロジェクト更新
+// PUT - 案件更新
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -88,7 +92,7 @@ export async function PUT(
     })
 
     if (!existingProject) {
-      return NextResponse.json({ error: "プロジェクトが見つかりません" }, { status: 404 })
+      return NextResponse.json({ error: "案件が見つかりません" }, { status: 404 })
     }
 
     // 重複チェック（自分以外）
@@ -111,6 +115,14 @@ export async function PUT(
       projectName: validatedData.projectName,
       description: validatedData.description,
       status: validatedData.status,
+    }
+
+    // 予算フィールドの設定
+    if (validatedData.budget !== undefined) {
+      updateData.budget = validatedData.budget
+    }
+    if (validatedData.hourlyRate !== undefined) {
+      updateData.hourlyRate = validatedData.hourlyRate
     }
 
     // 日付フィールドの変換
@@ -140,6 +152,8 @@ export async function PUT(
         plannedEndDate: true,
         actualStartDate: true,
         actualEndDate: true,
+        budget: true,
+        hourlyRate: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -152,11 +166,11 @@ export async function PUT(
     }
     
     console.warn("Project update error:", error)
-    return NextResponse.json({ error: "プロジェクトの更新に失敗しました" }, { status: 500 })
+    return NextResponse.json({ error: "案件の更新に失敗しました" }, { status: 500 })
   }
 }
 
-// DELETE - プロジェクト削除
+// DELETE - 案件削除
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -174,7 +188,7 @@ export async function DELETE(
     })
 
     if (!project) {
-      return NextResponse.json({ error: "プロジェクトが見つかりません" }, { status: 404 })
+      return NextResponse.json({ error: "案件が見つかりません" }, { status: 404 })
     }
 
     // 関連データの確認
@@ -204,9 +218,9 @@ export async function DELETE(
     })
 
     console.log(`Project ${project.projectName} deleted`)
-    return NextResponse.json({ message: "プロジェクトを削除しました" })
+    return NextResponse.json({ message: "案件を削除しました" })
   } catch (error) {
     console.warn("Project deletion error:", error)
-    return NextResponse.json({ error: "プロジェクトの削除に失敗しました" }, { status: 500 })
+    return NextResponse.json({ error: "案件の削除に失敗しました" }, { status: 500 })
   }
 }

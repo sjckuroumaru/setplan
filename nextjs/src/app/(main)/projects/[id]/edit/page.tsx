@@ -21,6 +21,8 @@ interface Project {
   plannedEndDate: string | null
   actualStartDate: string | null
   actualEndDate: string | null
+  budget: string | null
+  hourlyRate: string | null
   createdAt: string
   updatedAt: string
 }
@@ -34,6 +36,8 @@ type ProjectFormValues = {
   plannedEndDate?: string
   actualStartDate?: string
   actualEndDate?: string
+  budget?: number
+  hourlyRate?: number
 }
 
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -60,7 +64,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     }
   }, [session, status, router])
 
-  // プロジェクト情報取得
+  // 案件情報取得
   const fetchProject = async () => {
     try {
       setLoading(true)
@@ -70,7 +74,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "プロジェクト情報の取得に失敗しました")
+        throw new Error(data.error || "案件情報の取得に失敗しました")
       }
 
       setProject(data.project)
@@ -104,10 +108,10 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || "プロジェクトの更新に失敗しました")
+        throw new Error(result.error || "案件の更新に失敗しました")
       }
 
-      toast.success("プロジェクト情報を更新しました")
+      toast.success("案件情報を更新しました")
       router.push("/projects")
     } catch (error) {
       console.warn("Update project error:", error)
@@ -142,7 +146,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
             </Link>
           </Button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">プロジェクト編集</h2>
+            <h2 className="text-3xl font-bold tracking-tight">案件編集</h2>
             <p className="text-muted-foreground">エラーが発生しました</p>
           </div>
         </div>
@@ -163,9 +167,9 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
           </Link>
         </Button>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">プロジェクト編集</h2>
+          <h2 className="text-3xl font-bold tracking-tight">案件編集</h2>
           <p className="text-muted-foreground">
-            {project ? `${project.projectName}の情報を編集` : "プロジェクト情報を編集"}
+            {project ? `${project.projectName}の情報を編集` : "案件情報を編集"}
           </p>
         </div>
       </div>

@@ -49,6 +49,8 @@ model Project {
   plannedEndDate   DateTime?
   actualStartDate  DateTime?
   actualEndDate    DateTime?
+  budget           Decimal?  @db.Decimal(15, 2) // 予算（円）
+  hourlyRate       Decimal?  @db.Decimal(10, 2) // 時間単価（円/時間）
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

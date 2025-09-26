@@ -197,7 +197,7 @@ export default function IssuesPage() {
     }
   }
 
-  // プロジェクト一覧取得
+  // 案件一覧取得
   const fetchProjects = async () => {
     try {
       const response = await fetch("/api/projects")
@@ -297,7 +297,7 @@ export default function IssuesPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">課題管理</h2>
           <p className="text-muted-foreground">
-            プロジェクトの課題を追跡・管理
+            案件の課題を追跡・管理
           </p>
         </div>
         <Link href="/issues/new">
@@ -422,7 +422,7 @@ export default function IssuesPage() {
 
             <Select value={projectFilter} onValueChange={setProjectFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="プロジェクト" />
+                <SelectValue placeholder="案件" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">すべて</SelectItem>
@@ -467,7 +467,7 @@ export default function IssuesPage() {
               <TableRow>
                 <TableHead className="w-[100px]">ID</TableHead>
                 <TableHead>課題</TableHead>
-                <TableHead>プロジェクト</TableHead>
+                <TableHead>案件</TableHead>
                 <TableHead>ステータス</TableHead>
                 <TableHead>優先度</TableHead>
                 <TableHead>担当者</TableHead>

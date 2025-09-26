@@ -173,14 +173,14 @@ export async function PUT(
       return NextResponse.json({ error: "更新権限がありません" }, { status: 403 })
     }
 
-    // プロジェクトの存在確認（指定されている場合）
+    // 案件の存在確認（指定されている場合）
     if (validatedData.projectId) {
       const project = await prisma.project.findUnique({
         where: { id: validatedData.projectId },
       })
 
       if (!project) {
-        return NextResponse.json({ error: "指定されたプロジェクトが見つかりません" }, { status: 404 })
+        return NextResponse.json({ error: "指定された案件が見つかりません" }, { status: 404 })
       }
     }
 

@@ -20,6 +20,8 @@ type ProjectFormValues = {
   plannedEndDate?: string
   actualStartDate?: string
   actualEndDate?: string
+  budget?: number
+  hourlyRate?: number
 }
 
 export default function NewProjectPage() {
@@ -59,10 +61,10 @@ export default function NewProjectPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || "プロジェクトの作成に失敗しました")
+        throw new Error(result.error || "案件の作成に失敗しました")
       }
 
-      toast.success("プロジェクトを作成しました")
+      toast.success("案件を作成しました")
       router.push("/projects")
     } catch (error) {
       console.warn("Create project error:", error)
@@ -96,9 +98,9 @@ export default function NewProjectPage() {
           </Link>
         </Button>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">新規プロジェクト作成</h2>
+          <h2 className="text-3xl font-bold tracking-tight">新規案件作成</h2>
           <p className="text-muted-foreground">
-            新しいプロジェクトを作成します
+            新しい案件を作成します
           </p>
         </div>
       </div>

@@ -14,6 +14,8 @@ const createProjectSchema = z.object({
   plannedEndDate: z.string().optional(),
   actualStartDate: z.string().optional(),
   actualEndDate: z.string().optional(),
+  budget: z.number().optional(),
+  hourlyRate: z.number().optional(),
 })
 
 // 管理者権限チェック
@@ -27,7 +29,7 @@ async function checkAdminPermission() {
   return true
 }
 
-// GET - プロジェクト一覧取得
+// GET - 案件一覧取得
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -79,6 +81,8 @@ export async function GET(request: NextRequest) {
           plannedEndDate: true,
           actualStartDate: true,
           actualEndDate: true,
+          budget: true,
+          hourlyRate: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -107,11 +111,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.warn("Project list error:", error)
-    return NextResponse.json({ error: "プロジェクト一覧の取得に失敗しました" }, { status: 500 })
+    return NextResponse.json({ error: "案件一覧の取得に失敗しました" }, { status: 500 })
   }
 }
 
-// POST - 新規プロジェクト作成
+// POST - 新規案件作成
 export async function POST(request: NextRequest) {
   try {
     const isAdmin = await checkAdminPermission()
@@ -139,6 +143,14 @@ export async function POST(request: NextRequest) {
       status: validatedData.status,
     }
 
+    // 予算フィールドの設定
+    if (validatedData.budget !== undefined) {
+      projectData.budget = validatedData.budget
+    }
+    if (validatedData.hourlyRate !== undefined) {
+      projectData.hourlyRate = validatedData.hourlyRate
+    }
+
     if (validatedData.plannedStartDate) {
       projectData.plannedStartDate = new Date(validatedData.plannedStartDate)
     }
@@ -164,6 +176,8 @@ export async function POST(request: NextRequest) {
         plannedEndDate: true,
         actualStartDate: true,
         actualEndDate: true,
+        budget: true,
+        hourlyRate: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -176,6 +190,6 @@ export async function POST(request: NextRequest) {
     }
     
     console.warn("Project creation error:", error)
-    return NextResponse.json({ error: "プロジェクトの作成に失敗しました" }, { status: 500 })
+    return NextResponse.json({ error: "案件の作成に失敗しました" }, { status: 500 })
   }
 }

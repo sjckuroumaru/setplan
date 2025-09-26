@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // プロジェクト一覧も返す（フィルター用）
+    // 案件一覧も返す（フィルター用）
     const projects = await prisma.project.findMany({
       select: {
         id: true,

@@ -195,13 +195,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createIssueSchema.parse(body)
 
-    // プロジェクトの存在確認
+    // 案件の存在確認
     const project = await prisma.project.findUnique({
       where: { id: validatedData.projectId },
     })
 
     if (!project) {
-      return NextResponse.json({ error: "指定されたプロジェクトが見つかりません" }, { status: 404 })
+      return NextResponse.json({ error: "指定された案件が見つかりません" }, { status: 404 })
     }
 
     // 担当者の存在確認（指定されている場合）

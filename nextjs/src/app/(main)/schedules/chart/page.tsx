@@ -156,7 +156,7 @@ export default function ChartPage() {
     }
   }
 
-  // プロジェクト一覧取得
+  // 案件一覧取得
   const fetchProjects = async () => {
     try {
       const response = await fetch("/api/projects")
@@ -373,10 +373,10 @@ export default function ChartPage() {
 
             <Select value={selectedProject} onValueChange={setSelectedProject}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="プロジェクト" />
+                <SelectValue placeholder="案件" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">すべてのプロジェクト</SelectItem>
+                <SelectItem value="all">すべての案件</SelectItem>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.projectName}
@@ -470,9 +470,9 @@ export default function ChartPage() {
         <TabsContent value="stacked" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>ユーザー別プロジェクト実績時間</CardTitle>
+              <CardTitle>ユーザー別案件実績時間</CardTitle>
               <CardDescription>
-                各ユーザーのプロジェクト別作業時間の内訳
+                各ユーザーの案件別作業時間の内訳
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -487,7 +487,7 @@ export default function ChartPage() {
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  {/* 動的なプロジェクト別バーの生成 */}
+                  {/* 動的な案件別バーの生成 */}
                   {projectDistribution.map((project, index) => (
                     <Bar 
                       key={project.name} 
@@ -505,9 +505,9 @@ export default function ChartPage() {
         <TabsContent value="pie" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>プロジェクト別時間配分</CardTitle>
+              <CardTitle>案件別時間配分</CardTitle>
               <CardDescription>
-                全体の作業時間におけるプロジェクトの割合
+                全体の作業時間における案件の割合
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -533,7 +533,7 @@ export default function ChartPage() {
                 </ResponsiveContainer>
                 
                 <div className="space-y-4">
-                  <h4 className="text-sm font-medium">プロジェクト別詳細</h4>
+                  <h4 className="text-sm font-medium">案件別詳細</h4>
                   {projectDistribution.map((project, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -562,7 +562,7 @@ export default function ChartPage() {
             <CardHeader>
               <CardTitle>実績時間表分析</CardTitle>
               <CardDescription>
-                年月・ユーザー・プロジェクト別の実績時間詳細
+                年月・ユーザー・案件別の実績時間詳細
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -638,9 +638,9 @@ export default function ChartPage() {
                     ))}
                   </div>
                   
-                  {/* プロジェクト別小計 */}
+                  {/* 案件別小計 */}
                   <div className="grid gap-2">
-                    <h4 className="font-medium text-sm text-muted-foreground">プロジェクト別小計</h4>
+                    <h4 className="font-medium text-sm text-muted-foreground">案件別小計</h4>
                     {Object.entries(
                       tableData.reduce((acc: Record<string, number>, row) => {
                         acc[row.projectName] = (acc[row.projectName] || 0) + row.totalHours

@@ -22,6 +22,7 @@ import {
   ChevronRight,
   ChevronDown,
   Files,
+  TrendingUp,
   type LucideIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -70,6 +71,11 @@ const menuItems: MenuItem[] = [
     title: "ガントチャート",
     href: "/gantt",
     icon: GitBranch,
+  },
+  {
+    title: "EVM分析",
+    href: "/evm-analysis",
+    icon: TrendingUp,
   },
   {
     title: "書類管理",

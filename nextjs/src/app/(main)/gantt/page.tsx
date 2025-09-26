@@ -145,7 +145,7 @@ export default function GanttChartPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">ガントチャート</h2>
           <p className="text-muted-foreground">
-            プロジェクトの進捗を視覚的に管理
+            案件の進捗を視覚的に管理
           </p>
         </div>
         <div className="flex gap-2">
@@ -171,10 +171,10 @@ export default function GanttChartPage() {
               <Select value={selectedProject} onValueChange={setSelectedProject}>
                 <SelectTrigger className="w-48">
                   <FolderOpen className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="全プロジェクト" />
+                  <SelectValue placeholder="全案件" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全プロジェクト</SelectItem>
+                  <SelectItem value="all">全案件</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.projectName}
