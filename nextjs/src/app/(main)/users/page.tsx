@@ -47,6 +47,11 @@ interface User {
   lastName: string
   firstName: string
   department: string | null
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
   isAdmin: boolean
   status: string
   createdAt: string
@@ -273,7 +278,7 @@ export default function UsersPage() {
                     <TableCell>{user.lastName} {user.firstName}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.department || "-"}</TableCell>
+                    <TableCell>{user.departmentRef?.name ||  "-"}</TableCell>
                     <TableCell>
                       <Badge variant={user.isAdmin ? "default" : "secondary"}>
                         {user.isAdmin ? "管理者" : "一般"}

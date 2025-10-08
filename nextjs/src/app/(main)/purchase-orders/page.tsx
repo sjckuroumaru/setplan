@@ -50,19 +50,17 @@ type PurchaseOrder = {
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
   sent: "default",
-  confirmed: "outline",
-  delivered: "outline",
-  accepted: "default",
-  cancelled: "destructive",
+  approved: "default",
+  rejected: "destructive",
+  closed: "outline",
 }
 
 const statusLabels: Record<string, string> = {
   draft: "下書き",
   sent: "送付済",
-  confirmed: "確認済",
-  delivered: "納品済",
-  accepted: "検収済",
-  cancelled: "キャンセル",
+  approved: "承認済",
+  rejected: "却下",
+  closed: "完了",
 }
 
 export default function PurchaseOrdersPage() {

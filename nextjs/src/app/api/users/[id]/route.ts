@@ -13,7 +13,8 @@ const updateUserSchema = z.object({
   password: z.string().min(6, "パスワードは6文字以上で入力してください").optional(),
   lastName: z.string().min(1, "姓は必須です"),
   firstName: z.string().min(1, "名は必須です"),
-  department: z.string().optional(),
+  department: z.string().optional(), // 旧フィールド（後方互換性のため残す）
+  departmentId: z.string().nullable().optional(),
   isAdmin: z.boolean().default(false),
   status: z.enum(["active", "inactive"]).default("active"),
 })
@@ -51,6 +52,13 @@ export async function GET(
         lastName: true,
         firstName: true,
         department: true,
+        departmentId: true,
+        departmentRef: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
         isAdmin: true,
         status: true,
         sealImagePath: true,
@@ -94,6 +102,17 @@ export async function PUT(
       return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 })
     }
 
+    // departmentIdが指定されている場合、部署の存在確認
+    if (validatedData.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: validatedData.departmentId },
+      })
+
+      if (!department) {
+        return NextResponse.json({ error: "指定された部署が見つかりません" }, { status: 400 })
+      }
+    }
+
     // 重複チェック（自分以外）
     const duplicateUser = await prisma.user.findFirst({
       where: {
@@ -131,6 +150,7 @@ export async function PUT(
       lastName: validatedData.lastName,
       firstName: validatedData.firstName,
       department: validatedData.department,
+      departmentId: validatedData.departmentId === null ? null : validatedData.departmentId,
       isAdmin: validatedData.isAdmin,
       status: validatedData.status,
     }
@@ -151,6 +171,13 @@ export async function PUT(
         lastName: true,
         firstName: true,
         department: true,
+        departmentId: true,
+        departmentRef: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
         isAdmin: true,
         status: true,
         createdAt: true,

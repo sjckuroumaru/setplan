@@ -45,6 +45,17 @@ interface Project {
   projectName: string
   description: string | null
   status: string
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
+  purchaseOrderId: string | null
+  purchaseOrderRef?: {
+    id: string
+    orderNumber: string
+    subject: string
+  } | null
   plannedStartDate: string | null
   plannedEndDate: string | null
   actualStartDate: string | null
@@ -272,10 +283,11 @@ export default function ProjectsPage() {
               <TableRow>
                 <TableHead>案件番号</TableHead>
                 <TableHead>案件名</TableHead>
+                <TableHead>担当部署</TableHead>
+                <TableHead>関連発注書</TableHead>
                 <TableHead>ステータス</TableHead>
                 <TableHead>開始予定日</TableHead>
                 <TableHead>終了予定日</TableHead>
-                <TableHead>作成日時</TableHead>
                 <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -283,7 +295,7 @@ export default function ProjectsPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
@@ -292,7 +304,7 @@ export default function ProjectsPage() {
                 ))
               ) : projects.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     案件が見つかりません
                   </TableCell>
                 </TableRow>
@@ -318,15 +330,25 @@ export default function ProjectsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
+                      {project.departmentRef?.name || "-"}
+                    </TableCell>
+                    <TableCell>
+                      {project.purchaseOrderRef ? (
+                        <div className="text-sm">
+                          <div className="font-medium">{project.purchaseOrderRef.orderNumber}</div>
+                          <div className="text-muted-foreground truncate max-w-[150px]">
+                            {project.purchaseOrderRef.subject}
+                          </div>
+                        </div>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={statusVariants[project.status as keyof typeof statusVariants]}>
                         {statusLabels[project.status as keyof typeof statusLabels]}
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(project.plannedStartDate)}</TableCell>
                     <TableCell>{formatDate(project.plannedEndDate)}</TableCell>
-                    <TableCell>
-                      {new Date(project.createdAt).toLocaleDateString("ja-JP")}
-                    </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button

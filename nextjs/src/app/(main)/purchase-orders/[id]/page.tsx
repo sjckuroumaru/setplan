@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Loader2, ArrowLeft, Pencil, Download, Copy, Trash } from "lucide-react"
 import { toast } from "sonner"
 import { useSession } from "next-auth/react"
@@ -67,19 +74,17 @@ type PurchaseOrderDetail = {
 const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   draft: "secondary",
   sent: "default",
-  confirmed: "outline",
-  delivered: "outline",
-  accepted: "default",
-  cancelled: "destructive",
+  approved: "default",
+  rejected: "destructive",
+  closed: "outline",
 }
 
 const statusLabels: Record<string, string> = {
   draft: "下書き",
   sent: "送付済",
-  confirmed: "確認済",
-  delivered: "納品済",
-  accepted: "検収済",
-  cancelled: "キャンセル",
+  approved: "承認済",
+  rejected: "却下",
+  closed: "完了",
 }
 
 export default function PurchaseOrderDetailPage({
@@ -92,6 +97,7 @@ export default function PurchaseOrderDetailPage({
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrderDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null)
+  const [changingStatus, setChangingStatus] = useState(false)
 
   useEffect(() => {
     params.then(setResolvedParams)
@@ -174,6 +180,42 @@ export default function PurchaseOrderDetailPage({
     return (session.user.isAdmin || purchaseOrder.user.id === session.user.id) && purchaseOrder.status === "draft"
   }
 
+  const canChangeStatus = () => {
+    if (!session?.user || !purchaseOrder) return false
+    return session.user.isAdmin || purchaseOrder.user.id === session.user.id
+  }
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!resolvedParams || !purchaseOrder) return
+    if (newStatus === purchaseOrder.status) return
+
+    setChangingStatus(true)
+    try {
+      const response = await fetch(`/api/purchase-orders/${resolvedParams.id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "ステータスの更新に失敗しました")
+      }
+
+      const { purchaseOrder: updated } = await response.json()
+      setPurchaseOrder(updated)
+      toast.success("ステータスを更新しました")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "ステータスの更新に失敗しました")
+      // エラー時は元の状態に戻す
+      fetchPurchaseOrder()
+    } finally {
+      setChangingStatus(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -225,9 +267,32 @@ export default function PurchaseOrderDetailPage({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>発注書詳細</CardTitle>
-            <Badge variant={statusColors[purchaseOrder.status]}>
-              {statusLabels[purchaseOrder.status]}
-            </Badge>
+            <div className="flex items-center gap-3">
+              {canChangeStatus() && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">ステータス:</span>
+                  <Select
+                    value={purchaseOrder.status}
+                    onValueChange={handleStatusChange}
+                    disabled={changingStatus}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">下書き</SelectItem>
+                      <SelectItem value="sent">送付済</SelectItem>
+                      <SelectItem value="approved">承認済</SelectItem>
+                      <SelectItem value="rejected">却下</SelectItem>
+                      <SelectItem value="closed">完了</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <Badge variant={statusColors[purchaseOrder.status]}>
+                {statusLabels[purchaseOrder.status]}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">

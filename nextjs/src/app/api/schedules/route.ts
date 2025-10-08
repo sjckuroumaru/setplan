@@ -53,16 +53,41 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const userId = searchParams.get("userId")
+    const departmentId = searchParams.get("departmentId")
     const search = searchParams.get("search")
 
     const skip = (page - 1) * limit
 
     // フィルター条件
     const where: any = {}
-    
+
     // ユーザーフィルター
     if (userId) {
       where.userId = userId
+    }
+
+    // 部署フィルター（プロジェクト経由）
+    if (departmentId && departmentId !== "all") {
+      where.OR = [
+        {
+          plans: {
+            some: {
+              project: {
+                departmentId: departmentId,
+              },
+            },
+          },
+        },
+        {
+          actuals: {
+            some: {
+              project: {
+                departmentId: departmentId,
+              },
+            },
+          },
+        },
+      ]
     }
 
     // 日付範囲フィルター
@@ -126,6 +151,13 @@ export async function GET(request: NextRequest) {
                   id: true,
                   projectNumber: true,
                   projectName: true,
+                  departmentId: true,
+                  department: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -138,6 +170,13 @@ export async function GET(request: NextRequest) {
                   id: true,
                   projectNumber: true,
                   projectName: true,
+                  departmentId: true,
+                  department: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -242,6 +281,13 @@ export async function POST(request: NextRequest) {
                   id: true,
                   projectNumber: true,
                   projectName: true,
+                  departmentId: true,
+                  department: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -254,6 +300,13 @@ export async function POST(request: NextRequest) {
                   id: true,
                   projectNumber: true,
                   projectName: true,
+                  departmentId: true,
+                  department: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },

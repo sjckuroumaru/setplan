@@ -113,6 +113,11 @@ const menuItems: MenuItem[] = [
         icon: Briefcase,
       },
       {
+        title: "部署・チーム管理",
+        href: "/settings/departments",
+        icon: Users,
+      },
+      {
         title: "ユーザー管理",
         href: "/users",
         icon: Users,
@@ -188,19 +193,14 @@ export function Sidebar({ isOpen = true, onClose, className }: SidebarProps) {
           </div>
           <nav className="space-y-1 p-4">
             {menuItems
-              .map((item) => {
-                // 設定メニューの場合、サブアイテムをフィルタリング
-                if (item.title === "設定" && item.subItems) {
-                  const filteredSubItems = item.subItems.filter((subItem) => {
-                    // ユーザー管理は管理者のみ表示
-                    if (subItem.title === "ユーザー管理") {
-                      return isAdmin
-                    }
-                    return true
-                  })
-                  item = { ...item, subItems: filteredSubItems }
+              .filter((item) => {
+                // 設定メニューは管理者のみ表示
+                if (item.title === "設定") {
+                  return isAdmin
                 }
-
+                return true
+              })
+              .map((item) => {
                 const Icon = item.icon
                 const isActive = item.href 
                   ? pathname === item.href

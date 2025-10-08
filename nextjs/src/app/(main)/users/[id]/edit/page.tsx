@@ -18,7 +18,11 @@ interface User {
   email: string
   lastName: string
   firstName: string
-  department: string | null
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
   isAdmin: boolean
   status: string
   createdAt: string
@@ -32,7 +36,7 @@ type UserFormValues = {
   password?: string
   lastName: string
   firstName: string
-  department?: string
+  departmentId?: string | null
   isAdmin: boolean
   status: "active" | "inactive"
 }

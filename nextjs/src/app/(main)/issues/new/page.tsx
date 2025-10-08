@@ -24,11 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ProjectSelect } from "@/components/ui/project-select"
+import { ProjectSelect, Project } from "@/components/ui/project-select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   Save,
   AlertCircle,
   Calendar,
@@ -55,6 +55,8 @@ export default function NewIssuePage() {
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -79,15 +81,24 @@ export default function NewIssuePage() {
     async function fetchData() {
       try {
         setIsDataLoading(true)
-        const usersResponse = await fetch("/api/users?basic=true&limit=1000&status=active", { cache: 'no-store' })
+        setProjectsLoading(true)
 
-        if (!usersResponse.ok) {
+        const [usersResponse, projectsResponse] = await Promise.all([
+          fetch("/api/users?basic=true&limit=1000&status=active", { cache: 'no-store' }),
+          fetch("/api/projects?activeOnly=true")
+        ])
+
+        if (!usersResponse.ok || !projectsResponse.ok) {
           throw new Error("データの取得に失敗しました")
         }
 
-        const usersData = await usersResponse.json()
+        const [usersData, projectsData] = await Promise.all([
+          usersResponse.json(),
+          projectsResponse.json()
+        ])
 
         setUsers(usersData.users || [])
+        setProjects(projectsData.projects || [])
 
         // 担当者の初期値を現在のユーザーに設定
         if (session?.user?.id) {
@@ -101,6 +112,7 @@ export default function NewIssuePage() {
         setError("データの読み込みに失敗しました")
       } finally {
         setIsDataLoading(false)
+        setProjectsLoading(false)
       }
     }
 
@@ -272,6 +284,8 @@ export default function NewIssuePage() {
                     }
                     disabled={isLoading}
                     required
+                    projects={projects}
+                    loading={projectsLoading}
                   />
                 </div>
 

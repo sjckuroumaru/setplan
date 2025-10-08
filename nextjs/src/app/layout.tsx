@@ -15,7 +15,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Set Plan",
+  title: {
+    template: "%s | Set Plan",
+    default: "Set Plan",
+  },
   description: "Set Plan",
 };
 

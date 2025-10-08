@@ -10,6 +10,8 @@ const createProjectSchema = z.object({
   projectName: z.string().min(1, "案件名は必須です").max(255, "案件名は255文字以内で入力してください"),
   description: z.string().max(10000, "説明は10000文字以内で入力してください").optional(),
   status: z.enum(["planning", "developing", "active", "suspended", "completed"]).default("planning"),
+  departmentId: z.string().nullable().optional(),
+  purchaseOrderId: z.string().nullable().optional(),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   actualStartDate: z.string().optional(),
@@ -44,28 +46,34 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || ""
     const status = searchParams.get("status") || ""
     const activeOnly = searchParams.get("activeOnly") === "true"
+    const departmentId = searchParams.get("departmentId") || ""
 
     const skip = limit ? (page - 1) * limit : undefined
 
     // フィルター条件
     const where: any = {}
-    
+
     if (search) {
       where.OR = [
         { projectNumber: { contains: search, mode: "insensitive" } },
         { projectName: { contains: search, mode: "insensitive" } },
       ]
     }
-    
+
     if (status && status !== "all") {
       where.status = status
     }
-    
+
     // activeOnlyが指定された場合、計画中・開発中・稼働中のみ取得
     if (activeOnly) {
       where.status = {
         in: ["planning", "developing", "active"]
       }
+    }
+
+    // departmentIdが指定された場合、その部署に紐づく案件のみ取得
+    if (departmentId && departmentId !== "all") {
+      where.departmentId = departmentId
     }
 
     const [projects, total] = await Promise.all([
@@ -77,6 +85,21 @@ export async function GET(request: NextRequest) {
           projectName: true,
           description: true,
           status: true,
+          departmentId: true,
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          purchaseOrderId: true,
+          purchaseOrder: {
+            select: {
+              id: true,
+              orderNumber: true,
+              subject: true,
+            },
+          },
           plannedStartDate: true,
           plannedEndDate: true,
           actualStartDate: true,
@@ -126,6 +149,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createProjectSchema.parse(body)
 
+    // departmentIdが指定されている場合、部署の存在確認
+    if (validatedData.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: validatedData.departmentId },
+      })
+
+      if (!department) {
+        return NextResponse.json({ error: "指定された部署が見つかりません" }, { status: 400 })
+      }
+    }
+
+    // purchaseOrderIdが指定されている場合、発注書の存在確認
+    if (validatedData.purchaseOrderId) {
+      const purchaseOrder = await prisma.purchaseOrder.findUnique({
+        where: { id: validatedData.purchaseOrderId },
+      })
+
+      if (!purchaseOrder) {
+        return NextResponse.json({ error: "指定された発注書が見つかりません" }, { status: 400 })
+      }
+    }
+
     // 重複チェック
     const existingProject = await prisma.project.findUnique({
       where: { projectNumber: validatedData.projectNumber },
@@ -135,12 +180,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "案件番号が既に存在します" }, { status: 400 })
     }
 
-    // 日付フィールドの変換
+    // データの準備
     const projectData: any = {
       projectNumber: validatedData.projectNumber,
       projectName: validatedData.projectName,
       description: validatedData.description,
       status: validatedData.status,
+      departmentId: validatedData.departmentId === null ? null : validatedData.departmentId,
+      purchaseOrderId: validatedData.purchaseOrderId === null ? null : validatedData.purchaseOrderId,
     }
 
     // 予算フィールドの設定
@@ -151,6 +198,7 @@ export async function POST(request: NextRequest) {
       projectData.hourlyRate = validatedData.hourlyRate
     }
 
+    // 日付フィールドの変換
     if (validatedData.plannedStartDate) {
       projectData.plannedStartDate = new Date(validatedData.plannedStartDate)
     }
@@ -172,6 +220,21 @@ export async function POST(request: NextRequest) {
         projectName: true,
         description: true,
         status: true,
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        purchaseOrderId: true,
+        purchaseOrder: {
+          select: {
+            id: true,
+            orderNumber: true,
+            subject: true,
+          },
+        },
         plannedStartDate: true,
         plannedEndDate: true,
         actualStartDate: true,

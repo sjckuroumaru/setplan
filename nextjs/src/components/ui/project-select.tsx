@@ -9,11 +9,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-interface Project {
+export interface Project {
   id: string
   projectNumber: string
   projectName: string
   status: string
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
 }
 
 interface ProjectSelectProps {
@@ -23,6 +27,8 @@ interface ProjectSelectProps {
   disabled?: boolean
   className?: string
   required?: boolean
+  projects?: Project[] // 親コンポーネントからプロジェクトリストを渡す場合
+  loading?: boolean // 親コンポーネントでのローディング状態
 }
 
 export function ProjectSelect({
@@ -32,31 +38,40 @@ export function ProjectSelect({
   disabled = false,
   className,
   required = false,
+  projects: externalProjects,
+  loading: externalLoading,
 }: ProjectSelectProps) {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
+  const [internalProjects, setInternalProjects] = useState<Project[]>([])
+  const [internalLoading, setInternalLoading] = useState(true)
+
+  // 外部からprojectsが渡されている場合はそれを使用、なければ自分でfetch
+  const projects = externalProjects ?? internalProjects
+  const loading = externalLoading ?? (externalProjects ? false : internalLoading)
 
   useEffect(() => {
-    fetchActiveProjects()
-  }, [])
+    // 外部からprojectsが渡されている場合はfetchしない
+    if (externalProjects === undefined) {
+      fetchActiveProjects()
+    }
+  }, [externalProjects])
 
   const fetchActiveProjects = async () => {
     try {
-      setLoading(true)
+      setInternalLoading(true)
       // ステータスが計画中、開発中、稼働中の案件のみ取得（停止中・完了を除外）
       // limitを設定しないことで全件取得
       const response = await fetch("/api/projects?activeOnly=true")
       const data = await response.json()
-      
+
       if (response.ok) {
-        setProjects(data.projects || [])
+        setInternalProjects(data.projects || [])
       } else {
         console.error("Failed to fetch projects:", data.error)
       }
     } catch (error) {
       console.error("Failed to fetch projects:", error)
     } finally {
-      setLoading(false)
+      setInternalLoading(false)
     }
   }
 
@@ -79,6 +94,11 @@ export function ProjectSelect({
           projects.map((project) => (
             <SelectItem key={project.id} value={project.id}>
               {project.projectNumber} - {project.projectName}
+              {project.departmentRef && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({project.departmentRef.name})
+                </span>
+              )}
             </SelectItem>
           ))
         )}

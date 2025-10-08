@@ -9,6 +9,7 @@ import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -51,6 +52,11 @@ interface Project {
   id: string
   projectNumber: string
   projectName: string
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
 }
 
 interface ScheduleItem {
@@ -117,21 +123,41 @@ export default function SchedulesPage() {
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [userFilter, setUserFilter] = useState("all")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [users, setUsers] = useState<{ id: string; name: string }[]>([])
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
+  const [userFilterInitialized, setUserFilterInitialized] = useState(false)
+  const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
 
   // 認証チェック
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
   }, [session, status, router])
+
+  // 初期ユーザーフィルター適用（一般ユーザーのみ）
+  useEffect(() => {
+    if (session && !userFilterInitialized && users.length > 0 && !session.user.isAdmin) {
+      setUserFilter(session.user.id)
+      setUserFilterInitialized(true)
+    }
+  }, [session, userFilterInitialized, users.length])
+
+  // 初期部署フィルター適用（全ユーザー）
+  useEffect(() => {
+    if (session && !departmentFilterInitialized && departments.length > 0 && session.user.departmentId) {
+      setDepartmentFilter(session.user.departmentId)
+      setDepartmentFilterInitialized(true)
+    }
+  }, [session, departmentFilterInitialized, departments.length])
 
   // ユーザー一覧取得（全ユーザーが使用可能）
   const fetchUsers = async () => {
@@ -149,6 +175,19 @@ export default function SchedulesPage() {
     }
   }
 
+  // 部署一覧取得
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch("/api/departments?basic=true&limit=1000")
+      const data = await response.json()
+      if (response.ok) {
+        setDepartments(data.departments || [])
+      }
+    } catch (error) {
+      console.warn("Failed to fetch departments:", error)
+    }
+  }
+
   // 予定実績一覧取得
   const fetchSchedules = async (pageNumber: number) => {
     try {
@@ -163,6 +202,9 @@ export default function SchedulesPage() {
       if (searchQuery) params.append("search", searchQuery)
       if (userFilter && userFilter !== "all") {
         params.append("userId", userFilter)
+      }
+      if (departmentFilter && departmentFilter !== "all") {
+        params.append("departmentId", departmentFilter)
       }
       if (startDate) params.append("startDate", startDate)
       if (endDate) params.append("endDate", endDate)
@@ -188,6 +230,7 @@ export default function SchedulesPage() {
   useEffect(() => {
     if (session) {
       fetchUsers()
+      fetchDepartments()
     }
   }, [session])
 
@@ -196,14 +239,14 @@ export default function SchedulesPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, userFilter, startDate, endDate, resetToFirstPage])
+  }, [searchQuery, userFilter, departmentFilter, startDate, endDate, resetToFirstPage])
 
   // データ取得
   useEffect(() => {
     if (session) {
       fetchSchedules(currentPage)
     }
-  }, [session, currentPage, searchQuery, userFilter, startDate, endDate])
+  }, [session, currentPage, searchQuery, userFilter, departmentFilter, startDate, endDate])
 
   // 予定実績削除
   const handleDelete = async () => {
@@ -312,56 +355,104 @@ export default function SchedulesPage() {
               <CardTitle>フィルター</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="検索..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+              <div className="space-y-4">
+                {/* 1行目 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="search">検索</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="search"
+                        placeholder="検索..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="user-filter">ユーザー</Label>
+                    <Select key={`user-${userFilter}`} value={userFilter} onValueChange={setUserFilter}>
+                      <SelectTrigger id="user-filter">
+                        <SelectValue placeholder="ユーザーを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">すべて</SelectItem>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="department-filter">部署・チーム</Label>
+                    <Select key={`dept-${departmentFilter}`} value={departmentFilter} onValueChange={setDepartmentFilter}>
+                      <SelectTrigger id="department-filter">
+                        <SelectValue placeholder="部署・チームを選択" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">すべて</SelectItem>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                
-                <Select value={userFilter} onValueChange={setUserFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="ユーザー" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">すべて</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
 
-                <Input
-                  type="date"
-                  placeholder="開始日"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+                {/* 2行目 */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label htmlFor="start-date">開始日</Label>
+                    <Input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
 
-                <Input
-                  type="date"
-                  placeholder="終了日"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                  <div className="space-y-2">
+                    <Label htmlFor="end-date">終了日</Label>
+                    <Input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </div>
 
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchQuery("")
-                    setUserFilter("all")
-                    setStartDate("")
-                    setEndDate("")
-                  }}
-                >
-                  クリア
-                </Button>
+                  <div className="md:col-span-2">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSearchQuery("")
+                        setStartDate("")
+                        setEndDate("")
+                        // 初期フィルター状態に戻す
+                        if (session?.user.isAdmin) {
+                          // 管理者: 自身の部署のみ
+                          setDepartmentFilter(session.user.departmentId || "all")
+                          setUserFilter("all")
+                        } else {
+                          // 一般ユーザー: 自身の部署 + 自身のユーザーID
+                          setDepartmentFilter(session?.user.departmentId || "all")
+                          setUserFilter(session?.user.id || "all")
+                        }
+                      }}
+                    >
+                      フィルターをクリア
+                    </Button>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -416,13 +507,13 @@ export default function SchedulesPage() {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {getTotalHours(schedule.actuals).toFixed(1)}h
+                            {getTotalHours(schedule.actuals).toFixed(2)}h
                           </div>
                         </TableCell>
                         <TableCell className="max-w-xs">
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {schedule.plans.slice(0, 2).map((plan, index) => (
-                              <Badge key={index} variant="outline" className="text-xs max-w-[150px] truncate">
+                              <Badge key={index} variant="outline" className="text-xs max-w-[150px] truncate text-left justify-start">
                                 {plan.content}
                               </Badge>
                             ))}
@@ -436,7 +527,7 @@ export default function SchedulesPage() {
                         <TableCell className="max-w-xs">
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {schedule.actuals.slice(0, 2).map((actual, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs max-w-[150px] truncate">
+                              <Badge key={index} variant="secondary" className="text-xs max-w-[150px] truncate text-left justify-start">
                                 {actual.content}
                               </Badge>
                             ))}

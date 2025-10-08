@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -25,6 +25,8 @@ const formSchema = z.object({
   projectName: z.string().min(1, "案件名は必須です"),
   description: z.string().optional(),
   status: z.enum(["planning", "developing", "active", "suspended", "completed"]),
+  departmentId: z.string().nullable().optional(),
+  purchaseOrderId: z.string().nullable().optional(),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   actualStartDate: z.string().optional(),
@@ -42,6 +44,8 @@ type ProjectFormValues = {
   projectName: string
   description?: string
   status: "planning" | "developing" | "active" | "suspended" | "completed"
+  departmentId?: string | null
+  purchaseOrderId?: string | null
   plannedStartDate?: string
   plannedEndDate?: string
   actualStartDate?: string
@@ -56,6 +60,17 @@ interface Project {
   projectName: string
   description: string | null
   status: string
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
+  purchaseOrderId: string | null
+  purchaseOrderRef?: {
+    id: string
+    orderNumber: string
+    subject: string
+  } | null
   plannedStartDate: string | null
   plannedEndDate: string | null
   actualStartDate: string | null
@@ -64,6 +79,17 @@ interface Project {
   hourlyRate: string | null
   createdAt: string
   updatedAt: string
+}
+
+interface Department {
+  id: string
+  name: string
+}
+
+interface PurchaseOrder {
+  id: string
+  orderNumber: string
+  subject: string
 }
 
 interface ProjectFormProps {
@@ -90,6 +116,11 @@ const formatDateForInput = (dateString: string | null) => {
 }
 
 export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = false }: ProjectFormProps) {
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
+  const [loadingDepartments, setLoadingDepartments] = useState(false)
+  const [loadingPurchaseOrders, setLoadingPurchaseOrders] = useState(false)
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -97,6 +128,8 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       projectName: project?.projectName || "",
       description: project?.description || "",
       status: (project?.status as "planning" | "developing" | "active" | "suspended" | "completed") || "planning",
+      departmentId: project?.departmentId || null,
+      purchaseOrderId: project?.purchaseOrderId || null,
       plannedStartDate: formatDateForInput(project?.plannedStartDate || null),
       plannedEndDate: formatDateForInput(project?.plannedEndDate || null),
       actualStartDate: formatDateForInput(project?.actualStartDate || null),
@@ -106,6 +139,44 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
     },
   })
 
+  // 部署一覧取得
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setLoadingDepartments(true)
+        const response = await fetch("/api/departments?basic=true&limit=1000")
+        const data = await response.json()
+        if (response.ok) {
+          setDepartments(data.departments)
+        }
+      } catch (error) {
+        console.warn("Failed to fetch departments:", error)
+      } finally {
+        setLoadingDepartments(false)
+      }
+    }
+    fetchDepartments()
+  }, [])
+
+  // 発注書一覧取得
+  useEffect(() => {
+    const fetchPurchaseOrders = async () => {
+      try {
+        setLoadingPurchaseOrders(true)
+        const response = await fetch("/api/purchase-orders?limit=1000")
+        const data = await response.json()
+        if (response.ok) {
+          setPurchaseOrders(data.purchaseOrders || [])
+        }
+      } catch (error) {
+        console.warn("Failed to fetch purchase orders:", error)
+      } finally {
+        setLoadingPurchaseOrders(false)
+      }
+    }
+    fetchPurchaseOrders()
+  }, [])
+
   useEffect(() => {
     if (project) {
       form.reset({
@@ -113,6 +184,8 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
         projectName: project.projectName,
         description: project.description || "",
         status: project.status as "planning" | "developing" | "active" | "suspended" | "completed",
+        departmentId: project.departmentId || null,
+        purchaseOrderId: project.purchaseOrderId || null,
         plannedStartDate: formatDateForInput(project.plannedStartDate),
         plannedEndDate: formatDateForInput(project.plannedEndDate),
         actualStartDate: formatDateForInput(project.actualStartDate),
@@ -130,6 +203,8 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       projectName: data.projectName,
       description: data.description,
       status: data.status,
+      departmentId: data.departmentId === null ? null : data.departmentId,
+      purchaseOrderId: data.purchaseOrderId === null ? null : data.purchaseOrderId,
       plannedStartDate: data.plannedStartDate,
       plannedEndDate: data.plannedEndDate,
       actualStartDate: data.actualStartDate,
@@ -222,6 +297,69 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="departmentId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>担当部署・チーム</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                        value={field.value || "none"}
+                        disabled={loadingDepartments}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="部署・チームを選択" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">なし</SelectItem>
+                          {departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="purchaseOrderId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>関連発注書</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                        value={field.value || "none"}
+                        disabled={loadingPurchaseOrders}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="発注書を選択" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">なし</SelectItem>
+                          {purchaseOrders.map((po) => (
+                            <SelectItem key={po.id} value={po.id}>
+                              {po.orderNumber} - {po.subject}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        この案件に関連する発注書
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

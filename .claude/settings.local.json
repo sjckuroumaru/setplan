@@ -65,5 +65,5 @@
       "Bash(wget:*)"
     ]
   },
-  "model": "opus"
+  "model": "sonnet"
 }

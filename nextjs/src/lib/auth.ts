@@ -48,7 +48,7 @@ export const authOptions: NextAuthOptions = {
             name: `${user.lastName} ${user.firstName}`,
             username: user.username,
             isAdmin: user.isAdmin,
-            department: user.department
+            departmentId: user.departmentId
           }
         } catch (error) {
           console.error("Authentication error:", error)
@@ -65,7 +65,7 @@ export const authOptions: NextAuthOptions = {
           id: token.id as string,
           username: token.username as string,
           isAdmin: token.isAdmin as boolean,
-          department: token.department as string | null
+          departmentId: token.departmentId as string | null
         }
       }
       return session
@@ -75,7 +75,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.username = user.username
         token.isAdmin = user.isAdmin
-        token.department = user.department
+        token.departmentId = user.departmentId
       }
       return token
     }

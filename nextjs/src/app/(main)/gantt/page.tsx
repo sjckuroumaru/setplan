@@ -61,17 +61,26 @@ interface Assignee {
   employeeNumber: string
 }
 
+interface Department {
+  id: string
+  name: string
+}
+
 export default function GanttChartPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [tasks, setTasks] = useState<GanttTaskData[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [assignees, setAssignees] = useState<Assignee[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day)
   const [selectedProject, setSelectedProject] = useState<string>("all")
   const [selectedAssignee, setSelectedAssignee] = useState<string>("all")
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [assigneeFilterInitialized, setAssigneeFilterInitialized] = useState(false)
+  const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
 
   // データ取得
   const fetchGanttData = async () => {
@@ -85,6 +94,9 @@ export default function GanttChartPage() {
       }
       if (selectedAssignee && selectedAssignee !== "all") {
         params.append("assigneeId", selectedAssignee)
+      }
+      if (selectedDepartment && selectedDepartment !== "all") {
+        params.append("departmentId", selectedDepartment)
       }
 
       const response = await fetch(`/api/gantt?${params.toString()}`)
@@ -104,6 +116,7 @@ export default function GanttChartPage() {
       setTasks(formattedTasks)
       setProjects(data.projects || [])
       setAssignees(data.assignees || [])
+      setDepartments(data.departments || [])
     } catch (err: any) {
       console.warn("Gantt data fetch error:", err)
       setError(err.message)
@@ -112,11 +125,27 @@ export default function GanttChartPage() {
     }
   }
 
+  // 初期担当者フィルター適用（一般ユーザーのみ）
+  useEffect(() => {
+    if (session && !assigneeFilterInitialized && assignees.length > 0 && !session.user.isAdmin) {
+      setSelectedAssignee(session.user.id)
+      setAssigneeFilterInitialized(true)
+    }
+  }, [session, assigneeFilterInitialized, assignees.length])
+
+  // 初期部署フィルター適用（全ユーザー）
+  useEffect(() => {
+    if (session && !departmentFilterInitialized && departments.length > 0 && session.user.departmentId) {
+      setSelectedDepartment(session.user.departmentId)
+      setDepartmentFilterInitialized(true)
+    }
+  }, [session, departmentFilterInitialized, departments.length])
+
   useEffect(() => {
     if (session) {
       fetchGanttData()
     }
-  }, [session, selectedProject, selectedAssignee])
+  }, [session, selectedProject, selectedAssignee, selectedDepartment])
 
   const handleTaskClick = (task: Task) => {
     // 課題詳細ページへ遷移
@@ -182,7 +211,7 @@ export default function GanttChartPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+              <Select key={`assignee-${selectedAssignee}`} value={selectedAssignee} onValueChange={setSelectedAssignee}>
                 <SelectTrigger className="w-48">
                   <User className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="全担当者" />
@@ -192,6 +221,19 @@ export default function GanttChartPage() {
                   {assignees.map((assignee) => (
                     <SelectItem key={assignee.id} value={assignee.id}>
                       {assignee.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select key={`dept-${selectedDepartment}`} value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="全部署" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部署</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -305,10 +347,10 @@ export default function GanttChartPage() {
                               {task.type !== "empty" ? (task as Task).progress || 0 : 0}%
                             </div>
                             <div style={{ paddingLeft: "8px" }}>
-                              {taskData.start ? new Date(taskData.start).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" }) : "-"}
+                              {taskData?.start ? new Date(taskData.start).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" }) : "-"}
                             </div>
                             <div style={{ paddingLeft: "8px" }}>
-                              {taskData.end ? new Date(taskData.end).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" }) : "-"}
+                              {taskData?.end ? new Date(taskData.end).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" }) : "-"}
                             </div>
                           </div>
                         )

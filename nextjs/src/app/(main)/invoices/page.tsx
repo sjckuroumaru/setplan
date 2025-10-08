@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import {
@@ -39,9 +39,6 @@ import {
   Trash2,
   CheckCircle,
   Send,
-  XCircle,
-  Clock,
-  AlertCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 

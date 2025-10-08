@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get("priority")
     const projectId = searchParams.get("projectId")
     const assigneeId = searchParams.get("assigneeId")
+    const departmentId = searchParams.get("departmentId")
     const search = searchParams.get("search")
 
     const offset = (page - 1) * limit
@@ -69,6 +70,12 @@ export async function GET(request: NextRequest) {
 
     if (assigneeId && assigneeId !== "all") {
       where.assigneeId = assigneeId
+    }
+
+    if (departmentId && departmentId !== "all") {
+      where.project = {
+        departmentId: departmentId
+      }
     }
 
     if (search) {

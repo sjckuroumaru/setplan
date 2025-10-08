@@ -27,7 +27,7 @@ const baseUserFormSchema = z.object({
   email: z.string().email("有効なメールアドレスを入力してください"),
   lastName: z.string().min(1, "姓は必須です"),
   firstName: z.string().min(1, "名は必須です"),
-  department: z.string().optional(),
+  departmentId: z.string().nullable().optional(),
   isAdmin: z.boolean().default(false),
   status: z.enum(["active", "inactive"]).default("active"),
 })
@@ -51,10 +51,19 @@ interface User {
   email: string
   lastName: string
   firstName: string
-  department: string | null
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
   isAdmin: boolean
   status: string
   sealImagePath?: string | null
+}
+
+interface Department {
+  id: string
+  name: string
 }
 
 interface UserFormProps {
@@ -70,6 +79,8 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
   const formSchema = isEdit ? editUserFormSchema : createUserFormSchema
   const [sealImageUrl, setSealImageUrl] = useState<string | null>(user?.sealImagePath || null)
   const [isUploadingSeal, setIsUploadingSeal] = useState(false)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [loadingDepartments, setLoadingDepartments] = useState(false)
   
   const form = useForm<UserFormValues>({
     resolver: zodResolver(formSchema as any),
@@ -80,11 +91,30 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
       password: "",
       lastName: user?.lastName || "",
       firstName: user?.firstName || "",
-      department: user?.department || "",
+      departmentId: user?.departmentId || null,
       isAdmin: user?.isAdmin || false,
       status: (user?.status as "active" | "inactive") || "active",
     },
   })
+
+  // 部署一覧取得
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        setLoadingDepartments(true)
+        const response = await fetch("/api/departments?basic=true&limit=1000")
+        const data = await response.json()
+        if (response.ok) {
+          setDepartments(data.departments)
+        }
+      } catch (error) {
+        console.warn("Failed to fetch departments:", error)
+      } finally {
+        setLoadingDepartments(false)
+      }
+    }
+    fetchDepartments()
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -95,7 +125,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
         password: "",
         lastName: user.lastName,
         firstName: user.firstName,
-        department: user.department || "",
+        departmentId: user.departmentId || null,
         isAdmin: user.isAdmin,
         status: user.status as "active" | "inactive",
       })
@@ -239,17 +269,29 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
 
                 <FormField
                   control={form.control}
-                  name="department"
+                  name="departmentId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>部署・チーム</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="例: システム部" 
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                        value={field.value || "none"}
+                        disabled={loadingDepartments}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="部署・チームを選択" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">なし</SelectItem>
+                          {departments.map((dept) => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

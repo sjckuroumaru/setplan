@@ -15,6 +15,11 @@ interface Project {
   id: string
   projectNumber: string
   projectName: string
+  status: string
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
 }
 
 type ScheduleFormValues = {
@@ -40,6 +45,7 @@ export default function NewSchedulePage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [showAllProjects, setShowAllProjects] = useState(false)
 
   // 認証チェック
   useEffect(() => {
@@ -97,18 +103,30 @@ export default function NewSchedulePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/schedules">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">新規予定実績登録</h2>
-          <p className="text-muted-foreground">
-            新しい予定実績を登録します
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/schedules">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">新規予定実績登録</h2>
+            <p className="text-muted-foreground">
+              新しい予定実績を登録します
+            </p>
+          </div>
         </div>
+        {session?.user?.departmentId && (
+          <Button
+            type="button"
+            variant={showAllProjects ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowAllProjects(!showAllProjects)}
+          >
+            {showAllProjects ? "所属部署の案件のみ表示" : "全案件を表示"}
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -123,6 +141,8 @@ export default function NewSchedulePage() {
         onCancel={handleCancel}
         isLoading={isLoading}
         isEdit={false}
+        showAllProjects={showAllProjects}
+        setShowAllProjects={setShowAllProjects}
       />
     </div>
   )

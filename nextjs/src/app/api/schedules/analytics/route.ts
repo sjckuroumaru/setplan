@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("endDate")
     const userId = searchParams.get("userId")
     const projectId = searchParams.get("projectId")
+    const departmentId = searchParams.get("departmentId")
 
     if (!startDate || !endDate) {
       return NextResponse.json({ error: "開始日と終了日は必須です" }, { status: 400 })
@@ -66,6 +67,13 @@ export async function GET(request: NextRequest) {
                 id: true,
                 projectNumber: true,
                 projectName: true,
+                departmentId: true,
+                department: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -79,6 +87,7 @@ export async function GET(request: NextRequest) {
     // ユーザー別案件別実績時間の集計
     const userProjectHours: any = {}
     const projectTotals: any = {}
+    const departmentTotals: any = {}
     const tableData: any[] = []
 
     schedules.forEach(schedule => {
@@ -98,6 +107,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // 部署フィルタリング
+        if (departmentId && departmentId !== "all") {
+          // 指定された部署IDと一致しない場合はスキップ
+          if (actual.project?.departmentId !== departmentId) {
+            return
+          }
+        }
+
         const projectName = actual.project?.projectName || "その他"
         
         // ユーザー別案件別集計
@@ -112,6 +129,13 @@ export async function GET(request: NextRequest) {
           projectTotals[projectName] = 0
         }
         projectTotals[projectName] += actual.hours
+
+        // 部署別総計
+        const departmentName = actual.project?.department?.name || "未割当"
+        if (!departmentTotals[departmentName]) {
+          departmentTotals[departmentName] = 0
+        }
+        departmentTotals[departmentName] += actual.hours
 
         // 表分析用データ
         const existingEntry = tableData.find(entry => 
@@ -144,6 +168,13 @@ export async function GET(request: NextRequest) {
       percentage: Math.round((value / totalHours) * 100)
     }))
 
+    // 部署別配分データ
+    const departmentDistribution = Object.entries(departmentTotals).map(([name, value]: [string, any]) => ({
+      name,
+      value,
+      percentage: totalHours > 0 ? Math.round((value / totalHours) * 100) : 0
+    }))
+
     // 表分析データのソート（年月→名前→合計時間の降順）
     const sortedTableData = tableData.sort((a, b) => {
       if (a.yearMonth !== b.yearMonth) {
@@ -171,6 +202,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       userProjectData,
       projectDistribution,
+      departmentDistribution,
       tableData: sortedTableData,
       statistics: {
         totalHours: totalActualHours,

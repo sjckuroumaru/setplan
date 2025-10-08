@@ -26,17 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { 
   ArrowLeft,
   Edit,
-  Trash2,
-  MoreHorizontal,
   AlertCircle,
   CheckCircle2,
   Clock,
@@ -44,12 +36,10 @@ import {
   Calendar,
   User,
   MessageSquare,
-  Paperclip,
   Send,
   ArrowUpCircle,
   ArrowDownCircle,
   MinusCircle,
-  UserPlus,
   ChevronRight,
   BarChart3,
   CalendarClock

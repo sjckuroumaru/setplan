@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
+import { useSession } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { ProjectSelect } from "@/components/ui/project-select"
+import { ProjectSelect, Project } from "@/components/ui/project-select"
 import {
   Form,
   FormControl,
@@ -66,12 +67,6 @@ const scheduleFormSchema = z.object({
 
 type ScheduleFormValues = z.infer<typeof scheduleFormSchema>
 
-interface Project {
-  id: string
-  projectNumber: string
-  projectName: string
-}
-
 interface Schedule {
   id: string
   userId: string
@@ -112,6 +107,8 @@ interface ScheduleFormProps {
   readOnly?: boolean
   isAdmin?: boolean
   users?: User[]
+  showAllProjects?: boolean
+  setShowAllProjects?: (value: boolean) => void
 }
 
 // 日付をYYYY-MM-DD形式に変換
@@ -137,8 +134,11 @@ const generateTimeOptions = () => {
 
 const TIME_OPTIONS = generateTimeOptions()
 
-export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [] }: ScheduleFormProps) {
+export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [], showAllProjects = false, setShowAllProjects }: ScheduleFormProps) {
+  const { data: session } = useSession()
   const [totalHours, setTotalHours] = useState(0)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectsLoading, setProjectsLoading] = useState(true)
 
   // 現在の日時を取得
   const now = new Date()
@@ -146,6 +146,40 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   const currentMinute = (Math.floor(now.getMinutes() / 15) * 15).toString().padStart(2, "0")
   const currentTime = `${currentHour}:${currentMinute}`
   const todayDate = now.toISOString().split("T")[0]
+
+  // プロジェクトリストを取得
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setProjectsLoading(true)
+
+        // URLパラメータを構築
+        const params = new URLSearchParams({ activeOnly: "true" })
+
+        // showAllProjectsがfalseで、かつユーザーにdepartmentIdがある場合、部署フィルタを適用
+        if (!showAllProjects && session?.user?.departmentId) {
+          params.append("departmentId", session.user.departmentId)
+        }
+
+        const response = await fetch(`/api/projects?${params}`)
+        const data = await response.json()
+
+        if (response.ok) {
+          setProjects(data.projects || [])
+        } else {
+          console.error("Failed to fetch projects:", data.error)
+        }
+      } catch (error) {
+        console.error("Failed to fetch projects:", error)
+      } finally {
+        setProjectsLoading(false)
+      }
+    }
+
+    if (session) {
+      fetchProjects()
+    }
+  }, [showAllProjects, session])
 
   const form = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
@@ -245,7 +279,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
             {/* 基本情報 */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">基本情報</h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
@@ -254,7 +288,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                     <FormItem>
                       <FormLabel>日付 *</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} disabled={isEdit || readOnly} />
+                        <Input type="date" {...field} disabled={readOnly} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -364,45 +398,45 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                 <Card key={field.id} className="p-4">
                   <div className="flex items-start gap-4">
                     <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name={`plans.${index}.projectId`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>案件</FormLabel>
-                              <FormControl>
-                                <ProjectSelect 
-                                  value={field.value || ""}
-                                  onValueChange={field.onChange}
-                                  placeholder="案件を選択（オプション）"
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name={`plans.${index}.projectId`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>案件</FormLabel>
+                            <FormControl>
+                              <ProjectSelect
+                                value={field.value || ""}
+                                onValueChange={field.onChange}
+                                placeholder="案件を選択（オプション）"
+                                disabled={readOnly}
+                                projects={projects}
+                                loading={projectsLoading}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name={`plans.${index}.content`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>予定内容 *</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="例: 定例会議"
-                                  className="min-h-[120px]"
-                                  {...field} 
-                                  disabled={readOnly} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name={`plans.${index}.content`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>予定内容 *</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="例: 定例会議"
+                                className="min-h-[120px]"
+                                {...field}
+                                disabled={readOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       <FormField
                         control={form.control}
@@ -469,7 +503,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                 <Card key={field.id} className="p-4">
                   <div className="flex items-start gap-4">
                     <div className="flex-1 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
                         <FormField
                           control={form.control}
                           name={`actuals.${index}.projectId`}
@@ -477,39 +511,18 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                             <FormItem>
                               <FormLabel>案件</FormLabel>
                               <FormControl>
-                                <ProjectSelect 
+                                <ProjectSelect
                                   value={field.value || ""}
                                   onValueChange={field.onChange}
                                   placeholder="案件を選択（オプション）"
                                   disabled={readOnly}
+                                  projects={projects}
+                                  loading={projectsLoading}
                                 />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name={`actuals.${index}.content`}
-                          render={({ field }) => {
-                            const currentProjectId = form.watch(`actuals.${index}.projectId`)
-                            const isRequired = currentProjectId && currentProjectId !== "none"
-                            return (
-                              <FormItem>
-                                <FormLabel>実績内容{isRequired ? " *" : ""}</FormLabel>
-                                <FormControl>
-                                  <Textarea 
-                                    placeholder="例: 資料作成" 
-                                    className="min-h-[120px]"
-                                    {...field} 
-                                    disabled={readOnly} 
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )
-                          }}
                         />
 
                         <FormField
@@ -522,11 +535,11 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                               <FormItem>
                                 <FormLabel>実績時間{isRequired ? " *" : ""}</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
+                                  <Input
+                                    type="number"
                                     step="0.25"
                                     min="0"
-                                    placeholder="2.5" 
+                                    placeholder="2.5"
                                     className="w-24"
                                     {...field}
                                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
@@ -542,6 +555,29 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                           }}
                         />
                       </div>
+
+                      <FormField
+                        control={form.control}
+                        name={`actuals.${index}.content`}
+                        render={({ field }) => {
+                          const currentProjectId = form.watch(`actuals.${index}.projectId`)
+                          const isRequired = currentProjectId && currentProjectId !== "none"
+                          return (
+                            <FormItem>
+                              <FormLabel>実績内容{isRequired ? " *" : ""}</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="例: 資料作成"
+                                  className="min-h-[120px]"
+                                  {...field}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )
+                        }}
+                      />
 
                       <FormField
                         control={form.control}

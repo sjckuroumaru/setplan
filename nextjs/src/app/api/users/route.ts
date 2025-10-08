@@ -13,7 +13,8 @@ const createUserSchema = z.object({
   password: z.string().min(6, "パスワードは6文字以上で入力してください"),
   lastName: z.string().min(1, "姓は必須です"),
   firstName: z.string().min(1, "名は必須です"),
-  department: z.string().optional(),
+  department: z.string().optional(), // 旧フィールド（後方互換性のため残す）
+  departmentId: z.string().nullable().optional(),
   isAdmin: z.boolean().default(false),
 })
 
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // フィルター条件
     const where: any = {}
-    
+
     if (search) {
       where.OR = [
         { employeeNumber: { contains: search, mode: "insensitive" } },
@@ -64,11 +65,15 @@ export async function GET(request: NextRequest) {
         { firstName: { contains: search, mode: "insensitive" } },
       ]
     }
-    
+
+    // 部署フィルター（旧departmentフィールドとの互換性維持）
     if (department && department !== "all") {
-      where.department = department
+      where.OR = [
+        { department: department },
+        { departmentId: department }
+      ]
     }
-    
+
     // ステータスフィルター：デフォルトでactiveのみ表示
     where.status = status || "active"
 
@@ -87,6 +92,13 @@ export async function GET(request: NextRequest) {
       lastName: true,
       firstName: true,
       department: true,
+      departmentId: true,
+      departmentRef: {
+        select: {
+          id: true,
+          name: true,
+        }
+      },
       isAdmin: true,
       status: true,
       createdAt: true,
@@ -130,6 +142,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createUserSchema.parse(body)
 
+    // departmentIdが指定されている場合、部署の存在確認
+    if (validatedData.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: validatedData.departmentId },
+      })
+
+      if (!department) {
+        return NextResponse.json({ error: "指定された部署が見つかりません" }, { status: 400 })
+      }
+    }
+
     // 重複チェック
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -150,7 +173,7 @@ export async function POST(request: NextRequest) {
       } else if (existingUser.email === validatedData.email) {
         errorMessage += "メールアドレス"
       }
-      
+
       return NextResponse.json({ error: errorMessage }, { status: 400 })
     }
 
@@ -170,6 +193,13 @@ export async function POST(request: NextRequest) {
         lastName: true,
         firstName: true,
         department: true,
+        departmentId: true,
+        departmentRef: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
         isAdmin: true,
         status: true,
         createdAt: true,

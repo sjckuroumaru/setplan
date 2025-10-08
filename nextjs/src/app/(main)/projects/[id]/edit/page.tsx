@@ -17,6 +17,17 @@ interface Project {
   projectName: string
   description: string | null
   status: string
+  departmentId: string | null
+  departmentRef?: {
+    id: string
+    name: string
+  } | null
+  purchaseOrderId: string | null
+  purchaseOrderRef?: {
+    id: string
+    orderNumber: string
+    subject: string
+  } | null
   plannedStartDate: string | null
   plannedEndDate: string | null
   actualStartDate: string | null
@@ -32,6 +43,8 @@ type ProjectFormValues = {
   projectName: string
   description?: string
   status: "planning" | "developing" | "active" | "suspended" | "completed"
+  departmentId?: string | null
+  purchaseOrderId?: string | null
   plannedStartDate?: string
   plannedEndDate?: string
   actualStartDate?: string

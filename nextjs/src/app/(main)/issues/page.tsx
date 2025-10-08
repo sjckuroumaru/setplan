@@ -9,6 +9,7 @@ import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -125,12 +126,18 @@ const priorityConfig = {
   low: { label: "低", icon: ArrowDownCircle, color: "text-blue-500" },
 }
 
+interface Department {
+  id: string
+  name: string
+}
+
 export default function IssuesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [issues, setIssues] = useState<Issue[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [stats, setStats] = useState<Stats>({ total: 0, open: 0, inProgress: 0, resolved: 0, closed: 0, highPriority: 0 })
   const {
     currentPage,
@@ -149,18 +156,37 @@ export default function IssuesPage() {
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [projectFilter, setProjectFilter] = useState("all")
   const [assigneeFilter, setAssigneeFilter] = useState("all")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
   const [deleteIssueId, setDeleteIssueId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
+  const [assigneeFilterInitialized, setAssigneeFilterInitialized] = useState(false)
 
   // 認証チェック
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
   }, [session, status, router])
+
+  // 初期部署フィルター適用（全ユーザー）
+  useEffect(() => {
+    if (session && !departmentFilterInitialized && departments.length > 0 && session.user.departmentId) {
+      setDepartmentFilter(session.user.departmentId)
+      setDepartmentFilterInitialized(true)
+    }
+  }, [session, departmentFilterInitialized, departments.length])
+
+  // 初期担当者フィルター適用（管理者以外）
+  useEffect(() => {
+    if (session && !assigneeFilterInitialized && !session.user.isAdmin) {
+      setAssigneeFilter(session.user.id)
+      setAssigneeFilterInitialized(true)
+    }
+  }, [session, assigneeFilterInitialized])
 
   // データ取得
   const fetchIssues = async (pageNumber: number) => {
@@ -172,12 +198,13 @@ export default function IssuesPage() {
       
       params.append("page", pageNumber.toString())
       params.append("limit", pagination.limit.toString())
-      
+
       if (searchQuery) params.append("search", searchQuery)
       if (statusFilter !== "all") params.append("status", statusFilter)
       if (priorityFilter !== "all") params.append("priority", priorityFilter)
       if (projectFilter !== "all") params.append("projectId", projectFilter)
       if (assigneeFilter !== "all") params.append("assigneeId", assigneeFilter)
+      if (departmentFilter !== "all") params.append("departmentId", departmentFilter)
       
       const response = await fetch(`/api/issues?${params}`)
       const data = await response.json()
@@ -227,11 +254,25 @@ export default function IssuesPage() {
     }
   }
 
+  // 部署一覧取得
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch("/api/departments?basic=true&limit=1000")
+      const data = await response.json()
+      if (response.ok) {
+        setDepartments(data.departments || [])
+      }
+    } catch (error) {
+      console.warn("Failed to fetch departments:", error)
+    }
+  }
+
   // 初期ロード
   useEffect(() => {
     if (session) {
       fetchProjects()
       fetchUsers()
+      fetchDepartments()
     }
   }, [session])
 
@@ -240,14 +281,14 @@ export default function IssuesPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, resetToFirstPage])
+  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter, resetToFirstPage])
 
   // データ取得
   useEffect(() => {
     if (session) {
       fetchIssues(currentPage)
     }
-  }, [session, currentPage, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter])
+  }, [session, currentPage, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter])
 
   // 課題削除
   const handleDelete = async () => {
@@ -378,75 +419,112 @@ export default function IssuesPage() {
 
       {/* フィルター */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">フィルター:</span>
+        <CardHeader>
+          <CardTitle>フィルター</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* 1行目 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="search">検索</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="課題を検索..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status-filter">ステータス</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger id="status-filter">
+                    <SelectValue placeholder="ステータス" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    <SelectItem value="open">未対応</SelectItem>
+                    <SelectItem value="in_progress">対応中</SelectItem>
+                    <SelectItem value="resolved">解決済</SelectItem>
+                    <SelectItem value="closed">クローズ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="priority-filter">優先度</Label>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger id="priority-filter">
+                    <SelectValue placeholder="優先度" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    <SelectItem value="high">高</SelectItem>
+                    <SelectItem value="medium">中</SelectItem>
+                    <SelectItem value="low">低</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="課題を検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+
+            {/* 2行目 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="project-filter">案件</Label>
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                  <SelectTrigger id="project-filter">
+                    <SelectValue placeholder="案件を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.projectName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assignee-filter">担当者</Label>
+                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                  <SelectTrigger id="assignee-filter">
+                    <SelectValue placeholder="担当者を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="department-filter">部署</Label>
+                <Select key={`dept-${departmentFilter}`} value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger id="department-filter">
+                    <SelectValue placeholder="部署を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="ステータス" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                <SelectItem value="open">未対応</SelectItem>
-                <SelectItem value="in_progress">対応中</SelectItem>
-                <SelectItem value="resolved">解決済</SelectItem>
-                <SelectItem value="closed">クローズ</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="優先度" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                <SelectItem value="high">高</SelectItem>
-                <SelectItem value="medium">中</SelectItem>
-                <SelectItem value="low">低</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="案件" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.projectName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="担当者" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>

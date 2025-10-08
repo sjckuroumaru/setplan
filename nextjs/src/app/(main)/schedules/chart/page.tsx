@@ -70,6 +70,11 @@ interface Project {
   projectName: string
 }
 
+interface Department {
+  id: string
+  name: string
+}
+
 interface TableDataItem {
   yearMonth: string
   userName: string
@@ -80,6 +85,7 @@ interface TableDataItem {
 interface AnalyticsData {
   userProjectData: any[]
   projectDistribution: any[]
+  departmentDistribution: any[]
   tableData: TableDataItem[]
   statistics: {
     totalHours: number
@@ -120,12 +126,14 @@ export default function ChartPage() {
   const [period, setPeriod] = useState("month")
   const [selectedProject, setSelectedProject] = useState("all")
   const [selectedUser, setSelectedUser] = useState("all")
+  const [selectedDepartment, setSelectedDepartment] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [isCustomDateRange, setIsCustomDateRange] = useState(false)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
@@ -169,6 +177,19 @@ export default function ChartPage() {
     }
   }
 
+  // 部署一覧取得
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch("/api/departments?basic=true&limit=1000")
+      const data = await response.json()
+      if (response.ok) {
+        setDepartments(data.departments || [])
+      }
+    } catch (error) {
+      console.warn("Failed to fetch departments:", error)
+    }
+  }
+
   // 分析データ取得
   const fetchAnalyticsData = async () => {
     if (!startDate || !endDate) return
@@ -189,7 +210,11 @@ export default function ChartPage() {
       if (selectedProject !== "all") {
         params.append("projectId", selectedProject)
       }
-      
+
+      if (selectedDepartment !== "all") {
+        params.append("departmentId", selectedDepartment)
+      }
+
       const response = await fetch(`/api/schedules/analytics?${params}`)
       const data = await response.json()
       
@@ -252,6 +277,7 @@ export default function ChartPage() {
     if (session) {
       fetchUsers()
       fetchProjects()
+      fetchDepartments()
     }
   }, [session])
 
@@ -260,7 +286,7 @@ export default function ChartPage() {
     if (session && startDate && endDate) {
       fetchAnalyticsData()
     }
-  }, [session, startDate, endDate, selectedUser, selectedProject])
+  }, [session, startDate, endDate, selectedUser, selectedProject, selectedDepartment])
 
   // 日付範囲のクリア
   const clearDateRange = () => {
@@ -281,6 +307,7 @@ export default function ChartPage() {
 
   const userProjectData = analyticsData?.userProjectData || []
   const projectDistribution = analyticsData?.projectDistribution || []
+  const departmentDistribution = analyticsData?.departmentDistribution || []
   const tableData = analyticsData?.tableData || []
 
   if (status === "loading" || !session) {
@@ -398,6 +425,20 @@ export default function ChartPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="部署・チーム" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">すべて</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -464,6 +505,7 @@ export default function ChartPage() {
         <TabsList>
           <TabsTrigger value="stacked">積み上げ棒グラフ</TabsTrigger>
           <TabsTrigger value="pie">円グラフ</TabsTrigger>
+          <TabsTrigger value="department">部署別分析</TabsTrigger>
           <TabsTrigger value="table">表分析</TabsTrigger>
         </TabsList>
 
@@ -547,6 +589,61 @@ export default function ChartPage() {
                         <Badge variant="secondary">{project.value}h</Badge>
                         <span className="text-sm text-muted-foreground">
                           {project.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="department" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>部署・チーム別時間配分</CardTitle>
+              <CardDescription>
+                全体の作業時間における部署・チームの割合
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-8">
+                <ResponsiveContainer width="100%" height={450}>
+                  <PieChart>
+                    <Pie
+                      data={departmentDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ percentage }) => `${percentage}%`}
+                      outerRadius={140}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {departmentDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">部署・チーム別詳細</h4>
+                  {departmentDistribution.map((department, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        />
+                        <span className="text-sm">{department.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{department.value}h</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {department.percentage}%
                         </span>
                       </div>
                     </div>

@@ -19,7 +19,8 @@ model User {
   password        String
   lastName        String
   firstName       String
-  department      String?
+  department      String?   // 使用しない（後方互換性のため残す）
+  departmentId    String?   // 部署・チームID
   isAdmin         Boolean   @default(false)
   status          String    @default("active") // active, inactive
   sealImagePath   String?   // 担当者印画像パス
@@ -27,6 +28,7 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   // Relations
+  departmentRef   Department? @relation(fields: [departmentId], references: [id])
   dailySchedules  DailySchedule[]
   issues          Issue[]
   assignedIssues  Issue[]    @relation("AssignedUser")
@@ -51,10 +53,14 @@ model Project {
   actualEndDate    DateTime?
   budget           Decimal?  @db.Decimal(15, 2) // 予算（円）
   hourlyRate       Decimal?  @db.Decimal(10, 2) // 時間単価（円/時間）
+  departmentId     String?   // 担当部署・チームID
+  purchaseOrderId  String?   // 関連発注書ID
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   // Relations
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  purchaseOrder    PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   schedulePlans    SchedulePlan[]
   scheduleActuals  ScheduleActual[]
   issues           Issue[]
@@ -349,7 +355,7 @@ model PurchaseOrder {
   taxAmount10       Decimal   @default(0) @db.Decimal(15, 2) // 10%税額
   totalAmount       Decimal   @default(0) @db.Decimal(15, 2)
   remarks           String?   @db.Text
-  status            String    @default("draft") // draft, sent, confirmed, delivered, accepted, cancelled
+  status            String    @default("draft") // draft, sent, approved, rejected, closed
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -357,6 +363,7 @@ model PurchaseOrder {
   supplier          Customer  @relation(fields: [supplierId], references: [id])
   user              User      @relation(fields: [userId], references: [id])
   items             PurchaseOrderItem[]
+  projects          Project[] // 関連案件
 
   @@map("purchase_orders")
 }
@@ -383,3 +390,16 @@ model PurchaseOrderItem {
   @@map("purchase_order_items")
 }
 
+// 部署・チームテーブル
+model Department {
+  id        String    @id @default(uuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  users     User[]
+  projects  Project[]
+
+  @@map("departments")
+}

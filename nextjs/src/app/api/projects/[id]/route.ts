@@ -10,6 +10,8 @@ const updateProjectSchema = z.object({
   projectName: z.string().min(1, "案件名は必須です").max(255, "案件名は255文字以内で入力してください"),
   description: z.string().max(10000, "説明は10000文字以内で入力してください").optional(),
   status: z.enum(["planning", "developing", "active", "suspended", "completed"]),
+  departmentId: z.string().nullable().optional(),
+  purchaseOrderId: z.string().nullable().optional(),
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
   actualStartDate: z.string().optional(),
@@ -49,6 +51,21 @@ export async function GET(
         projectName: true,
         description: true,
         status: true,
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        purchaseOrderId: true,
+        purchaseOrder: {
+          select: {
+            id: true,
+            orderNumber: true,
+            subject: true,
+          },
+        },
         plannedStartDate: true,
         plannedEndDate: true,
         actualStartDate: true,
@@ -95,6 +112,28 @@ export async function PUT(
       return NextResponse.json({ error: "案件が見つかりません" }, { status: 404 })
     }
 
+    // departmentIdが指定されている場合、部署の存在確認
+    if (validatedData.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: validatedData.departmentId },
+      })
+
+      if (!department) {
+        return NextResponse.json({ error: "指定された部署が見つかりません" }, { status: 400 })
+      }
+    }
+
+    // purchaseOrderIdが指定されている場合、発注書の存在確認
+    if (validatedData.purchaseOrderId) {
+      const purchaseOrder = await prisma.purchaseOrder.findUnique({
+        where: { id: validatedData.purchaseOrderId },
+      })
+
+      if (!purchaseOrder) {
+        return NextResponse.json({ error: "指定された発注書が見つかりません" }, { status: 400 })
+      }
+    }
+
     // 重複チェック（自分以外）
     const duplicateProject = await prisma.project.findFirst({
       where: {
@@ -115,6 +154,8 @@ export async function PUT(
       projectName: validatedData.projectName,
       description: validatedData.description,
       status: validatedData.status,
+      departmentId: validatedData.departmentId === null ? null : validatedData.departmentId,
+      purchaseOrderId: validatedData.purchaseOrderId === null ? null : validatedData.purchaseOrderId,
     }
 
     // 予算フィールドの設定
@@ -148,6 +189,21 @@ export async function PUT(
         projectName: true,
         description: true,
         status: true,
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        purchaseOrderId: true,
+        purchaseOrder: {
+          select: {
+            id: true,
+            orderNumber: true,
+            subject: true,
+          },
+        },
         plannedStartDate: true,
         plannedEndDate: true,
         actualStartDate: true,

@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get("projectId")
     const assigneeId = searchParams.get("assigneeId")
+    const departmentId = searchParams.get("departmentId")
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
 
@@ -27,7 +28,13 @@ export async function GET(request: NextRequest) {
     if (assigneeId) {
       where.assigneeId = assigneeId
     }
-    
+
+    if (departmentId && departmentId !== "all") {
+      where.project = {
+        departmentId: departmentId
+      }
+    }
+
     // 開始日・終了日が設定されている課題のみ取得（ガントチャートに表示可能）
     where.startDate = { not: null }
     where.endDate = { not: null }
@@ -66,6 +73,13 @@ export async function GET(request: NextRequest) {
             id: true,
             projectNumber: true,
             projectName: true,
+            departmentId: true,
+            department: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
         assignee: {
@@ -177,6 +191,13 @@ export async function GET(request: NextRequest) {
         id: true,
         projectNumber: true,
         projectName: true,
+        departmentId: true,
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     })
@@ -202,10 +223,20 @@ export async function GET(request: NextRequest) {
       employeeNumber: user.employeeNumber,
     }))
 
+    // 部署一覧も返す（フィルター用）
+    const departments = await prisma.department.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: "asc" },
+    })
+
     return NextResponse.json({
       tasks,
       projects,
       assignees,
+      departments,
       total: tasks.length,
     })
   } catch (error) {
