@@ -85,7 +85,6 @@ interface TableDataItem {
 interface AnalyticsData {
   userProjectData: any[]
   projectDistribution: any[]
-  departmentDistribution: any[]
   tableData: TableDataItem[]
   statistics: {
     totalHours: number
@@ -206,7 +205,7 @@ export default function ChartPage() {
       if (selectedUser !== "all") {
         params.append("userId", selectedUser)
       }
-      
+
       if (selectedProject !== "all") {
         params.append("projectId", selectedProject)
       }
@@ -307,7 +306,6 @@ export default function ChartPage() {
 
   const userProjectData = analyticsData?.userProjectData || []
   const projectDistribution = analyticsData?.projectDistribution || []
-  const departmentDistribution = analyticsData?.departmentDistribution || []
   const tableData = analyticsData?.tableData || []
 
   if (status === "loading" || !session) {
@@ -505,7 +503,6 @@ export default function ChartPage() {
         <TabsList>
           <TabsTrigger value="stacked">積み上げ棒グラフ</TabsTrigger>
           <TabsTrigger value="pie">円グラフ</TabsTrigger>
-          <TabsTrigger value="department">部署別分析</TabsTrigger>
           <TabsTrigger value="table">表分析</TabsTrigger>
         </TabsList>
 
@@ -589,61 +586,6 @@ export default function ChartPage() {
                         <Badge variant="secondary">{project.value}h</Badge>
                         <span className="text-sm text-muted-foreground">
                           {project.percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="department" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>部署・チーム別時間配分</CardTitle>
-              <CardDescription>
-                全体の作業時間における部署・チームの割合
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-8">
-                <ResponsiveContainer width="100%" height={450}>
-                  <PieChart>
-                    <Pie
-                      data={departmentDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ percentage }) => `${percentage}%`}
-                      outerRadius={140}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {departmentDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">部署・チーム別詳細</h4>
-                  {departmentDistribution.map((department, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded"
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="text-sm">{department.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{department.value}h</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {department.percentage}%
                         </span>
                       </div>
                     </div>

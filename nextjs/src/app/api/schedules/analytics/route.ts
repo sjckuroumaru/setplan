@@ -48,6 +48,13 @@ export async function GET(request: NextRequest) {
       where.userId = userId
     }
 
+    // 部署フィルター（ユーザーの所属部署でフィルター）
+    if (departmentId && departmentId !== "all") {
+      where.user = {
+        departmentId: departmentId
+      }
+    }
+
     // 基本データ取得（すべての実績を取得し、後でフィルタリング）
     const schedules = await prisma.dailySchedule.findMany({
       where,
@@ -58,6 +65,7 @@ export async function GET(request: NextRequest) {
             lastName: true,
             firstName: true,
             employeeNumber: true,
+            departmentId: true,
           },
         },
         actuals: {
@@ -89,11 +97,12 @@ export async function GET(request: NextRequest) {
     const projectTotals: any = {}
     const departmentTotals: any = {}
     const tableData: any[] = []
+    const filteredUserIds = new Set<string>() // フィルター適用後のユーザーID
 
     schedules.forEach(schedule => {
       const userName = `${schedule.user.lastName} ${schedule.user.firstName}`
       const yearMonth = schedule.scheduleDate.toISOString().slice(0, 7) // YYYY-MM形式
-      
+
       if (!userProjectHours[userName]) {
         userProjectHours[userName] = { name: userName, total: 0 }
       }
@@ -116,7 +125,10 @@ export async function GET(request: NextRequest) {
         }
 
         const projectName = actual.project?.projectName || "その他"
-        
+
+        // フィルター適用後のユーザーIDを記録
+        filteredUserIds.add(schedule.userId)
+
         // ユーザー別案件別集計
         if (!userProjectHours[userName][projectName]) {
           userProjectHours[userName][projectName] = 0
@@ -186,17 +198,14 @@ export async function GET(request: NextRequest) {
       return b.totalHours - a.totalHours // 合計時間降順
     })
 
-    // 統計データ
-    const totalActualHours = schedules.reduce((sum, schedule) => 
-      sum + schedule.actuals.reduce((actualSum, actual) => actualSum + actual.hours, 0), 0
-    )
-    
-    const uniqueUsers = [...new Set(schedules.map(s => s.userId))]
-    const averageHours = uniqueUsers.length > 0 ? totalActualHours / uniqueUsers.length : 0
-    
+    // 統計データ（フィルター適用後のデータで計算）
+    const totalActualHours = totalHours // フィルター適用済みの合計時間
+    const uniqueUserCount = filteredUserIds.size // フィルター適用後のユニークユーザー数
+    const averageHours = uniqueUserCount > 0 ? totalActualHours / uniqueUserCount : 0
+
     // 目標時間（1日8時間 × 日数 × ユーザー数で計算）
     const daysDiff = Math.ceil((endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60 * 24))
-    const targetHours = daysDiff * 8 * uniqueUsers.length
+    const targetHours = daysDiff * 8 * uniqueUserCount
     const achievementRate = targetHours > 0 ? (totalActualHours / targetHours) * 100 : 0
 
     return NextResponse.json({
@@ -209,7 +218,7 @@ export async function GET(request: NextRequest) {
         averageHours: Math.round(averageHours * 10) / 10,
         targetHours,
         achievementRate: Math.round(achievementRate * 10) / 10,
-        userCount: uniqueUsers.length
+        userCount: uniqueUserCount
       },
       dateRange: { startDate, endDate }
     })

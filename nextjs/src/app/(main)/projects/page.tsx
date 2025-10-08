@@ -46,12 +46,12 @@ interface Project {
   description: string | null
   status: string
   departmentId: string | null
-  departmentRef?: {
+  department?: {
     id: string
     name: string
   } | null
   purchaseOrderId: string | null
-  purchaseOrderRef?: {
+  purchaseOrder?: {
     id: string
     orderNumber: string
     subject: string
@@ -330,14 +330,14 @@ export default function ProjectsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {project.departmentRef?.name || "-"}
+                      {project.department?.name || "-"}
                     </TableCell>
                     <TableCell>
-                      {project.purchaseOrderRef ? (
+                      {project.purchaseOrder ? (
                         <div className="text-sm">
-                          <div className="font-medium">{project.purchaseOrderRef.orderNumber}</div>
+                          <div className="font-medium">{project.purchaseOrder.orderNumber}</div>
                           <div className="text-muted-foreground truncate max-w-[150px]">
-                            {project.purchaseOrderRef.subject}
+                            {project.purchaseOrder.subject}
                           </div>
                         </div>
                       ) : "-"}

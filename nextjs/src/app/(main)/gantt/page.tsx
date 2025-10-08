@@ -125,27 +125,29 @@ export default function GanttChartPage() {
     }
   }
 
-  // 初期担当者フィルター適用（一般ユーザーのみ）
+  // 初期フィルター適用（セッション情報のみで即座に初期化）
   useEffect(() => {
-    if (session && !assigneeFilterInitialized && assignees.length > 0 && !session.user.isAdmin) {
-      setSelectedAssignee(session.user.id)
+    if (session && !departmentFilterInitialized && !assigneeFilterInitialized) {
+      // 部署フィルター初期化
+      if (session.user.departmentId) {
+        setSelectedDepartment(session.user.departmentId)
+      }
+      setDepartmentFilterInitialized(true)
+
+      // 担当者フィルター初期化
+      if (!session.user.isAdmin) {
+        setSelectedAssignee(session.user.id)
+      }
       setAssigneeFilterInitialized(true)
     }
-  }, [session, assigneeFilterInitialized, assignees.length])
+  }, [session, departmentFilterInitialized, assigneeFilterInitialized])
 
-  // 初期部署フィルター適用（全ユーザー）
+  // データ取得（初期化完了後のみ実行）
   useEffect(() => {
-    if (session && !departmentFilterInitialized && departments.length > 0 && session.user.departmentId) {
-      setSelectedDepartment(session.user.departmentId)
-      setDepartmentFilterInitialized(true)
-    }
-  }, [session, departmentFilterInitialized, departments.length])
-
-  useEffect(() => {
-    if (session) {
+    if (session && departmentFilterInitialized && assigneeFilterInitialized) {
       fetchGanttData()
     }
-  }, [session, selectedProject, selectedAssignee, selectedDepartment])
+  }, [session, selectedProject, selectedAssignee, selectedDepartment, departmentFilterInitialized, assigneeFilterInitialized])
 
   const handleTaskClick = (task: Task) => {
     // 課題詳細ページへ遷移
@@ -169,14 +171,34 @@ export default function GanttChartPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">ガントチャート</h2>
-          <p className="text-muted-foreground">
-            案件の進捗を視覚的に管理
-          </p>
-        </div>
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          [class*="_ganttTableWrapper"] {
+            max-width: 600px !important;
+          }
+          @media (max-width: 768px) {
+            .gantt-assignee-column {
+              display: none !important;
+            }
+            .gantt-header-mobile,
+            .gantt-row-mobile {
+              grid-template-columns: 120px 150px 50px 80px 80px !important;
+            }
+            [class*="_ganttTableWrapper"] {
+              max-width: 300px !important;
+            }
+          }
+        `
+      }} />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">ガントチャート</h2>
+            <p className="text-muted-foreground">
+              案件の進捗を視覚的に管理
+            </p>
+          </div>
         <div className="flex gap-2">
           <Button onClick={() => router.push("/issues/new")} size="sm">
             <Plus className="mr-2 h-4 w-4" />
@@ -194,11 +216,10 @@ export default function GanttChartPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>タスク一覧</CardTitle>
-            <div className="flex gap-2">
+          <CardTitle>タスク一覧</CardTitle>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-4">
               <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full">
                   <FolderOpen className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="全案件" />
                 </SelectTrigger>
@@ -212,7 +233,7 @@ export default function GanttChartPage() {
                 </SelectContent>
               </Select>
               <Select key={`assignee-${selectedAssignee}`} value={selectedAssignee} onValueChange={setSelectedAssignee}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full">
                   <User className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="全担当者" />
                 </SelectTrigger>
@@ -226,7 +247,7 @@ export default function GanttChartPage() {
                 </SelectContent>
               </Select>
               <Select key={`dept-${selectedDepartment}`} value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="全部署" />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,7 +260,7 @@ export default function GanttChartPage() {
                 </SelectContent>
               </Select>
               <Select value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-full">
                   <CalendarDays className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -250,7 +271,6 @@ export default function GanttChartPage() {
                   <SelectItem value={ViewMode.Year}>年</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -281,7 +301,7 @@ export default function GanttChartPage() {
                     style={{
                       height: headerHeight + 4,
                       display: "grid",
-                      gridTemplateColumns: "200px 250px 150px 70px 100px 100px",
+                      gridTemplateColumns: "150px 200px 100px 60px 90px 90px",
                       alignItems: "center",
                       borderBottom: "1px solid #e2e8f0",
                       fontWeight: 600,
@@ -291,13 +311,13 @@ export default function GanttChartPage() {
                   >
                     <div style={{ paddingLeft: "16px" }}>案件名</div>
                     <div style={{ paddingLeft: "8px" }}>課題名</div>
-                    <div style={{ paddingLeft: "8px" }}>担当者</div>
+                    <div className="gantt-assignee-column" style={{ paddingLeft: "8px" }}>担当者</div>
                     <div style={{ paddingLeft: "8px" }}>進捗</div>
                     <div style={{ paddingLeft: "8px" }}>開始日</div>
                     <div style={{ paddingLeft: "8px" }}>終了日</div>
                   </div>
                 )}
-                TaskListTable={({ tasks: ganttTasks, fontFamily, fontSize, onExpanderClick }) => {
+                TaskListTable={({ tasks: ganttTasks, fontFamily, fontSize, onExpanderClick, }) => {
                   return (
                     <>
                       {ganttTasks.map((task) => {
@@ -307,7 +327,7 @@ export default function GanttChartPage() {
                             key={task.id}
                             style={{
                               display: "grid",
-                              gridTemplateColumns: "200px 250px 150px 70px 100px 100px",
+                              gridTemplateColumns: "150px 200px 100px 60px 90px 90px",
                               alignItems: "center",
                               height: "51px",
                               borderBottom: "1px solid #e2e8f0",
@@ -340,7 +360,7 @@ export default function GanttChartPage() {
                                 <Badge variant="destructive" className="text-xs h-5 flex-shrink-0">緊急</Badge>
                               )}
                             </div>
-                            <div style={{ paddingLeft: "8px" }} className="truncate">
+                            <div className="gantt-assignee-column truncate" style={{ paddingLeft: "8px" }}>
                               {taskData?.assignee?.name || "-"}
                             </div>
                             <div style={{ paddingLeft: "8px" }} className="text-sm font-medium">
@@ -364,6 +384,7 @@ export default function GanttChartPage() {
         </CardContent>
       </Card>
 
-    </div>
+      </div>
+    </>
   )
 }

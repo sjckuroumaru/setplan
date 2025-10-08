@@ -244,9 +244,13 @@ export default function SchedulesPage() {
   // データ取得
   useEffect(() => {
     if (session) {
+      // 部署フィルターの初期化が必要な場合、初期化完了まで待つ
+      if (session.user.departmentId && !departmentFilterInitialized) {
+        return
+      }
       fetchSchedules(currentPage)
     }
-  }, [session, currentPage, searchQuery, userFilter, departmentFilter, startDate, endDate])
+  }, [session, currentPage, searchQuery, userFilter, departmentFilter, startDate, endDate, departmentFilterInitialized])
 
   // 予定実績削除
   const handleDelete = async () => {
@@ -304,14 +308,14 @@ export default function SchedulesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">予定実績管理</h2>
           <p className="text-muted-foreground">
             日々の予定と実績を管理
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href="/schedules/calendar">
               <Calendar className="mr-2 h-4 w-4" />

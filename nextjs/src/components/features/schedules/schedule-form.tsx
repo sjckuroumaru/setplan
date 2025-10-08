@@ -136,16 +136,19 @@ const TIME_OPTIONS = generateTimeOptions()
 
 export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [], showAllProjects = false, setShowAllProjects }: ScheduleFormProps) {
   const { data: session } = useSession()
-  const [totalHours, setTotalHours] = useState(0)
   const [projects, setProjects] = useState<Project[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
+  const [currentTime, setCurrentTime] = useState("")
+  const [todayDate, setTodayDate] = useState("")
 
-  // 現在の日時を取得
-  const now = new Date()
-  const currentHour = now.getHours().toString().padStart(2, "0")
-  const currentMinute = (Math.floor(now.getMinutes() / 15) * 15).toString().padStart(2, "0")
-  const currentTime = `${currentHour}:${currentMinute}`
-  const todayDate = now.toISOString().split("T")[0]
+  // 現在の日時を取得（クライアント側のみ）
+  useEffect(() => {
+    const now = new Date()
+    const currentHour = now.getHours().toString().padStart(2, "0")
+    const currentMinute = (Math.floor(now.getMinutes() / 15) * 15).toString().padStart(2, "0")
+    setCurrentTime(`${currentHour}:${currentMinute}`)
+    setTodayDate(now.toISOString().split("T")[0])
+  }, [])
 
   // プロジェクトリストを取得
   useEffect(() => {
@@ -213,12 +216,9 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
     name: "actuals",
   })
 
-  // 実績時間の合計を計算
+  // 実績時間の合計を計算（リアルタイム）
   const watchActuals = form.watch("actuals")
-  useEffect(() => {
-    const total = watchActuals.reduce((sum, actual) => sum + (actual.hours || 0), 0)
-    setTotalHours(total)
-  }, [watchActuals])
+  const totalHours = watchActuals?.reduce((sum, actual) => sum + (Number(actual.hours) || 0), 0) || 0
 
   useEffect(() => {
     if (schedule) {

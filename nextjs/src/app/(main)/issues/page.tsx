@@ -286,9 +286,17 @@ export default function IssuesPage() {
   // データ取得
   useEffect(() => {
     if (session) {
+      // 部署フィルターの初期化が必要な場合、初期化完了まで待つ
+      if (session.user.departmentId && !departmentFilterInitialized) {
+        return
+      }
+      // 担当者フィルターの初期化が必要な場合（管理者以外）、初期化完了まで待つ
+      if (!session.user.isAdmin && !assigneeFilterInitialized) {
+        return
+      }
       fetchIssues(currentPage)
     }
-  }, [session, currentPage, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter])
+  }, [session, currentPage, searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter, departmentFilterInitialized, assigneeFilterInitialized])
 
   // 課題削除
   const handleDelete = async () => {

@@ -169,7 +169,6 @@ export function Sidebar({ isOpen = true, onClose, className }: SidebarProps) {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b px-4 md:hidden">
-          <h2 className="text-lg font-semibold">メニュー</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
           </Button>
