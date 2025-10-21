@@ -2,6 +2,9 @@
 
 import { SessionProvider } from "next-auth/react"
 import { Session } from "next-auth"
+import { SWRConfig } from "swr"
+import { swrConfig } from "@/lib/swr-config"
+import { fetcher } from "@/lib/fetcher"
 
 interface ProvidersProps {
   children: React.ReactNode
@@ -11,7 +14,9 @@ interface ProvidersProps {
 export function Providers({ children, session }: ProvidersProps) {
   return (
     <SessionProvider session={session}>
-      {children}
+      <SWRConfig value={{ ...swrConfig, fetcher }}>
+        {children}
+      </SWRConfig>
     </SessionProvider>
   )
 }

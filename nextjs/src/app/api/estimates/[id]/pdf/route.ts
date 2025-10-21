@@ -77,6 +77,7 @@ export async function GET(
           unitPrice: item.unitPrice.toString(),
           taxType: item.taxType,
           amount: item.amount.toString(),
+          remarks: item.remarks,
         })),
       },
       company: company ? {

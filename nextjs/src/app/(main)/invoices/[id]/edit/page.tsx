@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
-import { useSession } from "next-auth/react"
+import { useState, useEffect, useRef, use } from "react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { toast } from "sonner"
+import { useInvoiceCalculations } from "@/hooks/use-invoice-calculations"
 import {
   Card,
   CardContent,
@@ -82,18 +82,10 @@ interface Customer {
 
 export default function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
-  const { data: session } = useSession()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [calculatedAmounts, setCalculatedAmounts] = useState({
-    subtotal: 0,
-    taxAmount: 0,
-    taxAmount8: 0,
-    taxAmount10: 0,
-    totalAmount: 0,
-  })
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema) as any,
@@ -117,31 +109,52 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
     name: "items",
   })
 
-  // 顧客一覧を取得
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        const response = await fetch("/api/customers")
-        if (!response.ok) throw new Error("顧客の取得に失敗しました")
-        const data = await response.json()
-        setCustomers(data.customers || [])
-      } catch (error) {
-        toast.error("顧客の取得に失敗しました")
-      }
-    }
-    fetchCustomers()
-  }, [])
+  // 金額計算カスタムフックを使用
+  const { calculatedAmounts, calculateAmounts } = useInvoiceCalculations(form)
 
-  // 請求書データを取得
+  // データ取得済みフラグと前回のページID
+  const hasFetchedData = useRef(false)
+  const previousPageId = useRef<string | null>(null)
+
+  // 請求書データと顧客一覧を取得
   useEffect(() => {
-    const fetchInvoice = async () => {
+    // ページIDが変わった場合は、フラグをリセット
+    if (previousPageId.current !== resolvedParams.id) {
+      hasFetchedData.current = false
+      previousPageId.current = resolvedParams.id
+    }
+
+    // 既にデータを取得済みの場合はスキップ
+    if (hasFetchedData.current) {
+      return
+    }
+
+    hasFetchedData.current = true
+
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/invoices/${resolvedParams.id}`)
-        if (!response.ok) throw new Error("請求書の取得に失敗しました")
-        const result = await response.json()
-        const data = result.invoice
-        
-        // フォームに値をセット
+        // 請求書データ取得
+        const invoiceResponse = await fetch(`/api/invoices/${resolvedParams.id}`)
+        if (!invoiceResponse.ok) {
+          if (invoiceResponse.status === 404) {
+            toast.error("請求書が見つかりません")
+            router.push("/invoices")
+            return
+          }
+          throw new Error()
+        }
+
+        const invoiceResult = await invoiceResponse.json()
+        const data = invoiceResult.invoice
+
+        // 顧客一覧取得
+        const customersResponse = await fetch("/api/customers")
+        if (customersResponse.ok) {
+          const customersData = await customersResponse.json()
+          setCustomers(customersData.customers || [])
+        }
+
+        // フォームにデータを設定
         form.reset({
           customerId: data.customerId,
           honorific: data.honorific,
@@ -164,93 +177,20 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
             remarks: item.remarks || "",
           })),
         })
-        setIsLoading(false)
-      } catch (error) {
-        toast.error("請求書の取得に失敗しました")
+
+        // データ取得後に金額を計算
+        calculateAmounts()
+      } catch {
+        toast.error("データの取得に失敗しました")
         router.push("/invoices")
-      }
-    }
-    fetchInvoice()
-  }, [resolvedParams.id, form, router])
-
-  // 金額計算
-  const calculateAmounts = () => {
-    const items = form.getValues("items")
-    const taxType = form.getValues("taxType")
-    const taxRate = form.getValues("taxRate")
-    const roundingType = form.getValues("roundingType")
-
-    let subtotal = 0
-    let taxAmount8Total = 0
-    let taxAmount10Total = 0
-
-    items.forEach(item => {
-      const amount = item.quantity * item.unitPrice
-      
-      if (taxType === "exclusive") {
-        subtotal += amount
-        if (item.taxType === "taxable") {
-          const itemTaxRate = item.taxRate || taxRate
-          const tax = amount * (itemTaxRate / 100)
-          if (itemTaxRate === 8) {
-            taxAmount8Total += tax
-          } else if (itemTaxRate === 10) {
-            taxAmount10Total += tax
-          }
-        }
-      } else {
-        // 税込の場合
-        if (item.taxType === "taxable") {
-          const itemTaxRate = item.taxRate || taxRate
-          const baseAmount = amount / (1 + itemTaxRate / 100)
-          subtotal += baseAmount
-          const tax = amount - baseAmount
-          if (itemTaxRate === 8) {
-            taxAmount8Total += tax
-          } else if (itemTaxRate === 10) {
-            taxAmount10Total += tax
-          }
-        } else {
-          subtotal += amount
-        }
-      }
-    })
-
-    // 端数処理
-    const round = (value: number) => {
-      switch (roundingType) {
-        case "floor":
-          return Math.floor(value)
-        case "ceil":
-          return Math.ceil(value)
-        case "round":
-          return Math.round(value)
-        default:
-          return Math.floor(value)
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    taxAmount8Total = round(taxAmount8Total)
-    taxAmount10Total = round(taxAmount10Total)
-    const taxAmount = taxAmount8Total + taxAmount10Total
-    const totalAmount = round(subtotal + taxAmount)
-
-    setCalculatedAmounts({
-      subtotal: round(subtotal),
-      taxAmount,
-      taxAmount8: taxAmount8Total,
-      taxAmount10: taxAmount10Total,
-      totalAmount,
-    })
-  }
-
-  // フォーム値変更時に金額を再計算
-  useEffect(() => {
-    const subscription = form.watch(() => {
-      calculateAmounts()
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedParams.id])
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -283,7 +223,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
 
       toast.success("請求書を更新しました")
       router.push(`/invoices/${resolvedParams.id}`)
-    } catch (error) {
+    } catch {
       toast.error("請求書の更新に失敗しました")
     } finally {
       setIsSubmitting(false)
@@ -583,7 +523,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input type="number" {...field} />
+                                  <Input type="text" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -611,7 +551,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input type="number" {...field} />
+                                  <Input type="text" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>

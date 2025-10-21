@@ -11,33 +11,6 @@ import { ArrowLeft, AlertCircle } from "lucide-react"
 import { ProjectForm } from "@/components/features/projects/project-form"
 import { toast } from "sonner"
 
-interface Project {
-  id: string
-  projectNumber: string
-  projectName: string
-  description: string | null
-  status: string
-  departmentId: string | null
-  departmentRef?: {
-    id: string
-    name: string
-  } | null
-  purchaseOrderId: string | null
-  purchaseOrderRef?: {
-    id: string
-    orderNumber: string
-    subject: string
-  } | null
-  plannedStartDate: string | null
-  plannedEndDate: string | null
-  actualStartDate: string | null
-  actualEndDate: string | null
-  budget: string | null
-  hourlyRate: string | null
-  createdAt: string
-  updatedAt: string
-}
-
 type ProjectFormValues = {
   projectNumber: string
   projectName: string
@@ -57,7 +30,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params)
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [project, setProject] = useState<Project | null>(null)
+  const [project, setProject] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")

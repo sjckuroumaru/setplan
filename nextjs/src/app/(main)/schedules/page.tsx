@@ -4,6 +4,9 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { usePagination } from "@/hooks/use-pagination"
+import { useSchedules } from "@/hooks/use-schedules"
+import { useDepartments } from "@/hooks/use-departments"
+import { useUsers } from "@/hooks/use-users"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { config } from "@/lib/config"
 import Link from "next/link"
@@ -35,6 +38,7 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { 
   Plus, 
@@ -48,67 +52,9 @@ import {
   AlertCircle
 } from "lucide-react"
 
-interface Project {
-  id: string
-  projectNumber: string
-  projectName: string
-  departmentId: string | null
-  departmentRef?: {
-    id: string
-    name: string
-  } | null
-}
-
-interface ScheduleItem {
-  id: string
-  projectId: string | null
-  content: string
-  details: string | null
-  project?: Project
-}
-
-type SchedulePlan = ScheduleItem
-
-interface ScheduleActual extends ScheduleItem {
-  hours: number
-}
-
-interface Schedule {
-  id: string
-  userId: string
-  scheduleDate: string
-  checkInTime: string | null
-  checkOutTime: string | null
-  reflection: string | null
-  status: string
-  createdAt: string
-  updatedAt: string
-  user: {
-    id: string
-    lastName: string
-    firstName: string
-    employeeNumber: string
-  }
-  plans: SchedulePlan[]
-  actuals: ScheduleActual[]
-}
-
-const statusLabels = {
-  planned: "予定",
-  in_progress: "進行中", 
-  completed: "完了",
-}
-
-const statusVariants = {
-  planned: "outline" as const,
-  in_progress: "default" as const,
-  completed: "secondary" as const,
-}
-
 export default function SchedulesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [schedules, setSchedules] = useState<Schedule[]>([])
   const {
     currentPage,
     pagination,
@@ -119,8 +65,6 @@ export default function SchedulesPage() {
     hasPreviousPage,
     hasNextPage,
   } = usePagination({ defaultLimit: config.pagination.defaultLimit })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [userFilter, setUserFilter] = useState("all")
   const [departmentFilter, setDepartmentFilter] = useState("all")
@@ -128,10 +72,27 @@ export default function SchedulesPage() {
   const [endDate, setEndDate] = useState("")
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([])
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
-  const [userFilterInitialized, setUserFilterInitialized] = useState(false)
   const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
+
+  // SWRフックでデータ取得
+  const { schedules, pagination: swrPagination, isLoading, isError, mutate } = useSchedules({
+    page: currentPage,
+    limit: pagination.limit,
+    userId: userFilter !== "all" ? userFilter : undefined,
+    departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    searchQuery: searchQuery || undefined,
+  })
+
+  const { users: usersData } = useUsers({ limit: 1000, basic: true })
+  const { departments } = useDepartments()
+
+  // ユーザーリストを整形
+  const users = usersData.map((user) => ({
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+  }))
 
   // 認証チェック
   useEffect(() => {
@@ -143,96 +104,49 @@ export default function SchedulesPage() {
     }
   }, [session, status, router])
 
-  // 初期ユーザーフィルター適用（一般ユーザーのみ）
+  // 初期フィルター適用
   useEffect(() => {
-    if (session && !userFilterInitialized && users.length > 0 && !session.user.isAdmin) {
+    // 初期化済み、セッションなし、または部署データ未取得の場合は早期リターン
+    if (!session || departmentFilterInitialized || departments.length === 0) {
+      return
+    }
+
+    // 部署フィルターの設定
+    if (session.user.departmentId) {
+      // ユーザーの部署が部署リストに存在するか確認
+      const departmentExists = departments.some(dept => dept.id === session.user.departmentId)
+
+      if (departmentExists) {
+        setDepartmentFilter(session.user.departmentId)
+      } else {
+        // 部署が見つからない場合は"all"を設定
+        console.warn(`ユーザーの部署ID ${session.user.departmentId} が部署リストに見つかりません`)
+        setDepartmentFilter("all")
+      }
+    } else {
+      // departmentIdが設定されていない場合は"all"を設定
+      setDepartmentFilter("all")
+    }
+
+    // 一般ユーザーは自身のユーザーIDもデフォルト設定
+    if (!session.user.isAdmin) {
       setUserFilter(session.user.id)
-      setUserFilterInitialized(true)
     }
-  }, [session, userFilterInitialized, users.length])
 
-  // 初期部署フィルター適用（全ユーザー）
+    setDepartmentFilterInitialized(true)
+  }, [session, departmentFilterInitialized, departments])
+
+  // SWRのpaginationで更新
   useEffect(() => {
-    if (session && !departmentFilterInitialized && departments.length > 0 && session.user.departmentId) {
-      setDepartmentFilter(session.user.departmentId)
-      setDepartmentFilterInitialized(true)
-    }
-  }, [session, departmentFilterInitialized, departments.length])
-
-  // ユーザー一覧取得（全ユーザーが使用可能）
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/users?basic=true")
-      const data = await response.json()
-      if (response.ok) {
-        setUsers(data.users.map((user: any) => ({
-          id: user.id,
-          name: `${user.lastName} ${user.firstName}`
-        })))
-      }
-    } catch (error) {
-      console.warn("Failed to fetch users:", error)
-    }
-  }
-
-  // 部署一覧取得
-  const fetchDepartments = async () => {
-    try {
-      const response = await fetch("/api/departments?basic=true&limit=1000")
-      const data = await response.json()
-      if (response.ok) {
-        setDepartments(data.departments || [])
-      }
-    } catch (error) {
-      console.warn("Failed to fetch departments:", error)
-    }
-  }
-
-  // 予定実績一覧取得
-  const fetchSchedules = async (pageNumber: number) => {
-    try {
-      setLoading(true)
-      setError("")
-      
-      const params = new URLSearchParams({
-        page: pageNumber.toString(),
-        limit: pagination.limit.toString(),
+    if (swrPagination) {
+      setPagination({
+        page: swrPagination.currentPage,
+        limit: pagination.limit,
+        total: swrPagination.totalCount,
+        totalPages: swrPagination.totalPages,
       })
-      
-      if (searchQuery) params.append("search", searchQuery)
-      if (userFilter && userFilter !== "all") {
-        params.append("userId", userFilter)
-      }
-      if (departmentFilter && departmentFilter !== "all") {
-        params.append("departmentId", departmentFilter)
-      }
-      if (startDate) params.append("startDate", startDate)
-      if (endDate) params.append("endDate", endDate)
-
-      const response = await fetch(`/api/schedules?${params}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "予定実績一覧の取得に失敗しました")
-      }
-
-      setSchedules(data.schedules)
-      setPagination(data.pagination)
-    } catch (error) {
-      console.warn("Fetch schedules error:", error)
-      setError(error instanceof Error ? error.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
     }
-  }
-
-  // 初回読み込み
-  useEffect(() => {
-    if (session) {
-      fetchUsers()
-      fetchDepartments()
-    }
-  }, [session])
+  }, [swrPagination, setPagination, pagination.limit])
 
   // フィルター変更時はページを1に戻す
   useEffect(() => {
@@ -241,37 +155,26 @@ export default function SchedulesPage() {
     }
   }, [searchQuery, userFilter, departmentFilter, startDate, endDate, resetToFirstPage])
 
-  // データ取得
-  useEffect(() => {
-    if (session) {
-      // 部署フィルターの初期化が必要な場合、初期化完了まで待つ
-      if (session.user.departmentId && !departmentFilterInitialized) {
-        return
-      }
-      fetchSchedules(currentPage)
-    }
-  }, [session, currentPage, searchQuery, userFilter, departmentFilter, startDate, endDate, departmentFilterInitialized])
-
   // 予定実績削除
   const handleDelete = async () => {
     if (!deleteScheduleId) return
 
     try {
       setDeleteLoading(true)
-      
+
       const response = await fetch(`/api/schedules/${deleteScheduleId}`, {
         method: "DELETE",
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.error || "予定実績の削除に失敗しました")
       }
-      
+
       toast.success("予定実績を削除しました")
       setDeleteScheduleId(null)
-      fetchSchedules(currentPage)
+      mutate() // SWRでデータ再取得
     } catch (error) {
       console.warn("Delete schedule error:", error)
       toast.error(error instanceof Error ? error.message : "削除に失敗しました")
@@ -281,17 +184,18 @@ export default function SchedulesPage() {
   }
 
   // 日付フォーマット
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("ja-JP")
+  const formatDate = (date: string | Date) => {
+    const dateObj = date instanceof Date ? date : new Date(date)
+    return dateObj.toLocaleDateString("ja-JP")
   }
 
   // 実績時間合計計算
-  const getTotalHours = (actuals: ScheduleActual[]) => {
+  const getTotalHours = (actuals: Array<{ hours: number }>) => {
     return actuals.reduce((sum, actual) => sum + actual.hours, 0)
   }
 
   // 編集・削除権限チェック
-  const canEditOrDelete = (schedule: Schedule) => {
+  const canEditOrDelete = (schedule: { userId: string }) => {
     if (!session) return false
     // 管理者または作成者本人のみ操作可能
     return session.user.isAdmin || schedule.userId === session.user.id
@@ -337,10 +241,10 @@ export default function SchedulesPage() {
         </div>
       </div>
 
-      {error && (
+      {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
 
@@ -378,7 +282,7 @@ export default function SchedulesPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="user-filter">ユーザー</Label>
-                    <Select key={`user-${userFilter}`} value={userFilter} onValueChange={setUserFilter}>
+                    <Select value={userFilter} onValueChange={setUserFilter}>
                       <SelectTrigger id="user-filter">
                         <SelectValue placeholder="ユーザーを選択" />
                       </SelectTrigger>
@@ -395,7 +299,7 @@ export default function SchedulesPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="department-filter">部署・チーム</Label>
-                    <Select key={`dept-${departmentFilter}`} value={departmentFilter} onValueChange={setDepartmentFilter}>
+                    <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                       <SelectTrigger id="department-filter">
                         <SelectValue placeholder="部署・チームを選択" />
                       </SelectTrigger>
@@ -464,21 +368,22 @@ export default function SchedulesPage() {
           {/* 予定実績一覧テーブル */}
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-24">日付</TableHead>
-                    <TableHead className="w-32">ユーザー</TableHead>
-                    <TableHead className="w-20">出社</TableHead>
-                    <TableHead className="w-20">退社</TableHead>
-                    <TableHead className="w-24">実績時間</TableHead>
-                    <TableHead className="max-w-xs">予定</TableHead>
-                    <TableHead className="max-w-xs">実績</TableHead>
-                    <TableHead className="w-24">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
+              <ScrollArea className="w-full">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-24">日付</TableHead>
+                      <TableHead className="w-32">ユーザー</TableHead>
+                      <TableHead className="w-20">出社</TableHead>
+                      <TableHead className="w-20">退社</TableHead>
+                      <TableHead className="w-24">実績時間</TableHead>
+                      <TableHead className="min-w-[200px]">予定</TableHead>
+                      <TableHead className="min-w-[200px]">実績</TableHead>
+                      <TableHead className="w-24">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                  {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
                         {Array.from({ length: 8 }).map((_, j) => (
@@ -496,9 +401,10 @@ export default function SchedulesPage() {
                     </TableRow>
                   ) : (
                     schedules.map((schedule) => (
-                      <TableRow 
+                      <TableRow
                         key={schedule.id}
-                        className={!schedule.checkOutTime ? "bg-blue-50" : ""}
+                        className={!schedule.checkOutTime ? "bg-blue-50 cursor-pointer" : "cursor-pointer"}
+                        onDoubleClick={() => router.push(`/schedules/${schedule.id}/edit`)}
                       >
                         <TableCell className="font-medium">
                           {formatDate(schedule.scheduleDate)}
@@ -516,14 +422,14 @@ export default function SchedulesPage() {
                         </TableCell>
                         <TableCell className="max-w-xs">
                           <div className="flex flex-wrap gap-1 max-w-xs">
-                            {schedule.plans.slice(0, 2).map((plan, index) => (
+                            {schedule.actuals.slice(0, 2).map((actual, index) => (
                               <Badge key={index} variant="outline" className="text-xs max-w-[150px] truncate text-left justify-start">
-                                {plan.content}
+                                {actual.project?.projectName || '案件未設定'}
                               </Badge>
                             ))}
-                            {schedule.plans.length > 2 && (
+                            {schedule.actuals.length > 2 && (
                               <Badge variant="outline" className="text-xs">
-                                +{schedule.plans.length - 2}
+                                +{schedule.actuals.length - 2}
                               </Badge>
                             )}
                           </div>
@@ -532,7 +438,7 @@ export default function SchedulesPage() {
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {schedule.actuals.slice(0, 2).map((actual, index) => (
                               <Badge key={index} variant="secondary" className="text-xs max-w-[150px] truncate text-left justify-start">
-                                {actual.content}
+                                {actual.content || '-'}
                               </Badge>
                             ))}
                             {schedule.actuals.length > 2 && (
@@ -570,6 +476,8 @@ export default function SchedulesPage() {
                   )}
                 </TableBody>
               </Table>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
             </CardContent>
           </Card>
 
@@ -582,7 +490,7 @@ export default function SchedulesPage() {
             onNextPage={goToNextPage}
             hasPreviousPage={hasPreviousPage}
             hasNextPage={hasNextPage}
-            loading={loading}
+            loading={isLoading}
           />
         </TabsContent>
       </Tabs>

@@ -87,7 +87,7 @@ export default function PurchaseOrdersPage() {
       if (!response.ok) throw new Error()
       const data = await response.json()
       setPurchaseOrders(data.purchaseOrders || [])
-    } catch (error) {
+    } catch {
       toast.error("発注書の取得に失敗しました")
     } finally {
       setLoading(false)
@@ -111,9 +111,9 @@ export default function PurchaseOrdersPage() {
       
       const duplicated = await response.json()
       router.push(`/purchase-orders/${duplicated.id}/edit`)
-      
+
       toast.success("発注書を複製しました")
-    } catch (error) {
+    } catch {
       toast.error("発注書の複製に失敗しました")
     }
   }
@@ -126,10 +126,11 @@ export default function PurchaseOrdersPage() {
         method: "DELETE",
       })
       if (!response.ok) throw new Error()
-      
+
+
       setShouldRefetch(true)
       toast.success("発注書を削除しました")
-    } catch (error) {
+    } catch {
       toast.error("発注書の削除に失敗しました")
     }
   }
@@ -185,7 +186,7 @@ export default function PurchaseOrdersPage() {
                   <TableCell>
                     <Link
                       href={`/purchase-orders/${order.id}`}
-                      className="text-primary hover:underline"
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
                     >
                       {order.orderNumber}
                     </Link>

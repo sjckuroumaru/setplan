@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useSchedulesCalendar } from "@/hooks/use-schedules-calendar"
+import { useUsers } from "@/hooks/use-users"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -37,45 +39,6 @@ import {
 import { cn } from "@/lib/utils"
 
 // データ型定義
-interface User {
-  id: string
-  name: string
-  employeeNumber: string
-}
-
-interface Project {
-  id: string
-  name: string
-  number: string
-}
-
-interface SchedulePlan {
-  id: string
-  content: string
-  details: string | null
-  project: Project | null
-}
-
-interface ScheduleActual {
-  id: string
-  content: string
-  hours: number
-  details: string | null
-  project: Project | null
-}
-
-interface CalendarSchedule {
-  id: string
-  date: string
-  checkInTime: string | null
-  checkOutTime: string | null
-  reflection: string | null
-  user: User
-  plans: SchedulePlan[]
-  actuals: ScheduleActual[]
-  totalHours: number
-}
-
 interface CalendarEvent {
   type: 'plan' | 'actual'
   content: string
@@ -109,45 +72,25 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<"month" | "day">("month")
   const [selectedUser, setSelectedUser] = useState("all")
-  const [schedules, setSchedules] = useState<CalendarSchedule[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
 
-  // 認証チェック
-  useEffect(() => {
-    if (status === "loading") return
-    
-    if (!session) {
-      router.push("/login")
-      return
-    }
-  }, [session, status, router])
-
-  // ユーザー一覧取得
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/users?basic=true")
-      const data = await response.json()
-      if (response.ok) {
-        setUsers(data.users.map((user: any) => ({
-          id: user.id,
-          name: `${user.lastName} ${user.firstName}`,
-          employeeNumber: user.employeeNumber,
-        })))
-      }
-    } catch (error) {
-      console.warn("Failed to fetch users:", error)
-    }
+  // 日付を文字列キーに変換（日本時間）
+  const formatDateKey = (date: Date) => {
+    // 日本時間での日付文字列を生成
+    const jstOffset = 9 * 60 * 60 * 1000 // JST = UTC + 9時間
+    const jstDate = new Date(date.getTime() + jstOffset)
+    const year = jstDate.getUTCFullYear()
+    const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(jstDate.getUTCDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   // 日付範囲を取得（日本時間）
   const getDateRange = (date: Date, mode: "month" | "day") => {
     const jstOffset = 9 * 60 * 60 * 1000 // JST = UTC + 9時間
     const jstDate = new Date(date.getTime() + jstOffset)
-    
+
     let startDate: Date, endDate: Date
-    
+
     if (mode === "month") {
       startDate = new Date(jstDate.getUTCFullYear(), jstDate.getUTCMonth(), 1)
       endDate = new Date(jstDate.getUTCFullYear(), jstDate.getUTCMonth() + 1, 0)
@@ -155,59 +98,43 @@ export default function CalendarPage() {
       startDate = new Date(jstDate)
       endDate = new Date(jstDate)
     }
-    
+
     return {
       startDate: formatDateKey(new Date(startDate.getTime() - jstOffset)),
       endDate: formatDateKey(new Date(endDate.getTime() - jstOffset))
     }
   }
 
-  // カレンダーデータ取得
-  const fetchCalendarData = async () => {
-    try {
-      setLoading(true)
-      setError("")
-      
-      const { startDate, endDate } = getDateRange(currentDate, viewMode)
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-      })
-      
-      if (selectedUser !== "all") {
-        params.append("userId", selectedUser)
-      }
+  // useMemoで日付範囲を計算
+  const dateRange = useMemo(() => {
+    return getDateRange(currentDate, viewMode)
+  }, [currentDate, viewMode])
 
-      const response = await fetch(`/api/schedules/calendar?${params}`)
-      const data = await response.json()
+  // SWRフックでデータ取得
+  const { schedules, isLoading, isError } = useSchedulesCalendar({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+    userId: selectedUser !== "all" ? selectedUser : undefined,
+  })
 
-      if (!response.ok) {
-        throw new Error(data.error || "カレンダーデータの取得に失敗しました")
-      }
+  const { users: usersData } = useUsers()
 
-      setSchedules(data.schedules)
-    } catch (error) {
-      console.warn("Fetch calendar data error:", error)
-      setError(error instanceof Error ? error.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
-    }
-  }
+  // ユーザーリストを整形
+  const users = usersData.map((user) => ({
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+    employeeNumber: user.employeeNumber,
+  }))
 
-  // 初期ロード
+  // 認証チェック
   useEffect(() => {
-    if (session) {
-      fetchUsers()
-      fetchCalendarData()
-    }
-  }, [session])
+    if (status === "loading") return
 
-  // 日付、ビューモード、ユーザー変更時
-  useEffect(() => {
-    if (session) {
-      fetchCalendarData()
+    if (!session) {
+      router.push("/login")
+      return
     }
-  }, [currentDate, viewMode, selectedUser])
+  }, [session, status, router])
 
   const navigatePrevious = () => {
     const newDate = new Date(currentDate)
@@ -267,18 +194,7 @@ export default function CalendarPage() {
     return formatDateKey(new Date())
   }
 
-  const formatDateKey = (date: Date) => {
-    // 日本時間での日付文字列を生成
-    const jstOffset = 9 * 60 * 60 * 1000 // JST = UTC + 9時間
-    const jstDate = new Date(date.getTime() + jstOffset)
-    const year = jstDate.getUTCFullYear()
-    const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0')
-    const day = String(jstDate.getUTCDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
   const monthDays = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth())
-  const dayEvents = getEventsForDate(formatDateKey(currentDate))
   const todayString = getTodayString()
 
   if (status === "loading" || !session) {
@@ -321,10 +237,10 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {error && (
+      {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
 
@@ -407,7 +323,7 @@ export default function CalendarPage() {
                   {day}
                 </div>
               ))}
-              {loading ? (
+              {isLoading ? (
                 Array.from({ length: 42 }).map((_, i) => (
                   <div key={i} className="min-h-[100px] p-2 border-b border-r">
                     <Skeleton className="h-4 w-8 mb-2" />
@@ -489,7 +405,7 @@ export default function CalendarPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {loading ? (
+              {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <div key={i} className="p-4 border rounded-lg">
                     <div className="flex items-start justify-between mb-2">
@@ -534,7 +450,7 @@ export default function CalendarPage() {
                       <div className="mb-3">
                         <h4 className="text-sm font-medium text-blue-600 mb-2">予定 ({schedule.plans.length}件)</h4>
                         <div className="space-y-1">
-                          {schedule.plans.map((plan, index) => (
+                          {schedule.plans.map((plan) => (
                             <div key={plan.id} className="text-sm pl-2 border-l-2 border-blue-200">
                               <span className="font-medium">{plan.content}</span>
                               {plan.project && (
@@ -551,7 +467,7 @@ export default function CalendarPage() {
                       <div>
                         <h4 className="text-sm font-medium text-green-600 mb-2">実績 ({schedule.actuals.length}件)</h4>
                         <div className="space-y-1">
-                          {schedule.actuals.map((actual, index) => (
+                          {schedule.actuals.map((actual) => (
                             <div key={actual.id} className="text-sm pl-2 border-l-2 border-green-200 flex items-center justify-between">
                               <div>
                                 <span className="font-medium">{actual.content}</span>
@@ -587,7 +503,7 @@ export default function CalendarPage() {
               <CardTitle>日次サマリー</CardTitle>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {isLoading ? (
                 <div className="grid gap-4 md:grid-cols-4">
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="space-y-2">

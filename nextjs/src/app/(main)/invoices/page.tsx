@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Table,
   TableBody,
@@ -125,7 +126,7 @@ export default function InvoicesPage() {
       
       toast.success("請求書を削除しました")
       setShouldRefetch(prev => prev + 1)
-    } catch (error) {
+    } catch {
       toast.error("削除に失敗しました")
     }
   }
@@ -140,7 +141,7 @@ export default function InvoicesPage() {
       const data = await response.json()
       toast.success("請求書を複製しました")
       router.push(`/invoices/${data.invoice.id}/edit`)
-    } catch (error) {
+    } catch {
       toast.error("複製に失敗しました")
     }
   }
@@ -156,7 +157,7 @@ export default function InvoicesPage() {
       
       toast.success("ステータスを更新しました")
       setShouldRefetch(prev => prev + 1)
-    } catch (error) {
+    } catch {
       toast.error("ステータスの更新に失敗しました")
     }
   }
@@ -244,7 +245,12 @@ export default function InvoicesPage() {
               invoices.map((invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">
-                    {invoice.invoiceNumber}
+                    <Link
+                      href={`/invoices/${invoice.id}`}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {invoice.invoiceNumber}
+                    </Link>
                   </TableCell>
                   <TableCell>{invoice.customer.name}</TableCell>
                   <TableCell>{invoice.subject}</TableCell>

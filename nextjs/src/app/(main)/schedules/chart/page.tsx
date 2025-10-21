@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useSchedulesAnalytics } from "@/hooks/use-schedules-analytics"
+import { useUsers } from "@/hooks/use-users"
+import { useProjects } from "@/hooks/use-projects"
+import { useDepartments } from "@/hooks/use-departments"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -57,48 +61,6 @@ import {
   Cell,
 } from "recharts"
 
-// データ型定義
-interface User {
-  id: string
-  name: string
-  employeeNumber: string
-}
-
-interface Project {
-  id: string
-  projectNumber: string
-  projectName: string
-}
-
-interface Department {
-  id: string
-  name: string
-}
-
-interface TableDataItem {
-  yearMonth: string
-  userName: string
-  projectName: string
-  totalHours: number
-}
-
-interface AnalyticsData {
-  userProjectData: any[]
-  projectDistribution: any[]
-  tableData: TableDataItem[]
-  statistics: {
-    totalHours: number
-    averageHours: number
-    targetHours: number
-    achievementRate: number
-    userCount: number
-  }
-  dateRange: {
-    startDate: string
-    endDate: string
-  }
-}
-
 // カラーパレット
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
 
@@ -129,106 +91,50 @@ export default function ChartPage() {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [isCustomDateRange, setIsCustomDateRange] = useState(false)
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
-  const [users, setUsers] = useState<User[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+
+  // SWRフックでデータ取得
+  const {
+    userProjectData,
+    projectDistribution,
+    tableData,
+    statistics,
+    isLoading,
+    isError
+  } = useSchedulesAnalytics({
+    startDate: startDate || "",
+    endDate: endDate || "",
+    userId: selectedUser !== "all" ? selectedUser : undefined,
+    projectId: selectedProject !== "all" ? selectedProject : undefined,
+    departmentId: selectedDepartment !== "all" ? selectedDepartment : undefined,
+  })
+
+  const { users: usersData } = useUsers()
+  const { projects: projectsData } = useProjects({ page: 1, limit: 1000 })
+  const { departments } = useDepartments()
+
+  // ユーザーリストを整形
+  const users = usersData.map((user) => ({
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+    employeeNumber: user.employeeNumber,
+  }))
+
+  // プロジェクトリストを整形
+  const projects = projectsData.map((project) => ({
+    id: project.id,
+    projectNumber: project.projectNumber,
+    projectName: project.projectName,
+  }))
 
   // 認証チェック
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
   }, [session, status, router])
-
-  // ユーザー一覧取得
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/users?basic=true")
-      const data = await response.json()
-      if (response.ok) {
-        setUsers(data.users.map((user: any) => ({
-          id: user.id,
-          name: `${user.lastName} ${user.firstName}`,
-          employeeNumber: user.employeeNumber,
-        })))
-      }
-    } catch (error) {
-      console.warn("Failed to fetch users:", error)
-    }
-  }
-
-  // 案件一覧取得
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch("/api/projects")
-      const data = await response.json()
-      if (response.ok) {
-        setProjects(data.projects || [])
-      }
-    } catch (error) {
-      console.warn("Failed to fetch projects:", error)
-    }
-  }
-
-  // 部署一覧取得
-  const fetchDepartments = async () => {
-    try {
-      const response = await fetch("/api/departments?basic=true&limit=1000")
-      const data = await response.json()
-      if (response.ok) {
-        setDepartments(data.departments || [])
-      }
-    } catch (error) {
-      console.warn("Failed to fetch departments:", error)
-    }
-  }
-
-  // 分析データ取得
-  const fetchAnalyticsData = async () => {
-    if (!startDate || !endDate) return
-    
-    try {
-      setLoading(true)
-      setError("")
-      
-      const params = new URLSearchParams({
-        startDate,
-        endDate,
-      })
-      
-      if (selectedUser !== "all") {
-        params.append("userId", selectedUser)
-      }
-
-      if (selectedProject !== "all") {
-        params.append("projectId", selectedProject)
-      }
-
-      if (selectedDepartment !== "all") {
-        params.append("departmentId", selectedDepartment)
-      }
-
-      const response = await fetch(`/api/schedules/analytics?${params}`)
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.error || "分析データの取得に失敗しました")
-      }
-      
-      setAnalyticsData(data)
-    } catch (error) {
-      console.warn("Fetch analytics data error:", error)
-      setError(error instanceof Error ? error.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
-    }
-  }
 
   // プリセット期間選択時の日付設定
   useEffect(() => {
@@ -271,22 +177,6 @@ export default function ChartPage() {
     }
   }, [period])
 
-  // 初期ロード
-  useEffect(() => {
-    if (session) {
-      fetchUsers()
-      fetchProjects()
-      fetchDepartments()
-    }
-  }, [session])
-
-  // データ取得トリガー
-  useEffect(() => {
-    if (session && startDate && endDate) {
-      fetchAnalyticsData()
-    }
-  }, [session, startDate, endDate, selectedUser, selectedProject, selectedDepartment])
-
   // 日付範囲のクリア
   const clearDateRange = () => {
     setStartDate("")
@@ -294,19 +184,6 @@ export default function ChartPage() {
     setPeriod("month")
     setIsCustomDateRange(false)
   }
-
-  // 統計データ（デフォルト値）
-  const statistics = analyticsData?.statistics || {
-    totalHours: 0,
-    averageHours: 0,
-    targetHours: 0,
-    achievementRate: 0,
-    userCount: 0
-  }
-
-  const userProjectData = analyticsData?.userProjectData || []
-  const projectDistribution = analyticsData?.projectDistribution || []
-  const tableData = analyticsData?.tableData || []
 
   if (status === "loading" || !session) {
     return (
@@ -442,16 +319,16 @@ export default function ChartPage() {
       </Card>
 
       {/* エラー表示 */}
-      {error && (
+      {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
 
       {/* サマリーカード */}
       <div className="grid gap-4 md:grid-cols-4">
-        {loading ? (
+        {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -616,7 +493,7 @@ export default function ChartPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loading ? (
+                    {isLoading ? (
                       Array.from({ length: 10 }).map((_, i) => (
                         <TableRow key={i}>
                           <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -650,7 +527,7 @@ export default function ChartPage() {
               </div>
               
               {/* 合計表示 */}
-              {!loading && tableData.length > 0 && (
+              {!isLoading && tableData.length > 0 && (
                 <div className="mt-6 space-y-4">
                   <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
                     <span className="font-semibold">総合計時間</span>

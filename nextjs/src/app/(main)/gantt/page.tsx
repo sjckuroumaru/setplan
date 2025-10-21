@@ -1,10 +1,25 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Gantt, Task, ViewMode, jaDateLocale, jaDateFormats } from "@sjckuroumaru/gantt-task-react"
+import {
+  Gantt,
+  Task,
+  ViewMode,
+  jaDateLocale,
+  jaDateFormats,
+  TitleColumn,
+  DateStartColumn,
+  DateEndColumn,
+  type Column,
+  type ColumnProps,
+} from "@sjckuroumaru/gantt-task-react"
 import "@sjckuroumaru/gantt-task-react/dist/style.css"
+import { useGantt } from "@/hooks/use-gantt"
+import { useProjects } from "@/hooks/use-projects"
+import { useUsers } from "@/hooks/use-users"
+import { useDepartments } from "@/hooks/use-departments"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -22,7 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { 
+import {
   Plus,
   AlertCircle,
   Calendar,
@@ -49,81 +64,67 @@ interface GanttTaskData extends Task {
   assigneeName?: string // Display name for the table
 }
 
-interface Project {
-  id: string
-  projectNumber: string
-  projectName: string
-}
-
-interface Assignee {
-  id: string
-  name: string
-  employeeNumber: string
-}
-
-interface Department {
-  id: string
-  name: string
-}
-
 export default function GanttChartPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const [tasks, setTasks] = useState<GanttTaskData[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [assignees, setAssignees] = useState<Assignee[]>([])
-  const [departments, setDepartments] = useState<Department[]>([])
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Day)
   const [selectedProject, setSelectedProject] = useState<string>("all")
   const [selectedAssignee, setSelectedAssignee] = useState<string>("all")
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all")
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [assigneeFilterInitialized, setAssigneeFilterInitialized] = useState(false)
   const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
 
-  // データ取得
-  const fetchGanttData = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
+  // SWRフックでデータ取得
+  const { tasks: rawTasks, isLoading: tasksLoading, isError: tasksError } = useGantt({
+    departmentId: selectedDepartment !== "all" ? selectedDepartment : undefined,
+    projectId: selectedProject !== "all" ? selectedProject : undefined,
+    assigneeId: selectedAssignee !== "all" ? selectedAssignee : undefined,
+  })
 
-      const params = new URLSearchParams()
-      if (selectedProject && selectedProject !== "all") {
-        params.append("projectId", selectedProject)
-      }
-      if (selectedAssignee && selectedAssignee !== "all") {
-        params.append("assigneeId", selectedAssignee)
-      }
-      if (selectedDepartment && selectedDepartment !== "all") {
-        params.append("departmentId", selectedDepartment)
-      }
+  const { projects } = useProjects({ page: 1, limit: 1000 })
+  const { users: usersData } = useUsers({ limit: 1000, basic: true })
+  const { departments } = useDepartments()
 
-      const response = await fetch(`/api/gantt?${params.toString()}`)
-      if (!response.ok) {
-        throw new Error("データの取得に失敗しました")
-      }
+  // 担当者リストを整形
+  const assignees = usersData.map((user) => ({
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+    employeeNumber: user.employeeNumber,
+  }))
 
-      const data = await response.json()
-      
-      // 日付文字列をDateオブジェクトに変換
-      const formattedTasks = data.tasks.map((task: any) => ({
-        ...task,
-        start: new Date(task.start),
-        end: new Date(task.end),
-      }))
+  // タスクの日付変換（useMemoでメモ化）
+  const tasks: GanttTaskData[] = useMemo(() => {
+    return rawTasks
+      .filter((task: any) => {
+        // 有効な開始日と終了日を持つタスクのみを含める
+        const start = task.start || task.startDate
+        const end = task.end || task.endDate
 
-      setTasks(formattedTasks)
-      setProjects(data.projects || [])
-      setAssignees(data.assignees || [])
-      setDepartments(data.departments || [])
-    } catch (err: any) {
-      console.warn("Gantt data fetch error:", err)
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+        if (!start || !end) return false
+
+        const startDate = new Date(start)
+        const endDate = new Date(end)
+
+        // Invalid Dateをチェック
+        return !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())
+      })
+      .map((task: any) => {
+        const start = task.start || task.startDate
+        const end = task.end || task.endDate
+
+        return {
+          ...task,
+          start: new Date(start),
+          end: new Date(end),
+          name: task.name || task.title,
+          type: task.type || 'task' as const,
+          assigneeName: task.assignee?.name || (task.assignee?.lastName && task.assignee?.firstName ? `${task.assignee.lastName} ${task.assignee.firstName}` : undefined),
+        }
+      })
+  }, [rawTasks])
+
+  const isLoading = tasksLoading
+  const error = tasksError?.message || null
 
   // 初期フィルター適用（セッション情報のみで即座に初期化）
   useEffect(() => {
@@ -141,13 +142,6 @@ export default function GanttChartPage() {
       setAssigneeFilterInitialized(true)
     }
   }, [session, departmentFilterInitialized, assigneeFilterInitialized])
-
-  // データ取得（初期化完了後のみ実行）
-  useEffect(() => {
-    if (session && departmentFilterInitialized && assigneeFilterInitialized) {
-      fetchGanttData()
-    }
-  }, [session, selectedProject, selectedAssignee, selectedDepartment, departmentFilterInitialized, assigneeFilterInitialized])
 
   const handleTaskClick = (task: Task) => {
     // 課題詳細ページへ遷移
@@ -174,19 +168,9 @@ export default function GanttChartPage() {
     <>
       <style dangerouslySetInnerHTML={{
         __html: `
-          [class*="_ganttTableWrapper"] {
-            max-width: 600px !important;
-          }
           @media (max-width: 768px) {
             .gantt-assignee-column {
               display: none !important;
-            }
-            .gantt-header-mobile,
-            .gantt-row-mobile {
-              grid-template-columns: 120px 150px 50px 80px 80px !important;
-            }
-            [class*="_ganttTableWrapper"] {
-              max-width: 300px !important;
             }
           }
         `
@@ -317,7 +301,7 @@ export default function GanttChartPage() {
                     <div style={{ paddingLeft: "8px" }}>終了日</div>
                   </div>
                 )}
-                TaskListTable={({ tasks: ganttTasks, fontFamily, fontSize, onExpanderClick, }) => {
+                TaskListTable={({ tasks: ganttTasks }) => {
                   return (
                     <>
                       {ganttTasks.map((task) => {
@@ -367,10 +351,14 @@ export default function GanttChartPage() {
                               {task.type !== "empty" ? (task as Task).progress || 0 : 0}%
                             </div>
                             <div style={{ paddingLeft: "8px" }}>
-                              {taskData?.start ? new Date(taskData.start).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" }) : "-"}
+                              {taskData?.start && !isNaN(new Date(taskData.start).getTime())
+                                ? new Date(taskData.start).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" })
+                                : "-"}
                             </div>
                             <div style={{ paddingLeft: "8px" }}>
-                              {taskData?.end ? new Date(taskData.end).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" }) : "-"}
+                              {taskData?.end && !isNaN(new Date(taskData.end).getTime())
+                                ? new Date(taskData.end).toLocaleDateString("ja-JP", { month: "2-digit", day: "2-digit" })
+                                : "-"}
                             </div>
                           </div>
                         )

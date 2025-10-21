@@ -90,8 +90,17 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: "顧客を削除しました" })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Customer delete error:", error)
+
+    // Prismaの外部キー制約エラー（P2003）をチェック
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        { error: "この顧客に紐づく見積書、発注書、または請求書が存在するため削除できません" },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json({ error: "顧客の削除に失敗しました" }, { status: 500 })
   }
 }

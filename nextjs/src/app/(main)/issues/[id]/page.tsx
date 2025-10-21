@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
 import { handleError } from "@/lib/error-handler"
@@ -100,10 +100,10 @@ const statusConfig = {
 }
 
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { data: session } = useSession()
+  const router = useRouter()
   const [comment, setComment] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [isDataLoading, setIsDataLoading] = useState(true)
+  const [isCommentLoading, setIsCommentLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   const [issue, setIssue] = useState<Issue | null>(null)
@@ -232,8 +232,8 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!comment.trim()) return
-    
-    setIsLoading(true)
+
+    setIsCommentLoading(true)
     try {
       const response = await fetch(`/api/issues/${issueId}/comments`, {
         method: "POST",
@@ -263,7 +263,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
     } catch (err: any) {
       handleError(err, "コメントの追加に失敗しました")
     } finally {
-      setIsLoading(false)
+      setIsCommentLoading(false)
     }
   }
 
@@ -271,11 +271,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/issues">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">課題詳細</h2>
             <p className="text-muted-foreground">読み込み中...</p>
@@ -295,11 +293,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/issues">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">課題詳細</h2>
           </div>
@@ -320,11 +316,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/issues">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-3xl font-bold tracking-tight">{issue.title}</h2>
@@ -421,9 +415,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   maxLength={5000}
                 />
                 <div className="flex justify-end">
-                  <Button type="submit" size="sm">
+                  <Button type="submit" size="sm" disabled={isCommentLoading}>
                     <Send className="mr-2 h-4 w-4" />
-                    送信
+                    {isCommentLoading ? "送信中..." : "送信"}
                   </Button>
                 </div>
               </form>

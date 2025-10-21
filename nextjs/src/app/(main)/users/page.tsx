@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useUsers } from "@/hooks/use-users"
+import { usePagination } from "@/hooks/use-pagination"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -39,46 +41,20 @@ import {
   AlertCircle
 } from "lucide-react"
 
-interface User {
-  id: string
-  employeeNumber: string
-  username: string
-  email: string
-  lastName: string
-  firstName: string
-  department: string | null
-  departmentId: string | null
-  departmentRef?: {
-    id: string
-    name: string
-  } | null
-  isAdmin: boolean
-  status: string
-  createdAt: string
-  updatedAt: string
-}
-
-interface PaginationInfo {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
-
 export default function UsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [users, setUsers] = useState<User[]>([])
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: 10 })
   const [searchQuery, setSearchQuery] = useState("")
-  const [department, setDepartment] = useState("all")
   const [statusFilter, setStatusFilter] = useState("active")
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -86,64 +62,44 @@ export default function UsersPage() {
   // 管理者権限チェック
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
-    
+
     if (!session.user?.isAdmin) {
       router.push("/dashboard")
       return
     }
   }, [session, status, router])
 
-  // ユーザー一覧取得
-  const fetchUsers = async () => {
-    try {
-      setLoading(true)
-      setError("")
-      
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+  // SWRフックでデータ取得
+  const { users, pagination: swrPagination, isLoading, isError, mutate } = useUsers({
+    page: currentPage,
+    limit: pagination.limit,
+    searchQuery: searchQuery || undefined,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+  })
+
+  // SWRのpaginationで更新
+  useEffect(() => {
+    if (swrPagination) {
+      setPagination({
+        page: swrPagination.currentPage,
+        limit: pagination.limit,
+        total: swrPagination.totalCount,
+        totalPages: swrPagination.totalPages,
       })
-      
-      if (searchQuery) params.append("search", searchQuery)
-      if (department && department !== "all") params.append("department", department)
-      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter)
-
-      const response = await fetch(`/api/users?${params}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "ユーザー一覧の取得に失敗しました")
-      }
-
-      setUsers(data.users)
-      setPagination(data.pagination)
-    } catch (error) {
-      console.warn("Fetch users error:", error)
-      setError(error instanceof Error ? error.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
     }
-  }
+  }, [swrPagination, setPagination, pagination.limit])
 
-  // 初回読み込み
+  // 検索・フィルター変更時はページを1に戻す
   useEffect(() => {
     if (session?.user?.isAdmin) {
-      fetchUsers()
+      resetToFirstPage()
     }
-  }, [session])
-
-  // フィルター変更時
-  useEffect(() => {
-    if (session?.user?.isAdmin) {
-      setPagination(prev => ({ ...prev, page: 1 }))
-      fetchUsers()
-    }
-  }, [searchQuery, department, statusFilter])
+  }, [searchQuery, statusFilter, resetToFirstPage])
 
   // ユーザー削除
   const handleDelete = async () => {
@@ -151,20 +107,20 @@ export default function UsersPage() {
 
     try {
       setDeleteLoading(true)
-      
+
       const response = await fetch(`/api/users/${deleteUserId}`, {
         method: "DELETE",
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.error || "ユーザーの削除に失敗しました")
       }
-      
+
       toast.success("ユーザーを削除しました")
       setDeleteUserId(null)
-      fetchUsers()
+      mutate()
     } catch (error) {
       console.warn("Delete user error:", error)
       toast.error(error instanceof Error ? error.message : "削除に失敗しました")
@@ -199,10 +155,10 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      {error && (
+      {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
 
@@ -255,7 +211,7 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 9 }).map((_, j) => (
@@ -329,29 +285,19 @@ export default function UsersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (pagination.page > 1) {
-                setPagination(prev => ({ ...prev, page: prev.page - 1 }))
-                fetchUsers()
-              }
-            }}
-            disabled={pagination.page <= 1 || loading}
+            onClick={goToPreviousPage}
+            disabled={!hasPreviousPage}
           >
             前へ
           </Button>
           <span className="text-sm text-muted-foreground">
-            {pagination.page} / {pagination.totalPages}ページ
+            {currentPage} / {pagination.totalPages}ページ
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (pagination.page < pagination.totalPages) {
-                setPagination(prev => ({ ...prev, page: prev.page + 1 }))
-                fetchUsers()
-              }
-            }}
-            disabled={pagination.page >= pagination.totalPages || loading}
+            onClick={goToNextPage}
+            disabled={!hasNextPage}
           >
             次へ
           </Button>

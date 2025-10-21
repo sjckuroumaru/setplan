@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -37,7 +37,13 @@ const createUserFormSchema = baseUserFormSchema.extend({
 })
 
 const editUserFormSchema = baseUserFormSchema.extend({
-  password: z.string().optional().or(z.literal("")),
+  password: z
+    .string()
+    .refine(
+      (val) => val.length === 0 || val.length >= 6,
+      "パスワードは6文字以上で入力してください"
+    )
+    .optional(),
 })
 
 type CreateUserFormValues = z.infer<typeof createUserFormSchema>
@@ -81,6 +87,10 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
   const [isUploadingSeal, setIsUploadingSeal] = useState(false)
   const [departments, setDepartments] = useState<Department[]>([])
   const [loadingDepartments, setLoadingDepartments] = useState(false)
+
+  // データ設定済みフラグと前回のユーザーID
+  const hasInitializedData = useRef(false)
+  const previousUserId = useRef<string | null>(null)
   
   const form = useForm<UserFormValues>({
     resolver: zodResolver(formSchema as any),
@@ -117,21 +127,33 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
   }, [])
 
   useEffect(() => {
-    if (user) {
-      form.reset({
-        employeeNumber: user.employeeNumber,
-        username: user.username,
-        email: user.email,
-        password: "",
-        lastName: user.lastName,
-        firstName: user.firstName,
-        departmentId: user.departmentId || null,
-        isAdmin: user.isAdmin,
-        status: user.status as "active" | "inactive",
-      })
-      setSealImageUrl(user.sealImagePath || null)
+    // ユーザーIDが変わった場合は、フラグをリセット
+    if (previousUserId.current !== user?.id) {
+      hasInitializedData.current = false
+      previousUserId.current = user?.id || null
     }
-  }, [user, form])
+
+    // 既にデータを設定済み、またはuserがない場合はスキップ
+    if (hasInitializedData.current || !user) {
+      return
+    }
+
+    hasInitializedData.current = true
+
+    form.reset({
+      employeeNumber: user.employeeNumber,
+      username: user.username,
+      email: user.email,
+      password: "",
+      lastName: user.lastName,
+      firstName: user.firstName,
+      departmentId: user.departmentId || null,
+      isAdmin: user.isAdmin,
+      status: user.status as "active" | "inactive",
+    })
+    setSealImageUrl(user.sealImagePath || null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   const handleSubmit = async (data: UserFormValues) => {
     // 編集モードでパスワードが空の場合は除外

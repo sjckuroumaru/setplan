@@ -156,10 +156,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   tableCol1: {
-    flex: 3,
+    flex: 2.5,
   },
   tableCol2: {
-    flex: 1,
+    flex: 0.8,
     textAlign: "center",
   },
   tableCol3: {
@@ -167,12 +167,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   tableCol4: {
-    flex: 1.2,
+    flex: 1,
     textAlign: "right",
     paddingRight: 5,
   },
   tableCol5: {
-    flex: 1.2,
+    paddingLeft: 5,
+    flex: 1.5,
+  },
+  tableCol6: {
+    flex: 1,
     textAlign: "right",
     paddingRight: 5,
   },
@@ -312,6 +316,7 @@ interface EstimatePDFProps {
       unitPrice: string
       taxType: string
       amount: string
+      remarks?: string | null
     }[]
   }
   company?: {
@@ -329,12 +334,6 @@ interface EstimatePDFProps {
     firstName: string
     sealImagePath?: string | null
   }
-}
-
-const taxTypeLabels: Record<string, string> = {
-  taxable: "課税",
-  "non-taxable": "非課税",
-  "tax-included": "内税",
 }
 
 export const EstimatePDF: React.FC<EstimatePDFProps> = ({ estimate, company, user }) => {
@@ -444,7 +443,8 @@ export const EstimatePDF: React.FC<EstimatePDFProps> = ({ estimate, company, use
             <Text style={[styles.tableHeaderText, styles.tableCol2]}>数量</Text>
             <Text style={[styles.tableHeaderText, styles.tableCol3]}>単位</Text>
             <Text style={[styles.tableHeaderText, styles.tableCol4]}>単価</Text>
-            <Text style={[styles.tableHeaderText, styles.tableCol5]}>金額</Text>
+            <Text style={[styles.tableHeaderText, styles.tableCol5]}>備考</Text>
+            <Text style={[styles.tableHeaderText, styles.tableCol6]}>金額</Text>
           </View>
           {estimate.items.map((item, index) => (
             <View key={index} style={styles.tableRow}>
@@ -456,7 +456,8 @@ export const EstimatePDF: React.FC<EstimatePDFProps> = ({ estimate, company, use
               <Text style={[styles.tableTextRight, styles.tableCol4]}>
                 {formatCurrency(item.unitPrice)}
               </Text>
-              <Text style={[styles.tableTextRight, styles.tableCol5]}>
+              <Text style={[styles.tableText, styles.tableCol5]}>{item.remarks || ""}</Text>
+              <Text style={[styles.tableTextRight, styles.tableCol6]}>
                 {formatCurrency(item.amount)}
               </Text>
             </View>
@@ -472,6 +473,7 @@ export const EstimatePDF: React.FC<EstimatePDFProps> = ({ estimate, company, use
                   <Text style={[styles.tableText, styles.tableCol3]}> </Text>
                   <Text style={[styles.tableText, styles.tableCol4]}> </Text>
                   <Text style={[styles.tableText, styles.tableCol5]}> </Text>
+                  <Text style={[styles.tableText, styles.tableCol6]}> </Text>
                 </View>
               ))}
             </>

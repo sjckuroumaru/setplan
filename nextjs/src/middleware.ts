@@ -1,7 +1,7 @@
 import { withAuth } from "next-auth/middleware"
 
 export default withAuth(
-  function middleware(req) {
+  function middleware() {
     // 認証が必要なルートの追加処理があればここに記述
   },
   {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { useSession } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -134,21 +134,70 @@ const generateTimeOptions = () => {
 
 const TIME_OPTIONS = generateTimeOptions()
 
-export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [], showAllProjects = false, setShowAllProjects }: ScheduleFormProps) {
+export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [], showAllProjects = false }: ScheduleFormProps) {
   const { data: session } = useSession()
   const [projects, setProjects] = useState<Project[]>([])
   const [projectsLoading, setProjectsLoading] = useState(true)
-  const [currentTime, setCurrentTime] = useState("")
-  const [todayDate, setTodayDate] = useState("")
 
-  // 現在の日時を取得（クライアント側のみ）
-  useEffect(() => {
+  // データ設定済みフラグと前回のスケジュールID
+  const hasInitializedData = useRef(false)
+  const previousScheduleId = useRef<string | null>(null)
+
+  // 新規作成時の初期値を計算
+  const defaultFormValues = useMemo(() => {
+    if (schedule) {
+      // 編集モードの場合は既存データを使用
+      return {
+        scheduleDate: formatDateForInput(schedule.scheduleDate),
+        checkInTime: schedule.checkInTime || "none",
+        checkOutTime: schedule.checkOutTime || "none",
+        reflection: schedule.reflection || "",
+        userId: schedule.userId || undefined,
+        plans: schedule.plans && schedule.plans.length > 0
+          ? schedule.plans.map(plan => ({
+              projectId: plan.projectId || "none",
+              content: plan.content,
+              details: plan.details || "",
+            }))
+          : [{ projectId: "none", content: "", details: "" }],
+        actuals: schedule.actuals && schedule.actuals.length > 0
+          ? schedule.actuals.map(actual => ({
+              projectId: actual.projectId || "none",
+              content: actual.content,
+              hours: actual.hours,
+              details: actual.details || "",
+            }))
+          : [{ projectId: "none", content: "", hours: 0, details: "" }],
+      }
+    }
+
+    // 新規作成モードの場合は現在日時を使用
     const now = new Date()
-    const currentHour = now.getHours().toString().padStart(2, "0")
-    const currentMinute = (Math.floor(now.getMinutes() / 15) * 15).toString().padStart(2, "0")
-    setCurrentTime(`${currentHour}:${currentMinute}`)
-    setTodayDate(now.toISOString().split("T")[0])
-  }, [])
+
+    // 現在時刻を15分単位で切り上げ
+    const totalMinutes = now.getHours() * 60 + now.getMinutes()
+    const roundedMinutes = Math.ceil(totalMinutes / 15) * 15
+    const hour = Math.floor(roundedMinutes / 60).toString().padStart(2, "0")
+    const minute = (roundedMinutes % 60).toString().padStart(2, "0")
+    const time = `${hour}:${minute}`
+
+    const date = now.toISOString().split("T")[0]
+
+    return {
+      scheduleDate: date,
+      checkInTime: time,
+      checkOutTime: "none",
+      reflection: "",
+      userId: undefined,
+      plans: [{ projectId: "none", content: "", details: "" }],
+      actuals: [{ projectId: "none", content: "", hours: 0, details: "" }],
+    }
+  }, [schedule])
+
+  const form = useForm<ScheduleFormValues>({
+    resolver: zodResolver(scheduleFormSchema),
+    defaultValues: defaultFormValues,
+  })
 
   // プロジェクトリストを取得
   useEffect(() => {
@@ -179,32 +228,14 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       }
     }
 
-    if (session) {
+    // sessionが存在する場合のみfetch実行
+    if (session?.user) {
       fetchProjects()
+    } else {
+      // sessionがない場合はローディングを終了
+      setProjectsLoading(false)
     }
-  }, [showAllProjects, session])
-
-  const form = useForm<ScheduleFormValues>({
-    resolver: zodResolver(scheduleFormSchema),
-    defaultValues: {
-      scheduleDate: schedule ? formatDateForInput(schedule.scheduleDate) : todayDate,
-      checkInTime: schedule?.checkInTime || (isEdit ? "none" : currentTime),
-      checkOutTime: schedule?.checkOutTime || "none",
-      reflection: schedule?.reflection || "",
-      userId: schedule?.userId || undefined,
-      plans: schedule?.plans?.map(plan => ({
-        projectId: plan.projectId || "none",
-        content: plan.content,
-        details: plan.details || "",
-      })) || [{ projectId: "none", content: "", details: "" }],
-      actuals: schedule?.actuals?.map(actual => ({
-        projectId: actual.projectId || "none",
-        content: actual.content,
-        hours: actual.hours,
-        details: actual.details || "",
-      })) || [{ projectId: "none", content: "", hours: 0, details: "" }],
-    },
-  })
+  }, [showAllProjects, session?.user?.departmentId, session?.user])
 
   const { fields: planFields, append: appendPlan, remove: removePlan } = useFieldArray({
     control: form.control,
@@ -220,28 +251,45 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   const watchActuals = form.watch("actuals")
   const totalHours = watchActuals?.reduce((sum, actual) => sum + (Number(actual.hours) || 0), 0) || 0
 
+  // scheduleプロパティが変更された時にフォームをリセット（編集モード用）
   useEffect(() => {
-    if (schedule) {
-      form.reset({
-        scheduleDate: formatDateForInput(schedule.scheduleDate),
-        checkInTime: schedule.checkInTime || "none",
-        checkOutTime: schedule.checkOutTime || "none",
-        reflection: schedule.reflection || "",
-        userId: schedule.userId || undefined,
-        plans: schedule.plans?.map(plan => ({
-          projectId: plan.projectId || "none",
-          content: plan.content,
-          details: plan.details || "",
-        })) || [{ projectId: "none", content: "", details: "" }],
-        actuals: schedule.actuals?.map(actual => ({
-          projectId: actual.projectId || "none",
-          content: actual.content,
-          hours: actual.hours,
-          details: actual.details || "",
-        })) || [{ projectId: "none", content: "", hours: 0, details: "" }],
-      })
+    // スケジュールIDが変わった場合は、フラグをリセット
+    if (previousScheduleId.current !== schedule?.id) {
+      hasInitializedData.current = false
+      previousScheduleId.current = schedule?.id || null
     }
-  }, [schedule, form])
+
+    // 既にデータを設定済み、またはscheduleがない場合はスキップ
+    if (hasInitializedData.current || !schedule) {
+      return
+    }
+
+    hasInitializedData.current = true
+
+    form.reset({
+      scheduleDate: formatDateForInput(schedule.scheduleDate),
+      checkInTime: schedule.checkInTime || "none",
+      checkOutTime: schedule.checkOutTime || "none",
+      reflection: schedule.reflection || "",
+      userId: schedule.userId || undefined,
+      plans: schedule.plans && schedule.plans.length > 0
+        ? schedule.plans.map(plan => ({
+            projectId: plan.projectId || "none",
+            content: plan.content,
+            details: plan.details || "",
+          }))
+        : [{ projectId: "none", content: "", details: "" }],
+      actuals: schedule.actuals && schedule.actuals.length > 0
+        ? schedule.actuals.map(actual => ({
+            projectId: actual.projectId || "none",
+            content: actual.content,
+            hours: actual.hours,
+            details: actual.details || "",
+          }))
+        : [{ projectId: "none", content: "", hours: 0, details: "" }],
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule?.id])
 
   const handleSubmit = async (data: ScheduleFormValues) => {
     // 空の項目を除外し、"none"を空文字列に変換
@@ -280,7 +328,8 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
             <div className="space-y-4">
               <h3 className="text-lg font-medium">基本情報</h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 1行目: 日付 + 担当者 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="scheduleDate"
@@ -322,7 +371,10 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                     )}
                   />
                 )}
+              </div>
 
+              {/* 2行目: 出社時刻 + 退社時刻 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="checkInTime"
@@ -536,13 +588,36 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                                 <FormLabel>実績時間{isRequired ? " *" : ""}</FormLabel>
                                 <FormControl>
                                   <Input
-                                    type="number"
-                                    step="0.25"
-                                    min="0"
+                                    type="text"
                                     placeholder="2.5"
                                     className="w-24"
-                                    {...field}
-                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                    value={field.value === 0 ? "" : field.value}
+                                    onChange={(e) => {
+                                      const value = e.target.value
+                                      // 数値または小数点のみ許可（入力途中の「.」も許可）
+                                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                                        // 空の場合は0、入力途中（例: "0."）の場合はそのまま、完全な数値の場合はparseFloat
+                                        if (value === "") {
+                                          field.onChange(0)
+                                        } else if (value.endsWith(".") || value === ".") {
+                                          // 小数点で終わる場合は文字列として保持（入力途中）
+                                          field.onChange(value)
+                                        } else {
+                                          const numValue = parseFloat(value)
+                                          field.onChange(isNaN(numValue) ? 0 : numValue)
+                                        }
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      // フォーカスが外れた時に数値に変換
+                                      const value = e.target.value
+                                      if (value === "" || value === ".") {
+                                        field.onChange(0)
+                                      } else {
+                                        const numValue = parseFloat(value)
+                                        field.onChange(isNaN(numValue) ? 0 : numValue)
+                                      }
+                                    }}
                                     disabled={readOnly}
                                   />
                                 </FormControl>

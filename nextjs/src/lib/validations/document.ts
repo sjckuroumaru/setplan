@@ -4,9 +4,9 @@ import { z } from "zod"
 export const DocumentItemSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "項目名は必須です"),
-  quantity: z.union([z.string(), z.number()]).transform(val => String(val)),
+  quantity: z.coerce.number().min(0, "数量は0以上である必要があります"),
   unit: z.string().optional(),
-  unitPrice: z.union([z.string(), z.number()]).transform(val => String(val)),
+  unitPrice: z.coerce.number().min(0, "単価は0以上である必要があります"),
   taxType: z.enum(["taxable", "non-taxable", "tax-included"]),
   taxRate: z.number().optional(),
   amount: z.union([z.string(), z.number()]).transform(val => String(val)).optional(),

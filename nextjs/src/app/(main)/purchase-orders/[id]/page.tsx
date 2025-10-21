@@ -117,7 +117,7 @@ export default function PurchaseOrderDetailPage({
       if (!response.ok) throw new Error()
       const data = await response.json()
       setPurchaseOrder(data)
-    } catch (error) {
+    } catch {
       toast.error("発注書の取得に失敗しました")
       router.push("/purchase-orders")
     } finally {
@@ -143,12 +143,12 @@ export default function PurchaseOrderDetailPage({
         method: "POST",
       })
       if (!response.ok) throw new Error()
-      
+
       const duplicated = await response.json()
       router.push(`/purchase-orders/${duplicated.id}/edit`)
-      
+
       toast.success("発注書を複製しました")
-    } catch (error) {
+    } catch {
       toast.error("発注書の複製に失敗しました")
     }
   }
@@ -162,10 +162,10 @@ export default function PurchaseOrderDetailPage({
         method: "DELETE",
       })
       if (!response.ok) throw new Error()
-      
+
       router.push("/purchase-orders")
       toast.success("発注書を削除しました")
-    } catch (error) {
+    } catch {
       toast.error("発注書の削除に失敗しました")
     }
   }

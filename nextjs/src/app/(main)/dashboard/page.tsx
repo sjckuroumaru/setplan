@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useIssues } from "@/hooks/use-issues"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,64 +21,15 @@ import {
   CalendarPlus
 } from "lucide-react"
 
-interface Issue {
-  id: string
-  title: string
-  description: string
-  status: string
-  priority: string
-  category?: string
-  project: {
-    id: string
-    projectNumber: string
-    projectName: string
-  }
-  assignee: {
-    id: string
-    name: string
-    employeeNumber: string
-  } | null
-  dueDate: string | null
-  createdAt: string
-  updatedAt: string
-}
-
 export default function DashboardPage() {
-  const { data: session } = useSession()
   const router = useRouter()
-  const [inProgressIssues, setInProgressIssues] = useState<Issue[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchInProgressIssues = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        // 対応中（in_progress）の課題のみを取得
-        const response = await fetch('/api/issues?status=in_progress&limit=50', {
-          cache: 'no-store'
-        })
-
-        if (!response.ok) {
-          throw new Error('課題の取得に失敗しました')
-        }
-
-        const data = await response.json()
-        setInProgressIssues(data.issues || [])
-      } catch (err: any) {
-        console.warn('Error fetching issues:', err)
-        setError(err.message)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    if (session) {
-      fetchInProgressIssues()
-    }
-  }, [session])
+  // SWRフックで対応中の課題を取得
+  const { issues: inProgressIssues, isLoading, isError } = useIssues({
+    page: 1,
+    limit: 50,
+    status: "in_progress",
+  })
 
   const handleIssueClick = (issueId: string) => {
     router.push(`/issues/${issueId}`)
@@ -113,10 +64,10 @@ export default function DashboardPage() {
     }
   }
 
-  const formatDueDate = (dueDate: string | null) => {
+  const formatDueDate = (dueDate: string | Date | null) => {
     if (!dueDate) return '期限なし'
-    
-    const date = new Date(dueDate)
+
+    const date = dueDate instanceof Date ? dueDate : new Date(dueDate)
     const today = new Date()
     const diffTime = date.getTime() - today.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -157,65 +108,69 @@ export default function DashboardPage() {
             本日の業務管理
           </p>
         </div>
-        <Button 
-          size="lg"
-          onClick={() => router.push(`/schedules/new?date=${getTodayDate()}`)}
-          className="gap-2"
-        >
-          <CalendarPlus className="h-5 w-5" />
-          今日の予定実績を登録
+        <Button size="lg" className="gap-2" asChild>
+          <Link href={`/schedules/new?date=${getTodayDate()}`}>
+            <CalendarPlus className="h-5 w-5" />
+            今日の予定実績を登録
+          </Link>
         </Button>
       </div>
 
       {/* クイックアクション */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push(`/schedules/new?date=${getTodayDate()}`)}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CalendarPlus className="h-4 w-4" />
-                予定実績登録
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              本日の予定・実績を登録
-            </p>
-          </CardContent>
-        </Card>
+        <Link href={`/schedules/new?date=${getTodayDate()}`}>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarPlus className="h-4 w-4" />
+                  予定実績登録
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                本日の予定・実績を登録
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/schedules')}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                予定実績一覧
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              過去の予定実績を確認
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/schedules">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  予定実績一覧
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                過去の予定実績を確認
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/issues/new')}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                新規課題登録
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              新しい課題を作成
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/issues/new">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  新規課題登録
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                新しい課題を作成
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* 対応中課題 */}
@@ -242,10 +197,10 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {error ? (
+          {isError ? (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
             </Alert>
           ) : isLoading ? (
             <div className="space-y-4">
@@ -293,11 +248,11 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium truncate">{issue.title}</p>
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="truncate">
-                          {issue.project.projectName}
+                          {issue.project?.projectName || "案件未設定"}
                         </span>
                         <span className="flex items-center gap-1">
                           <User className="h-3 w-3" />
-                          {issue.assignee?.name || "未割当"}
+                          {issue.assignee?.lastName && issue.assignee?.firstName ? `${issue.assignee.lastName} ${issue.assignee.firstName}` : "未割当"}
                         </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />

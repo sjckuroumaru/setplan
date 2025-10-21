@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { handleApiError, handleError } from "@/lib/error-handler"
@@ -38,8 +37,8 @@ import {
   AlertDescription,
 } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   Save,
   AlertCircle,
   Calendar,
@@ -49,7 +48,6 @@ import {
   FileText,
   Info,
   Trash2,
-  CheckCircle2,
   CalendarClock,
   Percent,
   ArrowDownCircle,
@@ -94,10 +92,8 @@ interface Issue {
 
 export default function EditIssuePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
-  const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -202,7 +198,7 @@ export default function EditIssuePage({ params }: { params: Promise<{ id: string
         priority: formData.priority,
         status: formData.status,
         category: formData.category || undefined,
-        assigneeId: formData.assigneeId && formData.assigneeId !== "unassigned" ? formData.assigneeId : undefined,
+        assigneeId: formData.assigneeId && formData.assigneeId !== "unassigned" ? formData.assigneeId : null,
         dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined,
@@ -257,11 +253,9 @@ export default function EditIssuePage({ params }: { params: Promise<{ id: string
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/issues">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">課題編集</h2>
             <p className="text-muted-foreground">読み込み中...</p>
@@ -281,11 +275,9 @@ export default function EditIssuePage({ params }: { params: Promise<{ id: string
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/issues">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">課題編集</h2>
           </div>
@@ -343,15 +335,6 @@ export default function EditIssuePage({ params }: { params: Promise<{ id: string
           </DialogContent>
         </Dialog>
       </div>
-
-      {showSuccessAlert && (
-        <Alert className="border-green-500 bg-green-50">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            課題を更新しました。詳細ページに移動します...
-          </AlertDescription>
-        </Alert>
-      )}
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6">
@@ -595,14 +578,12 @@ export default function EditIssuePage({ params }: { params: Promise<{ id: string
                     disabled={isLoading}
                   />
                   <Input
-                    type="number"
+                    type="text"
                     value={formData.progress}
                     onChange={(e) => {
                       const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
                       setFormData({ ...formData, progress: value })
                     }}
-                    min={0}
-                    max={100}
                     className="w-20"
                     disabled={isLoading}
                   />

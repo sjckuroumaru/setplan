@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -121,6 +121,10 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
   const [loadingDepartments, setLoadingDepartments] = useState(false)
   const [loadingPurchaseOrders, setLoadingPurchaseOrders] = useState(false)
 
+  // データ設定済みフラグと前回のプロジェクトID
+  const hasInitializedData = useRef(false)
+  const previousProjectId = useRef<string | null>(null)
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -178,23 +182,35 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
   }, [])
 
   useEffect(() => {
-    if (project) {
-      form.reset({
-        projectNumber: project.projectNumber,
-        projectName: project.projectName,
-        description: project.description || "",
-        status: project.status as "planning" | "developing" | "active" | "suspended" | "completed",
-        departmentId: project.departmentId || null,
-        purchaseOrderId: project.purchaseOrderId || null,
-        plannedStartDate: formatDateForInput(project.plannedStartDate),
-        plannedEndDate: formatDateForInput(project.plannedEndDate),
-        actualStartDate: formatDateForInput(project.actualStartDate),
-        actualEndDate: formatDateForInput(project.actualEndDate),
-        budget: project.budget || "",
-        hourlyRate: project.hourlyRate || "",
-      })
+    // プロジェクトIDが変わった場合は、フラグをリセット
+    if (previousProjectId.current !== project?.id) {
+      hasInitializedData.current = false
+      previousProjectId.current = project?.id || null
     }
-  }, [project, form])
+
+    // 既にデータを設定済み、またはprojectがない場合はスキップ
+    if (hasInitializedData.current || !project) {
+      return
+    }
+
+    hasInitializedData.current = true
+
+    form.reset({
+      projectNumber: project.projectNumber,
+      projectName: project.projectName,
+      description: project.description || "",
+      status: project.status as "planning" | "developing" | "active" | "suspended" | "completed",
+      departmentId: project.departmentId || null,
+      purchaseOrderId: project.purchaseOrderId || null,
+      plannedStartDate: formatDateForInput(project.plannedStartDate),
+      plannedEndDate: formatDateForInput(project.plannedEndDate),
+      actualStartDate: formatDateForInput(project.actualStartDate),
+      actualEndDate: formatDateForInput(project.actualEndDate),
+      budget: project.budget || "",
+      hourlyRate: project.hourlyRate || "",
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id])
 
   const handleSubmit = async (data: FormData) => {
     // フォームデータをAPIの型に変換

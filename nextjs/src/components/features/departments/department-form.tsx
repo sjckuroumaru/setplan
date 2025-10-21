@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -38,6 +38,10 @@ interface DepartmentFormProps {
 }
 
 export function DepartmentForm({ department, onSubmit, onCancel, isLoading, isEdit = false }: DepartmentFormProps) {
+  // データ設定済みフラグと前回の部署ID
+  const hasInitializedData = useRef(false)
+  const previousDepartmentId = useRef<string | null>(null)
+
   const form = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
@@ -46,12 +50,24 @@ export function DepartmentForm({ department, onSubmit, onCancel, isLoading, isEd
   })
 
   useEffect(() => {
-    if (department) {
-      form.reset({
-        name: department.name,
-      })
+    // 部署IDが変わった場合は、フラグをリセット
+    if (previousDepartmentId.current !== department?.id) {
+      hasInitializedData.current = false
+      previousDepartmentId.current = department?.id || null
     }
-  }, [department, form])
+
+    // 既にデータを設定済み、またはdepartmentがない場合はスキップ
+    if (hasInitializedData.current || !department) {
+      return
+    }
+
+    hasInitializedData.current = true
+
+    form.reset({
+      name: department.name,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [department?.id])
 
   return (
     <Card className="max-w-2xl mx-auto">

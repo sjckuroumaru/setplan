@@ -6,14 +6,8 @@ import {
   XCircle, 
   AlertCircle, 
   Clock,
-  type LucideIcon 
+  type LucideIcon
 } from "lucide-react"
-
-interface StatusConfig {
-  label: string
-  variant: "default" | "secondary" | "destructive" | "outline" | "success"
-  icon: LucideIcon
-}
 
 const STATUS_ICONS: Record<string, LucideIcon> = {
   draft: FileText,

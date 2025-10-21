@@ -14,6 +14,15 @@ export async function POST(
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
     }
 
+    // セッションのユーザーが存在するか確認
+    const sessionUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    })
+
+    if (!sessionUser || sessionUser.status !== "active") {
+      return NextResponse.json({ error: "ユーザーが見つからないか、無効になっています" }, { status: 401 })
+    }
+
     const resolvedParams = await params
     // 元の請求書を取得
     const originalInvoice = await prisma.invoice.findUnique({

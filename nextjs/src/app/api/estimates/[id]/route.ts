@@ -126,7 +126,7 @@ export async function PUT(
     // トランザクションで見積と明細を更新
     const estimate = await prisma.$transaction(async (tx) => {
       // 見積書更新
-      const updatedEstimate = await tx.estimate.update({
+      await tx.estimate.update({
         where: { id: resolvedParams.id },
         data: {
           customerId: validatedData.customerId,

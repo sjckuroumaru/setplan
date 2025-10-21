@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -66,6 +66,10 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // データ取得済みフラグと前回のページID
+  const hasFetchedData = useRef(false)
+  const previousPageId = useRef<string | null>(null)
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
@@ -83,11 +87,24 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
 
   // 顧客情報取得
   useEffect(() => {
+    // ページIDが変わった場合は、フラグをリセット
+    if (previousPageId.current !== resolvedParams.id) {
+      hasFetchedData.current = false
+      previousPageId.current = resolvedParams.id
+    }
+
+    // 既にデータを取得済み、またはセッションがない場合はスキップ
+    if (hasFetchedData.current || !session) {
+      return
+    }
+
+    hasFetchedData.current = true
+
     const fetchCustomer = async () => {
       try {
         const response = await fetch(`/api/customers/${resolvedParams.id}`)
         if (!response.ok) throw new Error()
-        
+
         const data = await response.json()
         form.reset({
           name: data.customer.name || "",
@@ -100,7 +117,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
           remarks: data.customer.remarks || "",
           status: data.customer.status || "active",
         })
-      } catch (error) {
+      } catch {
         toast.error("顧客情報の取得に失敗しました")
         router.push("/customers")
       } finally {
@@ -108,10 +125,9 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
       }
     }
 
-    if (session) {
-      fetchCustomer()
-    }
-  }, [session, resolvedParams.id, form, router])
+    fetchCustomer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, resolvedParams.id])
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -126,7 +142,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
       
       toast.success("顧客情報を更新しました")
       router.push("/customers")
-    } catch (error) {
+    } catch {
       toast.error("更新に失敗しました")
     } finally {
       setIsSubmitting(false)

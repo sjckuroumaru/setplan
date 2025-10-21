@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { toast } from "sonner"
+import { useInvoiceCalculations } from "@/hooks/use-invoice-calculations"
 import {
   Card,
   CardContent,
@@ -79,17 +79,9 @@ interface Customer {
 }
 
 export default function NewInvoicePage() {
-  const { data: session } = useSession()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [calculatedAmounts, setCalculatedAmounts] = useState({
-    subtotal: 0,
-    taxAmount: 0,
-    taxAmount8: 0,
-    taxAmount10: 0,
-    totalAmount: 0,
-  })
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema) as any,
@@ -123,6 +115,9 @@ export default function NewInvoicePage() {
     name: "items",
   })
 
+  // 金額計算カスタムフックを使用
+  const { calculatedAmounts, calculateAmounts } = useInvoiceCalculations(form)
+
   // 顧客一覧を取得
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -131,91 +126,12 @@ export default function NewInvoicePage() {
         if (!response.ok) throw new Error("顧客の取得に失敗しました")
         const data = await response.json()
         setCustomers(data.customers || [])
-      } catch (error) {
+      } catch {
         toast.error("顧客の取得に失敗しました")
       }
     }
     fetchCustomers()
   }, [])
-
-  // 金額計算
-  const calculateAmounts = () => {
-    const items = form.getValues("items")
-    const taxType = form.getValues("taxType")
-    const taxRate = form.getValues("taxRate")
-    const roundingType = form.getValues("roundingType")
-
-    let subtotal = 0
-    let taxAmount8Total = 0
-    let taxAmount10Total = 0
-
-    items.forEach(item => {
-      const amount = item.quantity * item.unitPrice
-      
-      if (taxType === "exclusive") {
-        subtotal += amount
-        if (item.taxType === "taxable") {
-          const itemTaxRate = item.taxRate || taxRate
-          const tax = amount * (itemTaxRate / 100)
-          if (itemTaxRate === 8) {
-            taxAmount8Total += tax
-          } else if (itemTaxRate === 10) {
-            taxAmount10Total += tax
-          }
-        }
-      } else {
-        // 税込の場合
-        if (item.taxType === "taxable") {
-          const itemTaxRate = item.taxRate || taxRate
-          const baseAmount = amount / (1 + itemTaxRate / 100)
-          subtotal += baseAmount
-          const tax = amount - baseAmount
-          if (itemTaxRate === 8) {
-            taxAmount8Total += tax
-          } else if (itemTaxRate === 10) {
-            taxAmount10Total += tax
-          }
-        } else {
-          subtotal += amount
-        }
-      }
-    })
-
-    // 端数処理
-    const round = (value: number) => {
-      switch (roundingType) {
-        case "floor":
-          return Math.floor(value)
-        case "ceil":
-          return Math.ceil(value)
-        case "round":
-          return Math.round(value)
-        default:
-          return Math.floor(value)
-      }
-    }
-
-    taxAmount8Total = round(taxAmount8Total)
-    taxAmount10Total = round(taxAmount10Total)
-    const taxAmount = taxAmount8Total + taxAmount10Total
-    const totalAmount = round(subtotal + taxAmount)
-
-    setCalculatedAmounts({
-      subtotal: round(subtotal),
-      taxAmount,
-      taxAmount8: taxAmount8Total,
-      taxAmount10: taxAmount10Total,
-      totalAmount,
-    })
-  }
-
-  // フォーム値変更時に金額を再計算
-  useEffect(() => {
-    const subscription = form.watch(() => {
-      calculateAmounts()
-    })
-    return () => subscription.unsubscribe()
-  }, [form])
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -239,7 +155,7 @@ export default function NewInvoicePage() {
       const result = await response.json()
       toast.success("請求書を作成しました")
       router.push(`/invoices/${result.invoice.id}`)
-    } catch (error) {
+    } catch {
       toast.error("請求書の作成に失敗しました")
     } finally {
       setIsSubmitting(false)
@@ -521,7 +437,7 @@ export default function NewInvoicePage() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input type="number" {...field} />
+                                  <Input type="text" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -549,7 +465,7 @@ export default function NewInvoicePage() {
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input type="number" {...field} />
+                                  <Input type="text" {...field} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>

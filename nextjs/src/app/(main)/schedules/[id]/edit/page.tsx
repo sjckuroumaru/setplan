@@ -11,6 +11,13 @@ import { ArrowLeft, AlertCircle } from "lucide-react"
 import { ScheduleForm } from "@/components/features/schedules/schedule-form"
 import { toast } from "sonner"
 
+interface User {
+  id: string
+  lastName: string
+  firstName: string
+  employeeNumber: string
+}
+
 interface Project {
   id: string
   projectNumber: string
@@ -63,13 +70,6 @@ type ScheduleFormValues = {
     hours: number
     details?: string
   }>
-}
-
-interface User {
-  id: string
-  lastName: string
-  firstName: string
-  employeeNumber: string
 }
 
 export default function EditSchedulePage({ params }: { params: Promise<{ id: string }> }) {
@@ -168,7 +168,21 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || "予定実績の更新に失敗しました")
+        // エラーメッセージの処理
+        let errorMessage = "予定実績の更新に失敗しました"
+
+        if (result.error) {
+          // バリデーションエラーの配列の場合
+          if (Array.isArray(result.error)) {
+            errorMessage = result.error.map((err: any) => err.message).join(", ")
+          }
+          // 文字列の場合
+          else if (typeof result.error === "string") {
+            errorMessage = result.error
+          }
+        }
+
+        throw new Error(errorMessage)
       }
 
       toast.success("予定実績を更新しました")

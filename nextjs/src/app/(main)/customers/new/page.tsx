@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -49,7 +48,6 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>
 
 export default function NewCustomerPage() {
-  const { data: session } = useSession()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -81,7 +79,7 @@ export default function NewCustomerPage() {
       
       toast.success("顧客を登録しました")
       router.push("/customers")
-    } catch (error) {
+    } catch {
       toast.error("登録に失敗しました")
     } finally {
       setIsSubmitting(false)

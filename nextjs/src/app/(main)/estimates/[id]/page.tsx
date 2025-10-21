@@ -123,7 +123,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         
         const data = await response.json()
         setEstimate(data.estimate)
-      } catch (error) {
+      } catch {
         toast.error("見積の取得に失敗しました")
         router.push("/estimates")
       } finally {
@@ -148,7 +148,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       const data = await response.json()
       toast.success("見積を複製しました")
       router.push(`/estimates/${data.estimate.id}/edit`)
-    } catch (error) {
+    } catch {
       toast.error("複製に失敗しました")
     }
   }
@@ -177,7 +177,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       const data = await response.json()
       toast.success("請求書を作成しました")
       router.push(`/invoices/${data.invoice.id}`)
-    } catch (error) {
+    } catch {
       toast.error("請求書の作成に失敗しました")
     }
   }
@@ -195,7 +195,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
       const data = await response.json()
       toast.success("発注書を作成しました")
       router.push(`/purchase-orders/${data.purchaseOrder.id}`)
-    } catch (error) {
+    } catch {
       toast.error("発注書の作成に失敗しました")
     }
   }
@@ -406,20 +406,14 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                 <TableHead>単位</TableHead>
                 <TableHead className="text-right">単価</TableHead>
                 <TableHead>税区分</TableHead>
+                <TableHead>備考</TableHead>
                 <TableHead className="text-right">金額</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {estimate.items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      {item.remarks && (
-                        <p className="text-sm text-muted-foreground">{item.remarks}</p>
-                      )}
-                    </div>
-                  </TableCell>
+                  <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-right">
                     {parseFloat(item.quantity).toLocaleString()}
                   </TableCell>
@@ -432,6 +426,7 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
                       {taxTypeLabels[item.taxType]}
                     </Badge>
                   </TableCell>
+                  <TableCell>{item.remarks || "-"}</TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(item.amount)}
                   </TableCell>

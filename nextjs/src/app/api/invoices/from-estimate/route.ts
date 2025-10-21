@@ -11,6 +11,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
     }
 
+    // セッションのユーザーが存在するか確認
+    const sessionUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    })
+
+    if (!sessionUser || sessionUser.status !== "active") {
+      return NextResponse.json({ error: "ユーザーが見つからないか、無効になっています" }, { status: 401 })
+    }
+
     const body = await request.json()
     const { estimateId } = body
 
@@ -113,7 +122,7 @@ export async function POST(request: NextRequest) {
         remarks: "お振り込み手数料はお客様ご負担にてお願いいたします。",
         status: "draft",
         items: {
-          create: estimate.items.map((item, index) => ({
+          create: estimate.items.map((item) => ({
             name: item.name,
             quantity: item.quantity,
             unit: item.unit,

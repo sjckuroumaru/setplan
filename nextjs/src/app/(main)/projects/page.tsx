@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useProjects } from "@/hooks/use-projects"
+import { usePagination } from "@/hooks/use-pagination"
+import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,38 +42,6 @@ import {
   AlertCircle
 } from "lucide-react"
 
-interface Project {
-  id: string
-  projectNumber: string
-  projectName: string
-  description: string | null
-  status: string
-  departmentId: string | null
-  department?: {
-    id: string
-    name: string
-  } | null
-  purchaseOrderId: string | null
-  purchaseOrder?: {
-    id: string
-    orderNumber: string
-    subject: string
-  } | null
-  plannedStartDate: string | null
-  plannedEndDate: string | null
-  actualStartDate: string | null
-  actualEndDate: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-interface PaginationInfo {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
-
 const statusLabels = {
   planning: "計画中",
   developing: "開発中",
@@ -90,81 +61,57 @@ const statusVariants = {
 export default function ProjectsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: config.pagination.defaultLimit })
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  // SWRフックでデータ取得
+  const { projects, pagination: swrPagination, isLoading, isError, mutate } = useProjects({
+    page: currentPage,
+    limit: pagination.limit,
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    searchQuery: searchQuery || undefined,
+  })
+
   // 認証チェック
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
   }, [session, status, router])
 
-  // 案件一覧取得
-  const fetchProjects = async () => {
-    try {
-      setLoading(true)
-      setError("")
-      
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-      })
-      
-      if (searchQuery) params.append("search", searchQuery)
-      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter)
-
-      const response = await fetch(`/api/projects?${params}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "案件一覧の取得に失敗しました")
-      }
-
-      setProjects(data.projects)
-      setPagination(data.pagination)
-    } catch (error) {
-      console.warn("Fetch projects error:", error)
-      setError(error instanceof Error ? error.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 初回読み込み
+  // SWRのpaginationで更新
   useEffect(() => {
-    if (session) {
-      fetchProjects()
+    if (swrPagination) {
+      setPagination({
+        page: swrPagination.currentPage,
+        limit: pagination.limit,
+        total: swrPagination.totalCount,
+        totalPages: swrPagination.totalPages,
+      })
     }
-  }, [session])
+  }, [swrPagination, setPagination, pagination.limit])
 
   // フィルター変更時にページを1に戻す
   useEffect(() => {
     if (session) {
-      setPagination(prev => ({ ...prev, page: 1 }))
+      resetToFirstPage()
     }
-  }, [searchQuery, statusFilter])
-
-  // ページやフィルター変更時にデータ取得
-  useEffect(() => {
-    if (session) {
-      fetchProjects()
-    }
-  }, [session, pagination.page, searchQuery, statusFilter])
+  }, [searchQuery, statusFilter, resetToFirstPage])
 
   // 案件削除
   const handleDelete = async () => {
@@ -188,7 +135,7 @@ export default function ProjectsPage() {
       
       toast.success("案件を削除しました")
       setDeleteProjectId(null)
-      fetchProjects()
+      mutate() // SWRでデータ再取得
     } catch (error) {
       console.warn("Delete project warning:", error)
       const errorMessage = error instanceof Error ? error.message : "削除に失敗しました"
@@ -233,10 +180,10 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {error && (
+      {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
 
@@ -292,7 +239,7 @@ export default function ProjectsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 8 }).map((_, j) => (
@@ -386,27 +333,19 @@ export default function ProjectsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (pagination.page > 1) {
-                setPagination(prev => ({ ...prev, page: prev.page - 1 }))
-              }
-            }}
-            disabled={pagination.page <= 1 || loading}
+            onClick={goToPreviousPage}
+            disabled={!hasPreviousPage || isLoading}
           >
             前へ
           </Button>
           <span className="text-sm text-muted-foreground">
-            {pagination.page} / {pagination.totalPages}ページ （{pagination.total}件）
+            {currentPage} / {pagination.totalPages}ページ （{pagination.total}件）
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (pagination.page < pagination.totalPages) {
-                setPagination(prev => ({ ...prev, page: prev.page + 1 }))
-              }
-            }}
-            disabled={pagination.page >= pagination.totalPages || loading}
+            onClick={goToNextPage}
+            disabled={!hasNextPage || isLoading}
           >
             次へ
           </Button>

@@ -7,6 +7,7 @@ import { PurchaseOrderFormSchema } from "@/lib/validations/document"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { z } from "zod"
+import { usePurchaseOrderCalculations } from "@/hooks/use-purchase-order-calculations"
 import {
   Card,
   CardContent,
@@ -58,13 +59,6 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [calculatedAmounts, setCalculatedAmounts] = useState({
-    subtotal: 0,
-    taxAmount: 0,
-    taxAmount8: 0,
-    taxAmount10: 0,
-    totalAmount: 0,
-  })
 
   const form = useForm<PurchaseOrderFormData>({
     resolver: zodResolver(PurchaseOrderFormSchema) as any,
@@ -84,9 +78,9 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
       items: [
         {
           name: "",
-          quantity: "1",
+          quantity: 1,
           unit: "",
-          unitPrice: "0",
+          unitPrice: 0,
           taxType: "taxable",
           taxRate: 10,
           amount: "0",
@@ -102,6 +96,9 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
     name: "items",
   })
 
+  // 金額計算カスタムフックを使用
+  const { calculatedAmounts, calculateAmounts } = usePurchaseOrderCalculations(form)
+
   useEffect(() => {
     fetchCustomers()
   }, [])
@@ -112,84 +109,10 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
       if (!response.ok) throw new Error()
       const data = await response.json()
       setCustomers(data.customers || [])
-    } catch (error) {
+    } catch {
       toast.error("発注先の取得に失敗しました")
     }
   }
-
-  // 金額計算関数
-  const calculateAmounts = () => {
-    const items = form.getValues("items")
-    const taxType = form.getValues("taxType")
-    const roundingType = form.getValues("roundingType")
-
-    let subtotal = 0
-    let taxAmount8 = 0
-    let taxAmount10 = 0
-
-    items.forEach((item) => {
-      const amount = Number(item.quantity) * Number(item.unitPrice)
-      subtotal += amount
-
-      if (item.taxType === "taxable") {
-        const itemTaxRate = Number(item.taxRate) || 10
-        const itemTaxAmount = taxType === "inclusive" 
-          ? amount - amount / (1 + itemTaxRate / 100)
-          : amount * (itemTaxRate / 100)
-        
-        if (itemTaxRate === 8) {
-          taxAmount8 += itemTaxAmount
-        } else if (itemTaxRate === 10) {
-          taxAmount10 += itemTaxAmount
-        }
-      }
-    })
-
-    // 端数処理
-    const applyRounding = (value: number) => {
-      switch (roundingType) {
-        case "floor":
-          return Math.floor(value)
-        case "ceil":
-          return Math.ceil(value)
-        case "round":
-          return Math.round(value)
-        default:
-          return Math.floor(value)
-      }
-    }
-
-    taxAmount8 = applyRounding(taxAmount8)
-    taxAmount10 = applyRounding(taxAmount10)
-    const taxAmount = taxAmount8 + taxAmount10
-    const totalAmount = taxType === "inclusive" ? subtotal : subtotal + taxAmount
-
-    setCalculatedAmounts({
-      subtotal,
-      taxAmount,
-      taxAmount8,
-      taxAmount10,
-      totalAmount,
-    })
-
-    return {
-      subtotal,
-      taxAmount,
-      taxAmount8,
-      taxAmount10,
-      totalAmount,
-    }
-  }
-
-  // 明細変更時に金額を再計算
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name?.startsWith("items") || name === "taxType" || name === "taxRate" || name === "roundingType") {
-        calculateAmounts()
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form.watch])
 
   const onSubmit = async (data: PurchaseOrderFormData) => {
     setLoading(true)
@@ -404,9 +327,9 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
                 size="sm"
                 onClick={() => append({
                   name: "",
-                  quantity: "1",
+                  quantity: 1,
                   unit: "",
-                  unitPrice: "0",
+                  unitPrice: 0,
                   taxType: "taxable",
                   taxRate: 10,
                   amount: "0",
@@ -456,7 +379,7 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input {...field} type="number" min="0" step="0.01" />
+                              <Input {...field} type="text" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -484,7 +407,7 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input {...field} type="number" min="0" />
+                              <Input {...field} type="text" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

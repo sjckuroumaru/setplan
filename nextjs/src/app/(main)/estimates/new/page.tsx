@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { toast } from "sonner"
+import { useEstimateCalculations } from "@/hooks/use-estimate-calculations"
 import {
   Card,
   CardContent,
@@ -45,7 +46,6 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Calculator,
 } from "lucide-react"
 
 const estimateItemSchema = z.object({
@@ -84,11 +84,6 @@ export default function NewEstimatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(true)
-  const [calculatedAmounts, setCalculatedAmounts] = useState({
-    subtotal: 0,
-    taxAmount: 0,
-    totalAmount: 0,
-  })
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema) as any,
@@ -120,6 +115,9 @@ export default function NewEstimatePage() {
     name: "items",
   })
 
+  // 金額計算カスタムフックを使用
+  const { calculatedAmounts, calculateAmounts } = useEstimateCalculations(form)
+
   // 顧客一覧取得
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -141,72 +139,6 @@ export default function NewEstimatePage() {
     }
   }, [session])
 
-  // 金額計算
-  const calculateAmounts = () => {
-    const items = form.getValues("items")
-    const taxType = form.getValues("taxType")
-    const taxRate = form.getValues("taxRate")
-    const roundingType = form.getValues("roundingType")
-
-    let subtotal = 0
-    let taxableAmount = 0
-
-    items.forEach((item) => {
-      const amount = item.quantity * item.unitPrice
-      subtotal += amount
-
-      if (item.taxType === "taxable") {
-        if (taxType === "inclusive") {
-          // 税込の場合
-          taxableAmount += amount / (1 + taxRate / 100)
-        } else {
-          // 税別の場合
-          taxableAmount += amount
-        }
-      }
-    })
-
-    let taxAmount = 0
-    if (taxType === "inclusive") {
-      // 税込の場合、小計から税額を逆算
-      taxAmount = subtotal - subtotal / (1 + taxRate / 100)
-    } else {
-      // 税別の場合
-      taxAmount = taxableAmount * (taxRate / 100)
-    }
-
-    // 端数処理
-    switch (roundingType) {
-      case "floor":
-        taxAmount = Math.floor(taxAmount)
-        break
-      case "ceil":
-        taxAmount = Math.ceil(taxAmount)
-        break
-      case "round":
-        taxAmount = Math.round(taxAmount)
-        break
-    }
-
-    const totalAmount = taxType === "inclusive" ? subtotal : subtotal + taxAmount
-
-    setCalculatedAmounts({
-      subtotal,
-      taxAmount,
-      totalAmount,
-    })
-  }
-
-  // 明細変更時に金額を再計算
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name?.startsWith("items") || name === "taxType" || name === "taxRate" || name === "roundingType") {
-        calculateAmounts()
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form.watch])
-
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
     try {
@@ -221,7 +153,7 @@ export default function NewEstimatePage() {
       const result = await response.json()
       toast.success("見積を作成しました")
       router.push(`/estimates/${result.estimate.id}`)
-    } catch (error) {
+    } catch {
       toast.error("作成に失敗しました")
     } finally {
       setIsSubmitting(false)
@@ -404,6 +336,7 @@ export default function NewEstimatePage() {
                     <TableHead className="w-[80px]">単位</TableHead>
                     <TableHead className="w-[120px]">単価</TableHead>
                     <TableHead className="w-[120px]">税区分</TableHead>
+                    <TableHead className="w-[200px]">備考</TableHead>
                     <TableHead className="text-right">金額</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -432,7 +365,7 @@ export default function NewEstimatePage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input {...field} type="number" min="0" step="0.01" />
+                                <Input {...field} type="text" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -460,7 +393,7 @@ export default function NewEstimatePage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input {...field} type="number" min="0" />
+                                <Input {...field} type="text" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -485,6 +418,20 @@ export default function NewEstimatePage() {
                                   <SelectItem value="tax-included">税込</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.remarks`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input {...field} placeholder="備考" />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}

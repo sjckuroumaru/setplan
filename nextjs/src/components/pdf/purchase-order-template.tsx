@@ -6,7 +6,6 @@ import {
   Document,
   StyleSheet,
   Font,
-  Image,
 } from "@react-pdf/renderer"
 
 // フォントの登録
@@ -351,19 +350,6 @@ export function PurchaseOrderTemplate({
     const month = date.getMonth() + 1
     const day = date.getDate()
     return `${year}年${month}月${day}日`
-  }
-
-  const getTaxTypeLabel = (taxType: string) => {
-    switch (taxType) {
-      case "taxable":
-        return "課税"
-      case "non-taxable":
-        return "非課税"
-      case "tax-exempt":
-        return "免税"
-      default:
-        return taxType
-    }
   }
 
   return (

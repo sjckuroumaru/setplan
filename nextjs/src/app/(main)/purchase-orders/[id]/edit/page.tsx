@@ -63,9 +63,9 @@ export default function EditPurchaseOrderPage({
           displayOrder: item.displayOrder,
         })),
       }
-      
+
       setPurchaseOrder(formData)
-    } catch (error) {
+    } catch {
       toast.error("発注書の取得に失敗しました")
       router.push("/purchase-orders")
     } finally {

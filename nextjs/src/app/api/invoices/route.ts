@@ -95,6 +95,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
     }
 
+    // セッションのユーザーが存在するか確認
+    const sessionUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    })
+
+    if (!sessionUser || sessionUser.status !== "active") {
+      return NextResponse.json({ error: "ユーザーが見つからないか、無効になっています" }, { status: 401 })
+    }
+
     const body = await request.json()
     const validatedData = InvoiceFormSchema.parse(body)
 
@@ -118,7 +127,9 @@ export async function POST(request: NextRequest) {
     const calculationResult = calculateAmounts(
       validatedData.items.map((item, index) => ({
         ...item,
-        amount: item.amount || (parseFloat(item.quantity) * parseFloat(item.unitPrice)).toString(),
+        quantity: item.quantity.toString(),
+        unitPrice: item.unitPrice.toString(),
+        amount: item.amount || (item.quantity * item.unitPrice).toString(),
         displayOrder: item.displayOrder ?? index
       })),
       {
@@ -133,7 +144,7 @@ export async function POST(request: NextRequest) {
       ...item,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
-      amount: item.amount || (parseFloat(item.quantity) * parseFloat(item.unitPrice)).toString(),
+      amount: item.amount || (item.quantity * item.unitPrice).toString(),
     }))
 
     // 請求書作成

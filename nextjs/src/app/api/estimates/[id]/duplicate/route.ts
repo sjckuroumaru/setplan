@@ -16,6 +16,16 @@ export async function POST(
     }
 
     const resolvedParams = await params
+
+    // セッションのユーザーが存在するか確認
+    const sessionUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    })
+
+    if (!sessionUser || sessionUser.status !== "active") {
+      return NextResponse.json({ error: "ユーザーが見つからないか、無効になっています" }, { status: 401 })
+    }
+
     // 元の見積を取得
     const originalEstimate = await prisma.estimate.findUnique({
       where: { id: resolvedParams.id },
@@ -32,7 +42,7 @@ export async function POST(
     const prefix = "EST-"
     const date = new Date()
     const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+
     // 今月の見積数を取得
     const estimateCount = await prisma.estimate.count({
       where: {
@@ -41,7 +51,7 @@ export async function POST(
         }
       }
     })
-    const estimateNumber = generateDocumentNumber(prefix, estimateCount)
+    const estimateNumber = generateDocumentNumber(prefix, estimateCount, date)
 
     // 現在の日付で新規作成
     const now = new Date()

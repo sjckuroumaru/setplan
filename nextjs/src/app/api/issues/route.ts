@@ -160,11 +160,15 @@ export async function GET(request: NextRequest) {
       project: issue.project,
       reporter: issue.reporter ? {
         id: issue.reporter.id,
+        lastName: issue.reporter.lastName,
+        firstName: issue.reporter.firstName,
         name: `${issue.reporter.lastName} ${issue.reporter.firstName}`,
         employeeNumber: issue.reporter.employeeNumber,
       } : null,
       assignee: issue.assignee ? {
         id: issue.assignee.id,
+        lastName: issue.assignee.lastName,
+        firstName: issue.assignee.firstName,
         name: `${issue.assignee.lastName} ${issue.assignee.firstName}`,
         employeeNumber: issue.assignee.employeeNumber,
       } : null,
@@ -270,16 +274,20 @@ export async function POST(request: NextRequest) {
 
     console.log(`New issue created: ${issue.title} by ${session.user.name}`)
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       issue: {
         ...issue,
         reporter: issue.reporter ? {
           id: issue.reporter.id,
+          lastName: issue.reporter.lastName,
+          firstName: issue.reporter.firstName,
           name: `${issue.reporter.lastName} ${issue.reporter.firstName}`,
           employeeNumber: issue.reporter.employeeNumber,
         } : null,
         assignee: issue.assignee ? {
           id: issue.assignee.id,
+          lastName: issue.assignee.lastName,
+          firstName: issue.assignee.firstName,
           name: `${issue.assignee.lastName} ${issue.assignee.firstName}`,
           employeeNumber: issue.assignee.employeeNumber,
         } : null,

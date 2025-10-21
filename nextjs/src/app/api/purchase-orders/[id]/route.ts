@@ -87,7 +87,9 @@ export async function PUT(
     const calculationResult = calculateAmounts(
       validatedData.items.map((item, index) => ({
         ...item,
-        amount: item.amount || (parseFloat(item.quantity) * parseFloat(item.unitPrice)).toString(),
+        quantity: item.quantity.toString(),
+        unitPrice: item.unitPrice.toString(),
+        amount: item.amount || (item.quantity * item.unitPrice).toString(),
         displayOrder: item.displayOrder ?? index
       })),
       {
@@ -134,7 +136,7 @@ export async function PUT(
               unitPrice: item.unitPrice,
               taxType: item.taxType,
               taxRate: item.taxRate || validatedData.taxRate,
-              amount: item.amount || (parseFloat(item.quantity) * parseFloat(item.unitPrice)).toString(),
+              amount: item.amount || (item.quantity * item.unitPrice).toString(),
               remarks: item.remarks,
               displayOrder: item.displayOrder ?? index,
             })),

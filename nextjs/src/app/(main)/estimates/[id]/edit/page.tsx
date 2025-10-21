@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { toast } from "sonner"
+import { useEstimateCalculations } from "@/hooks/use-estimate-calculations"
 import {
   Card,
   CardContent,
@@ -86,11 +87,6 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [calculatedAmounts, setCalculatedAmounts] = useState({
-    subtotal: 0,
-    taxAmount: 0,
-    totalAmount: 0,
-  })
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema) as any,
@@ -114,8 +110,28 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
     name: "items",
   })
 
+  // 金額計算カスタムフックを使用
+  const { calculatedAmounts, calculateAmounts } = useEstimateCalculations(form)
+
+  // データ取得済みフラグと前回のページID
+  const hasFetchedData = useRef(false)
+  const previousPageId = useRef<string | null>(null)
+
   // 見積データと顧客一覧を取得
   useEffect(() => {
+    // ページIDが変わった場合は、フラグをリセット
+    if (previousPageId.current !== resolvedParams.id) {
+      hasFetchedData.current = false
+      previousPageId.current = resolvedParams.id
+    }
+
+    // 既にデータを取得済み、またはセッションがない場合はスキップ
+    if (hasFetchedData.current || !session) {
+      return
+    }
+
+    hasFetchedData.current = true
+
     const fetchData = async () => {
       try {
         // 見積データ取得
@@ -128,7 +144,7 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
           }
           throw new Error()
         }
-        
+
         const estimateData = await estimateResponse.json()
         const estimate = estimateData.estimate
 
@@ -151,7 +167,7 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
           roundingType: estimate.roundingType,
           remarks: estimate.remarks || "",
           status: estimate.status,
-          items: estimate.items.map((item: any) => ({
+          items: (estimate.items || []).map((item: any) => ({
             id: item.id,
             name: item.name,
             quantity: parseFloat(item.quantity),
@@ -161,7 +177,10 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
             remarks: item.remarks || "",
           })),
         })
-      } catch (error) {
+
+        // データ取得後に金額を計算
+        calculateAmounts()
+      } catch {
         toast.error("データの取得に失敗しました")
         router.push("/estimates")
       } finally {
@@ -169,76 +188,9 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
       }
     }
 
-    if (session) {
-      fetchData()
-    }
-  }, [session, resolvedParams.id, router, form])
-
-  // 金額計算
-  const calculateAmounts = () => {
-    const items = form.getValues("items")
-    const taxType = form.getValues("taxType")
-    const taxRate = form.getValues("taxRate")
-    const roundingType = form.getValues("roundingType")
-
-    let subtotal = 0
-    let taxableAmount = 0
-
-    items.forEach((item) => {
-      const amount = item.quantity * item.unitPrice
-      subtotal += amount
-
-      if (item.taxType === "taxable") {
-        if (taxType === "inclusive") {
-          // 税込の場合
-          taxableAmount += amount / (1 + taxRate / 100)
-        } else {
-          // 税別の場合
-          taxableAmount += amount
-        }
-      }
-    })
-
-    let taxAmount = 0
-    if (taxType === "inclusive") {
-      // 税込の場合、小計から税額を逆算
-      taxAmount = subtotal - subtotal / (1 + taxRate / 100)
-    } else {
-      // 税別の場合
-      taxAmount = taxableAmount * (taxRate / 100)
-    }
-
-    // 端数処理
-    switch (roundingType) {
-      case "floor":
-        taxAmount = Math.floor(taxAmount)
-        break
-      case "ceil":
-        taxAmount = Math.ceil(taxAmount)
-        break
-      case "round":
-        taxAmount = Math.round(taxAmount)
-        break
-    }
-
-    const totalAmount = taxType === "inclusive" ? subtotal : subtotal + taxAmount
-
-    setCalculatedAmounts({
-      subtotal,
-      taxAmount,
-      totalAmount,
-    })
-  }
-
-  // 明細変更時に金額を再計算
-  useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name?.startsWith("items") || name === "taxType" || name === "taxRate" || name === "roundingType") {
-        calculateAmounts()
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [form.watch])
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, resolvedParams.id])
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -253,7 +205,7 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
       
       toast.success("見積を更新しました")
       router.push(`/estimates/${resolvedParams.id}`)
-    } catch (error) {
+    } catch {
       toast.error("更新に失敗しました")
     } finally {
       setIsSubmitting(false)
@@ -461,6 +413,7 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
                     <TableHead className="w-[80px]">単位</TableHead>
                     <TableHead className="w-[120px]">単価</TableHead>
                     <TableHead className="w-[120px]">税区分</TableHead>
+                    <TableHead className="w-[200px]">備考</TableHead>
                     <TableHead className="text-right">金額</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
@@ -489,7 +442,7 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input {...field} type="number" min="0" step="0.01" />
+                                <Input {...field} type="text" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -517,7 +470,7 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
-                                <Input {...field} type="number" min="0" />
+                                <Input {...field} type="text" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -542,6 +495,20 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
                                   <SelectItem value="tax-included">税込</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.remarks`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input {...field} placeholder="備考" />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}

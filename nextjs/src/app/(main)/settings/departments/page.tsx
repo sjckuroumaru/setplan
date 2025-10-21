@@ -4,10 +4,11 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useDepartments } from "@/hooks/use-departments"
+import { usePagination } from "@/hooks/use-pagination"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -40,36 +41,19 @@ import {
   Briefcase
 } from "lucide-react"
 
-interface Department {
-  id: string
-  name: string
-  createdAt: string
-  updatedAt: string
-  _count?: {
-    users: number
-    projects: number
-  }
-}
-
-interface PaginationInfo {
-  page: number
-  limit: number
-  total: number
-  totalPages: number
-}
-
 export default function DepartmentsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 100,
-    total: 0,
-    totalPages: 0,
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: 100 })
   const [searchQuery, setSearchQuery] = useState("")
   const [deleteDepartmentId, setDeleteDepartmentId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -89,50 +73,31 @@ export default function DepartmentsPage() {
     }
   }, [session, status, router])
 
-  // 部署一覧取得
-  const fetchDepartments = async () => {
-    try {
-      setLoading(true)
-      setError("")
+  // SWRフックでデータ取得
+  const { departments, pagination: swrPagination, isLoading, isError, mutate } = useDepartments({
+    page: currentPage,
+    limit: pagination.limit,
+    searchQuery: searchQuery || undefined,
+  })
 
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+  // SWRのpaginationで更新
+  useEffect(() => {
+    if (swrPagination) {
+      setPagination({
+        page: swrPagination.currentPage,
+        limit: pagination.limit,
+        total: swrPagination.totalCount,
+        totalPages: swrPagination.totalPages,
       })
-
-      if (searchQuery) params.append("search", searchQuery)
-
-      const response = await fetch(`/api/departments?${params}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "部署一覧の取得に失敗しました")
-      }
-
-      setDepartments(data.departments)
-      setPagination(data.pagination)
-    } catch (error) {
-      console.warn("Fetch departments error:", error)
-      setError(error instanceof Error ? error.message : "エラーが発生しました")
-    } finally {
-      setLoading(false)
     }
-  }
+  }, [swrPagination, setPagination, pagination.limit])
 
-  // 初回読み込み
+  // 検索時はページを1に戻す
   useEffect(() => {
     if (session?.user?.isAdmin) {
-      fetchDepartments()
+      resetToFirstPage()
     }
-  }, [session])
-
-  // フィルター変更時
-  useEffect(() => {
-    if (session?.user?.isAdmin) {
-      setPagination(prev => ({ ...prev, page: 1 }))
-      fetchDepartments()
-    }
-  }, [searchQuery])
+  }, [searchQuery, resetToFirstPage])
 
   // 部署削除
   const handleDelete = async () => {
@@ -153,7 +118,7 @@ export default function DepartmentsPage() {
 
       toast.success("部署を削除しました")
       setDeleteDepartmentId(null)
-      fetchDepartments()
+      mutate()
     } catch (error) {
       console.warn("Delete department error:", error)
       toast.error(error instanceof Error ? error.message : "削除に失敗しました")
@@ -188,10 +153,10 @@ export default function DepartmentsPage() {
         </Button>
       </div>
 
-      {error && (
+      {isError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
 
@@ -231,7 +196,7 @@ export default function DepartmentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 5 }).map((_, j) => (
@@ -301,29 +266,19 @@ export default function DepartmentsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (pagination.page > 1) {
-                setPagination(prev => ({ ...prev, page: prev.page - 1 }))
-                fetchDepartments()
-              }
-            }}
-            disabled={pagination.page <= 1 || loading}
+            onClick={goToPreviousPage}
+            disabled={!hasPreviousPage}
           >
             前へ
           </Button>
           <span className="text-sm text-muted-foreground">
-            {pagination.page} / {pagination.totalPages}ページ
+            {currentPage} / {pagination.totalPages}ページ
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              if (pagination.page < pagination.totalPages) {
-                setPagination(prev => ({ ...prev, page: prev.page + 1 }))
-                fetchDepartments()
-              }
-            }}
-            disabled={pagination.page >= pagination.totalPages || loading}
+            onClick={goToNextPage}
+            disabled={!hasNextPage}
           >
             次へ
           </Button>

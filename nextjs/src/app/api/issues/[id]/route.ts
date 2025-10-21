@@ -22,7 +22,7 @@ const updateIssueSchema = z.object({
   status: z.enum(["open", "in_progress", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "medium", "high", "critical"]).optional(),
   category: z.string().max(100, "カテゴリは100文字以内で入力してください").optional(),
-  assigneeId: z.string().optional(),
+  assigneeId: z.string().nullable().optional(),
   dueDate: z.string().datetime().optional(),
   // ガントチャート用フィールド
   startDate: z.string().datetime().optional(),
@@ -102,11 +102,15 @@ export async function GET(
       project: issue.project,
       reporter: issue.reporter ? {
         id: issue.reporter.id,
+        lastName: issue.reporter.lastName,
+        firstName: issue.reporter.firstName,
         name: `${issue.reporter.lastName} ${issue.reporter.firstName}`,
         employeeNumber: issue.reporter.employeeNumber,
       } : null,
       assignee: issue.assignee ? {
         id: issue.assignee.id,
+        lastName: issue.assignee.lastName,
+        firstName: issue.assignee.firstName,
         name: `${issue.assignee.lastName} ${issue.assignee.firstName}`,
         employeeNumber: issue.assignee.employeeNumber,
       } : null,
@@ -164,14 +168,8 @@ export async function PUT(
       return NextResponse.json({ error: "課題が見つかりません" }, { status: 404 })
     }
 
-    // 更新権限チェック（管理者または報告者または担当者のみ）
-    const canUpdate = session.user.isAdmin || 
-                      existingIssue.reporterId === session.user.id ||
-                      existingIssue.assigneeId === session.user.id
-
-    if (!canUpdate) {
-      return NextResponse.json({ error: "更新権限がありません" }, { status: 403 })
-    }
+    // 更新権限チェック（すべての認証済みユーザーが課題を編集可能）
+    // 管理者や一般ユーザーが担当者を変更できるようにするため、権限チェックを緩和
 
     // 案件の存在確認（指定されている場合）
     if (validatedData.projectId) {
@@ -214,7 +212,10 @@ export async function PUT(
     }
     if (validatedData.priority !== undefined) updateData.priority = validatedData.priority
     if (validatedData.category !== undefined) updateData.category = validatedData.category
-    if (validatedData.assigneeId !== undefined) updateData.assigneeId = validatedData.assigneeId
+    if (validatedData.assigneeId !== undefined) {
+      // 未割当への変更の場合はnullを設定
+      updateData.assigneeId = validatedData.assigneeId || null
+    }
     if (validatedData.dueDate !== undefined) {
       updateData.dueDate = validatedData.dueDate ? new Date(validatedData.dueDate) : null
     }
@@ -257,24 +258,52 @@ export async function PUT(
             employeeNumber: true,
           },
         },
+        comments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                lastName: true,
+                firstName: true,
+                employeeNumber: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     })
 
     console.log(`Issue ${id} updated by ${session.user.name}`)
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       issue: {
         ...updatedIssue,
         reporter: updatedIssue.reporter ? {
           id: updatedIssue.reporter.id,
+          lastName: updatedIssue.reporter.lastName,
+          firstName: updatedIssue.reporter.firstName,
           name: `${updatedIssue.reporter.lastName} ${updatedIssue.reporter.firstName}`,
           employeeNumber: updatedIssue.reporter.employeeNumber,
         } : null,
         assignee: updatedIssue.assignee ? {
           id: updatedIssue.assignee.id,
+          lastName: updatedIssue.assignee.lastName,
+          firstName: updatedIssue.assignee.firstName,
           name: `${updatedIssue.assignee.lastName} ${updatedIssue.assignee.firstName}`,
           employeeNumber: updatedIssue.assignee.employeeNumber,
         } : null,
+        comments: updatedIssue.comments.map(comment => ({
+          id: comment.id,
+          content: comment.content,
+          createdAt: comment.createdAt,
+          updatedAt: comment.updatedAt,
+          user: {
+            id: comment.user.id,
+            name: `${comment.user.lastName} ${comment.user.firstName}`,
+            employeeNumber: comment.user.employeeNumber,
+          },
+        })),
       }
     })
   } catch (error) {

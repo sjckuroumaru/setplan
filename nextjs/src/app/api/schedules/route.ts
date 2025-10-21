@@ -26,6 +26,7 @@ const createScheduleSchema = z.object({
   reflection: z.string().max(2000, "所感は2000文字以内で入力してください").optional(),
   plans: z.array(planSchema).optional().default([]),
   actuals: z.array(actualSchema).optional().default([]),
+  userId: z.string().optional(),
 })
 
 // 認証チェック
@@ -216,11 +217,65 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createScheduleSchema.parse(body)
 
+    // session.user.idの存在確認
+    if (!session.user?.id) {
+      return NextResponse.json({ error: "ユーザーIDが取得できません" }, { status: 400 })
+    }
+
+    // userIdの決定：管理者が指定した場合はそれを使用、そうでなければログインユーザーのID
+    let targetUserId = session.user.id
+
+    console.log("📋 [Schedule API] セッション情報:", {
+      sessionUserId: session.user.id,
+      validatedUserId: validatedData.userId,
+      isAdmin: session.user.isAdmin,
+    })
+
+    // 管理者が他のユーザーの予定実績を作成する場合
+    if (validatedData.userId && validatedData.userId !== session.user.id) {
+      // 管理者権限チェック
+      if (!session.user.isAdmin) {
+        return NextResponse.json({ error: "他のユーザーの予定実績を作成する権限がありません" }, { status: 403 })
+      }
+      targetUserId = validatedData.userId
+
+      // 対象ユーザーの存在確認
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+      })
+
+      console.log("📋 [Schedule API] 対象ユーザー確認:", {
+        targetUserId,
+        found: !!targetUser,
+      })
+
+      if (!targetUser) {
+        return NextResponse.json({ error: "指定されたユーザーが見つかりません" }, { status: 400 })
+      }
+    }
+
+    // ログインユーザー自身の場合も存在確認
+    const currentUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+    })
+
+    console.log("📋 [Schedule API] 最終ユーザー確認:", {
+      targetUserId,
+      found: !!currentUser,
+      userExists: currentUser ? true : false,
+    })
+
+    if (!currentUser) {
+      return NextResponse.json({
+        error: `ユーザーID ${targetUserId} がデータベースに存在しません。セッションのユーザーIDが正しくない可能性があります。`
+      }, { status: 400 })
+    }
+
     // 同日の予定実績が既に存在するかチェック
     const existingSchedule = await prisma.dailySchedule.findUnique({
       where: {
         userId_scheduleDate: {
-          userId: session.user.id,
+          userId: targetUserId,
           scheduleDate: new Date(validatedData.scheduleDate),
         },
       },
@@ -235,7 +290,7 @@ export async function POST(request: NextRequest) {
       // 日別基本情報を作成
       const schedule = await tx.dailySchedule.create({
         data: {
-          userId: session.user.id,
+          userId: targetUserId,
           scheduleDate: new Date(validatedData.scheduleDate),
           checkInTime: validatedData.checkInTime,
           checkOutTime: validatedData.checkOutTime,

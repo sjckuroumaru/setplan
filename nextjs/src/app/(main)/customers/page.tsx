@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useCustomers } from "@/hooks/use-customers"
+import { usePagination } from "@/hooks/use-pagination"
 import {
   Card,
   CardContent,
@@ -41,65 +43,46 @@ import {
   MapPin,
 } from "lucide-react"
 
-interface Customer {
-  id: string
-  name: string
-  postalCode: string | null
-  address: string | null
-  building: string | null
-  representative: string | null
-  phone: string | null
-  fax: string | null
-  remarks: string | null
-  status: string
-  createdAt: string
-  updatedAt: string
-}
-
 export default function CustomersPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: 20 })
   const [searchTerm, setSearchTerm] = useState("")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
 
-  // 顧客一覧取得
-  const fetchCustomers = async () => {
-    try {
-      setIsLoading(true)
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "20",
+  // SWRフックでデータ取得
+  const { customers, pagination: swrPagination, isLoading, mutate } = useCustomers({
+    page: currentPage,
+    limit: pagination.limit,
+    searchQuery: searchTerm || undefined,
+  })
+
+  // SWRのpaginationで更新
+  useEffect(() => {
+    if (swrPagination) {
+      setPagination({
+        page: swrPagination.currentPage,
+        limit: pagination.limit,
+        total: swrPagination.totalCount,
+        totalPages: swrPagination.totalPages,
       })
-      
-      if (searchTerm) {
-        params.append("search", searchTerm)
-      }
-
-      const response = await fetch(`/api/customers?${params}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        setCustomers(data.customers)
-        setTotalPages(data.totalPages)
-      } else if (response.status !== 401) {
-        // 401以外のエラーの場合のみエラーメッセージを表示
-        console.error("Failed to fetch customers")
-      }
-    } catch (error) {
-      console.error("Failed to fetch customers:", error)
-    } finally {
-      setIsLoading(false)
     }
-  }
+  }, [swrPagination, setPagination, pagination.limit])
 
+  // 検索時はページを1に戻す
   useEffect(() => {
     if (session) {
-      fetchCustomers()
+      resetToFirstPage()
     }
-  }, [session, currentPage, searchTerm])
+  }, [searchTerm, resetToFirstPage])
 
   // 顧客削除
   const handleDelete = async (id: string) => {
@@ -110,12 +93,15 @@ export default function CustomersPage() {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error()
-      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "削除に失敗しました")
+      }
+
       toast.success("顧客を削除しました")
-      fetchCustomers()
-    } catch (error) {
-      toast.error("削除に失敗しました")
+      mutate() // SWRでデータ再取得
+    } catch (error: any) {
+      toast.error(error.message || "削除に失敗しました")
     }
   }
 
@@ -260,24 +246,24 @@ export default function CustomersPage() {
             </Table>
           )}
 
-          {totalPages > 1 && (
+          {pagination.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                onClick={goToPreviousPage}
+                disabled={!hasPreviousPage}
               >
                 前へ
               </Button>
               <span className="text-sm text-muted-foreground">
-                {currentPage} / {totalPages}
+                {currentPage} / {pagination.totalPages}
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                onClick={goToNextPage}
+                disabled={!hasNextPage}
               >
                 次へ
               </Button>

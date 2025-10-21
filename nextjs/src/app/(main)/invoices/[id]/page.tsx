@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/documents/status-badge"
 import { INVOICE_STATUS, type InvoiceStatus } from "@/types/document"
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   ArrowLeft,
-  FileText,
   Copy,
   Edit,
   Trash2,
@@ -33,7 +32,6 @@ import {
   Send,
   CheckCircle,
   XCircle,
-  AlertCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -102,7 +100,7 @@ export default function InvoiceDetailPage({
         
         const data = await response.json()
         setInvoice(data.invoice)
-      } catch (error) {
+      } catch {
         toast.error("請求書の取得に失敗しました")
         router.push("/invoices")
       } finally {
@@ -126,7 +124,7 @@ export default function InvoiceDetailPage({
       
       toast.success("請求書を削除しました")
       router.push("/invoices")
-    } catch (error) {
+    } catch {
       toast.error("削除に失敗しました")
     }
   }
@@ -141,7 +139,7 @@ export default function InvoiceDetailPage({
       const data = await response.json()
       toast.success("請求書を複製しました")
       router.push(`/invoices/${data.invoice.id}/edit`)
-    } catch (error) {
+    } catch {
       toast.error("複製に失敗しました")
     }
   }
@@ -161,7 +159,7 @@ export default function InvoiceDetailPage({
       const invoiceResponse = await fetch(`/api/invoices/${resolvedParams.id}`)
       const data = await invoiceResponse.json()
       setInvoice(data.invoice)
-    } catch (error) {
+    } catch {
       toast.error("ステータスの更新に失敗しました")
     }
   }

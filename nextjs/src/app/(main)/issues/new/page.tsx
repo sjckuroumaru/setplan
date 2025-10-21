@@ -59,6 +59,7 @@ export default function NewIssuePage() {
   const [projectsLoading, setProjectsLoading] = useState(true)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAllProjects, setShowAllProjects] = useState(false)
   
   const [formData, setFormData] = useState({
     title: "",
@@ -78,27 +79,17 @@ export default function NewIssuePage() {
   })
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchUsers() {
       try {
         setIsDataLoading(true)
-        setProjectsLoading(true)
+        const usersResponse = await fetch("/api/users?basic=true&limit=1000&status=active", { cache: 'no-store' })
 
-        const [usersResponse, projectsResponse] = await Promise.all([
-          fetch("/api/users?basic=true&limit=1000&status=active", { cache: 'no-store' }),
-          fetch("/api/projects?activeOnly=true")
-        ])
-
-        if (!usersResponse.ok || !projectsResponse.ok) {
+        if (!usersResponse.ok) {
           throw new Error("データの取得に失敗しました")
         }
 
-        const [usersData, projectsData] = await Promise.all([
-          usersResponse.json(),
-          projectsResponse.json()
-        ])
-
+        const usersData = await usersResponse.json()
         setUsers(usersData.users || [])
-        setProjects(projectsData.projects || [])
 
         // 担当者の初期値を現在のユーザーに設定
         if (session?.user?.id) {
@@ -108,18 +99,51 @@ export default function NewIssuePage() {
           }))
         }
       } catch (err) {
-        console.warn("Data fetch error:", err)
+        console.warn("User fetch error:", err)
         setError("データの読み込みに失敗しました")
       } finally {
         setIsDataLoading(false)
-        setProjectsLoading(false)
       }
     }
 
     if (session?.user) {
-      fetchData()
+      fetchUsers()
     }
   }, [session])
+
+  // プロジェクトリストを取得
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        setProjectsLoading(true)
+
+        // URLパラメータを構築
+        const params = new URLSearchParams({ activeOnly: "true" })
+
+        // showAllProjectsがfalseで、かつユーザーにdepartmentIdがある場合、部署フィルタを適用
+        if (!showAllProjects && session?.user?.departmentId) {
+          params.append("departmentId", session.user.departmentId)
+        }
+
+        const response = await fetch(`/api/projects?${params}`)
+        const data = await response.json()
+
+        if (response.ok) {
+          setProjects(data.projects || [])
+        } else {
+          console.error("Failed to fetch projects:", data.error)
+        }
+      } catch (error) {
+        console.error("Failed to fetch projects:", error)
+      } finally {
+        setProjectsLoading(false)
+      }
+    }
+
+    if (session) {
+      fetchProjects()
+    }
+  }, [showAllProjects, session])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -171,6 +195,43 @@ export default function NewIssuePage() {
   if (isDataLoading) {
     return (
       <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/issues">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">新規課題登録</h2>
+              <p className="text-muted-foreground">
+                新しい課題を登録します
+              </p>
+            </div>
+          </div>
+          {session?.user?.departmentId && (
+            <Button
+              type="button"
+              variant={showAllProjects ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowAllProjects(!showAllProjects)}
+            >
+              {showAllProjects ? "所属部署の案件のみ表示" : "全案件を表示"}
+            </Button>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/issues">
             <Button variant="ghost" size="icon">
@@ -184,29 +245,16 @@ export default function NewIssuePage() {
             </p>
           </div>
         </div>
-
-        <div className="space-y-6">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/issues">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
+        {session?.user?.departmentId && (
+          <Button
+            type="button"
+            variant={showAllProjects ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowAllProjects(!showAllProjects)}
+          >
+            {showAllProjects ? "所属部署の案件のみ表示" : "全案件を表示"}
           </Button>
-        </Link>
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">新規課題登録</h2>
-          <p className="text-muted-foreground">
-            新しい課題を登録します
-          </p>
-        </div>
+        )}
       </div>
 
       {error && (
@@ -453,14 +501,12 @@ export default function NewIssuePage() {
                     disabled={isLoading}
                   />
                   <Input
-                    type="number"
+                    type="text"
                     value={formData.progress}
                     onChange={(e) => {
                       const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
                       setFormData({ ...formData, progress: value })
                     }}
-                    min={0}
-                    max={100}
                     className="w-20"
                     disabled={isLoading}
                   />

@@ -109,7 +109,14 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || "ユーザーの更新に失敗しました")
+        // エラーが配列の場合、各エラーオブジェクトからメッセージを抽出
+        let errorMessage = "ユーザーの更新に失敗しました"
+        if (Array.isArray(result.error)) {
+          errorMessage = result.error.map((err: any) => err.message).join(", ")
+        } else if (typeof result.error === "string") {
+          errorMessage = result.error
+        }
+        throw new Error(errorMessage)
       }
 
       toast.success("ユーザー情報を更新しました")

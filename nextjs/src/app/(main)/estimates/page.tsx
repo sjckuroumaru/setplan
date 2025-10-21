@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Card,
   CardContent,
@@ -123,7 +124,7 @@ export default function EstimatesPage() {
       
       toast.success("見積を削除しました")
       fetchEstimates()
-    } catch (error) {
+    } catch {
       toast.error("削除に失敗しました")
     }
   }
@@ -140,7 +141,7 @@ export default function EstimatesPage() {
       const data = await response.json()
       toast.success("見積を複製しました")
       router.push(`/estimates/${data.estimate.id}/edit`)
-    } catch (error) {
+    } catch {
       toast.error("複製に失敗しました")
     }
   }
@@ -241,7 +242,12 @@ export default function EstimatesPage() {
                 {estimates.map((estimate) => (
                   <TableRow key={estimate.id}>
                     <TableCell className="font-mono">
-                      {estimate.estimateNumber}
+                      <Link
+                        href={`/estimates/${estimate.id}`}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {estimate.estimateNumber}
+                      </Link>
                     </TableCell>
                     <TableCell>{estimate.customer.name}</TableCell>
                     <TableCell className="max-w-[200px] truncate">

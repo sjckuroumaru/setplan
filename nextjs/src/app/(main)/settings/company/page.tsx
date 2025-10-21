@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { toast } from "sonner"
+import { useCompany } from "@/hooks/use-company"
 import {
   Card,
   CardContent,
@@ -53,10 +54,8 @@ type FormData = z.infer<typeof formSchema>
 export default function CompanySettingsPage() {
   const { data: session } = useSession()
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [sealImageUrl, setSealImageUrl] = useState<string | null>(null)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -86,48 +85,30 @@ export default function CompanySettingsPage() {
     }
   }, [session, router])
 
-  // 自社情報取得
-  useEffect(() => {
-    const fetchCompany = async () => {
-      try {
-        const response = await fetch("/api/company")
-        
-        if (response.ok) {
-          const data = await response.json()
-          if (data.company) {
-            form.reset({
-              name: data.company.name || "",
-              postalCode: data.company.postalCode || "",
-              address: data.company.address || "",
-              building: data.company.building || "",
-              representative: data.company.representative || "",
-              phone: data.company.phone || "",
-              fax: data.company.fax || "",
-              remarks: data.company.remarks || "",
-              qualifiedInvoiceNumber: data.company.qualifiedInvoiceNumber || "",
-              bankName: data.company.bankName || "",
-              branchName: data.company.branchName || "",
-              accountType: data.company.accountType || "",
-              accountNumber: data.company.accountNumber || "",
-              accountHolder: data.company.accountHolder || "",
-            })
-            setSealImageUrl(data.company.sealImagePath)
-          }
-        } else if (response.status !== 401) {
-          // 401以外のエラーの場合のみエラーメッセージを表示
-          console.error("Failed to fetch company info")
-        }
-      } catch (error) {
-        console.error("Failed to fetch company info:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  // SWRフックでデータ取得
+  const { company, isLoading, mutate } = useCompany()
 
-    if (session?.user.isAdmin) {
-      fetchCompany()
+  // 会社情報が取得できたらフォームに反映
+  useEffect(() => {
+    if (company) {
+      form.reset({
+        name: company.name || "",
+        postalCode: company.postalCode || "",
+        address: company.address || "",
+        building: company.building || "",
+        representative: company.representative || "",
+        phone: company.phone || "",
+        fax: company.fax || "",
+        remarks: company.remarks || "",
+        qualifiedInvoiceNumber: company.qualifiedInvoiceNumber || "",
+        bankName: company.bankName || "",
+        branchName: company.branchName || "",
+        accountType: company.accountType || "",
+        accountNumber: company.accountNumber || "",
+        accountHolder: company.accountHolder || "",
+      })
     }
-  }, [session, form])
+  }, [company, form])
 
   // フォーム送信
   const onSubmit = async (data: FormData) => {
@@ -140,9 +121,9 @@ export default function CompanySettingsPage() {
       })
 
       if (!response.ok) throw new Error()
-      
+
       toast.success("自社情報を保存しました")
-    } catch (error) {
+    } catch {
       toast.error("保存に失敗しました")
     } finally {
       setIsSaving(false)
@@ -178,11 +159,10 @@ export default function CompanySettingsPage() {
       })
 
       if (!response.ok) throw new Error()
-      
-      const data = await response.json()
-      setSealImageUrl(data.company.sealImagePath)
+
       toast.success("会社印をアップロードしました")
-    } catch (error) {
+      mutate()
+    } catch {
       toast.error("アップロードに失敗しました")
     } finally {
       setIsUploading(false)
@@ -197,10 +177,10 @@ export default function CompanySettingsPage() {
       })
 
       if (!response.ok) throw new Error()
-      
-      setSealImageUrl(null)
+
       toast.success("会社印を削除しました")
-    } catch (error) {
+      mutate()
+    } catch {
       toast.error("削除に失敗しました")
     }
   }
@@ -504,12 +484,12 @@ export default function CompanySettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {sealImageUrl ? (
+            {company?.sealImagePath ? (
               <div className="flex items-center gap-4">
                 <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
-                  <img 
-                    src={sealImageUrl} 
-                    alt="会社印" 
+                  <img
+                    src={company.sealImagePath}
+                    alt="会社印"
                     className="object-contain w-full h-full"
                   />
                 </div>
