@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -29,10 +29,38 @@ type ScheduleFormValues = {
   }>
 }
 
-export default function NewSchedulePage() {
+// useSearchParams()を使用する部分を別コンポーネントに分離
+function DuplicateDataLoader({ onLoad }: { onLoad: (data: any) => void }) {
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const isDuplicate = searchParams.get('duplicate') === 'true'
+
+    if (isDuplicate) {
+      const duplicateData = sessionStorage.getItem('duplicateScheduleData')
+
+      if (duplicateData) {
+        try {
+          const parsedData = JSON.parse(duplicateData)
+          onLoad(parsedData)
+          // 使用後にsessionStorageをクリア
+          sessionStorage.removeItem('duplicateScheduleData')
+        } catch (error) {
+          console.warn('Failed to parse duplicate schedule data:', error)
+        }
+      } else {
+        console.warn('sessionStorageにデータが見つかりませんでした')
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  return null
+}
+
+function NewSchedulePageContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showAllProjects, setShowAllProjects] = useState(false)
@@ -47,28 +75,6 @@ export default function NewSchedulePage() {
       return
     }
   }, [session, status, router])
-
-  // 複製データの取得
-  useEffect(() => {
-    const isDuplicate = searchParams.get('duplicate') === 'true'
-
-    if (isDuplicate) {
-      const duplicateData = sessionStorage.getItem('duplicateScheduleData')
-
-      if (duplicateData) {
-        try {
-          const parsedData = JSON.parse(duplicateData)
-          setDuplicateSchedule(parsedData)
-          // 使用後にsessionStorageをクリア
-          sessionStorage.removeItem('duplicateScheduleData')
-        } catch (error) {
-          console.warn('Failed to parse duplicate schedule data:', error)
-        }
-      } else {
-        console.warn('sessionStorageにデータが見つかりませんでした')
-      }
-    }
-  }, [searchParams])
 
   const handleSubmit = async (data: ScheduleFormValues) => {
     try {
@@ -129,49 +135,67 @@ export default function NewSchedulePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/schedules">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">新規予定実績登録</h2>
-            <p className="text-muted-foreground">
-              新しい予定実績を登録します
-            </p>
+    <>
+      <Suspense fallback={null}>
+        <DuplicateDataLoader onLoad={setDuplicateSchedule} />
+      </Suspense>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/schedules">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">新規予定実績登録</h2>
+              <p className="text-muted-foreground">
+                新しい予定実績を登録します
+              </p>
+            </div>
           </div>
+          {session?.user?.departmentId && (
+            <Button
+              type="button"
+              variant={showAllProjects ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowAllProjects(!showAllProjects)}
+            >
+              {showAllProjects ? "所属部署の案件のみ表示" : "全案件を表示"}
+            </Button>
+          )}
         </div>
-        {session?.user?.departmentId && (
-          <Button
-            type="button"
-            variant={showAllProjects ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowAllProjects(!showAllProjects)}
-          >
-            {showAllProjects ? "所属部署の案件のみ表示" : "全案件を表示"}
-          </Button>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
+
+        <ScheduleForm
+          schedule={duplicateSchedule}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          isLoading={isLoading}
+          isEdit={false}
+          showAllProjects={showAllProjects}
+          setShowAllProjects={setShowAllProjects}
+        />
       </div>
+    </>
+  )
+}
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <ScheduleForm
-        schedule={duplicateSchedule}
-        onSubmit={handleSubmit}
-        onCancel={handleCancel}
-        isLoading={isLoading}
-        isEdit={false}
-        showAllProjects={showAllProjects}
-        setShowAllProjects={setShowAllProjects}
-      />
-    </div>
+export default function NewSchedulePage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-[600px]" />
+      </div>
+    }>
+      <NewSchedulePageContent />
+    </Suspense>
   )
 }
