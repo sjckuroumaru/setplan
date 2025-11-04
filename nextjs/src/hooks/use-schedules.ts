@@ -15,19 +15,33 @@ interface Schedule {
   id: string
   userId: string
   scheduleDate: Date
-  checkInTime: string
-  checkOutTime: string
+  checkInTime: string | null
+  checkOutTime: string | null
+  reflection: string | null
   user: {
     id: string
     lastName: string
     firstName: string
     employeeNumber: string
   }
+  plans: Array<{
+    id: string
+    projectId: string | null
+    content: string
+    details: string | null
+    displayOrder: number
+    project: {
+      id: string
+      projectNumber: string
+      projectName: string
+    } | null
+  }>
   actuals: Array<{
     id: string
-    projectId: string
-    hours: number
+    projectId: string | null
     content: string
+    hours: number
+    details: string | null
     displayOrder: number
     project: {
       id: string

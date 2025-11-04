@@ -141,7 +141,7 @@ describe('Schedules New Page', () => {
     // 実績項目を入力
     cy.contains('実績').scrollIntoView();
     cy.get('textarea[name="actuals.0.content"]').should('be.visible').type('実績内容のテスト');
-    cy.get('input[name="actuals.0.hours"]').clear().type('8');
+    cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('8');
     cy.get('input[name="actuals.0.details"]').type('実績の詳細内容');
 
     // 登録ボタンをクリック
@@ -350,7 +350,7 @@ describe('Schedules New Page - Project Selection', () => {
 
     // 実績内容を入力
     cy.get('textarea[name="actuals.0.content"]').should('be.visible').type('案件付き実績');
-    cy.get('input[name="actuals.0.hours"]').clear().type('5');
+    cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('5');
 
     // 登録ボタンをクリック
     cy.contains('button', '登録').scrollIntoView().click();

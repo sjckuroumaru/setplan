@@ -139,29 +139,49 @@ export default function ChartPage() {
   // プリセット期間選択時の日付設定
   useEffect(() => {
     const today = new Date()
-    const start = new Date()
-    const end = new Date(today)
+    let startYear = today.getFullYear()
+    let startMonth = today.getMonth()
+    let startDay = today.getDate()
+    let endYear = today.getFullYear()
+    let endMonth = today.getMonth()
+    let endDay = today.getDate()
 
     switch (period) {
       case "week":
-        start.setDate(today.getDate() - 7)
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - 7)
+        startYear = weekStart.getFullYear()
+        startMonth = weekStart.getMonth()
+        startDay = weekStart.getDate()
         break
       case "last-week":
-        start.setDate(today.getDate() - 14)
-        end.setDate(today.getDate() - 7)
+        const lastWeekStart = new Date(today)
+        lastWeekStart.setDate(today.getDate() - 14)
+        const lastWeekEnd = new Date(today)
+        lastWeekEnd.setDate(today.getDate() - 7)
+        startYear = lastWeekStart.getFullYear()
+        startMonth = lastWeekStart.getMonth()
+        startDay = lastWeekStart.getDate()
+        endYear = lastWeekEnd.getFullYear()
+        endMonth = lastWeekEnd.getMonth()
+        endDay = lastWeekEnd.getDate()
         break
       case "month":
-        // 今月の1日から今日まで
-        start.setDate(1)
-        start.setHours(0, 0, 0, 0)
+        // 今月の1日から月末まで
+        startDay = 1
+        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        endDay = monthEnd.getDate()
         break
       case "last-month":
         // 前月の1日から最終日まで
-        start.setMonth(today.getMonth() - 1)
-        start.setDate(1)
-        start.setHours(0, 0, 0, 0)
-        end.setMonth(today.getMonth() - 1 + 1, 0) // 前月の最終日
-        end.setHours(23, 59, 59, 999)
+        const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        startYear = lastMonthDate.getFullYear()
+        startMonth = lastMonthDate.getMonth()
+        startDay = 1
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
+        endYear = lastMonthEnd.getFullYear()
+        endMonth = lastMonthEnd.getMonth()
+        endDay = lastMonthEnd.getDate()
         break
       case "custom":
         setIsCustomDateRange(true)
@@ -172,8 +192,11 @@ export default function ChartPage() {
 
     if (period !== "custom") {
       setIsCustomDateRange(false)
-      setStartDate(start.toISOString().split('T')[0])
-      setEndDate(end.toISOString().split('T')[0])
+      // ローカル日付文字列を作成（タイムゾーン変換を避ける）
+      const startDateStr = `${startYear}-${String(startMonth + 1).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`
+      const endDateStr = `${endYear}-${String(endMonth + 1).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+      setStartDate(startDateStr)
+      setEndDate(endDateStr)
     }
   }, [period])
 

@@ -61,34 +61,44 @@ export async function GET(request: NextRequest) {
 
     // フィルター条件
     const where: any = {}
+    const andConditions: any[] = []
 
     // ユーザーフィルター
     if (userId) {
       where.userId = userId
     }
 
-    // 部署フィルター（プロジェクト経由）
+    // 部署フィルター（ユーザーの部署 または プロジェクトの部署）
     if (departmentId && departmentId !== "all") {
-      where.OR = [
-        {
-          plans: {
-            some: {
-              project: {
-                departmentId: departmentId,
+      andConditions.push({
+        OR: [
+          // その部署に所属するユーザーのスケジュール
+          {
+            user: {
+              departmentId: departmentId,
+            },
+          },
+          // その部署のプロジェクトが割り当てられているスケジュール
+          {
+            plans: {
+              some: {
+                project: {
+                  departmentId: departmentId,
+                },
               },
             },
           },
-        },
-        {
-          actuals: {
-            some: {
-              project: {
-                departmentId: departmentId,
+          {
+            actuals: {
+              some: {
+                project: {
+                  departmentId: departmentId,
+                },
               },
             },
           },
-        },
-      ]
+        ],
+      })
     }
 
     // 日付範囲フィルター
@@ -109,28 +119,35 @@ export async function GET(request: NextRequest) {
 
     // 検索条件（予定内容と実績内容で検索）
     if (search) {
-      where.OR = [
-        {
-          plans: {
-            some: {
-              content: {
-                contains: search,
-                mode: 'insensitive',
+      andConditions.push({
+        OR: [
+          {
+            plans: {
+              some: {
+                content: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
               },
             },
           },
-        },
-        {
-          actuals: {
-            some: {
-              content: {
-                contains: search,
-                mode: 'insensitive',
+          {
+            actuals: {
+              some: {
+                content: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
               },
             },
           },
-        },
-      ]
+        ],
+      })
+    }
+
+    // AND条件を統合
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
 
     const [schedules, total] = await Promise.all([
@@ -225,12 +242,6 @@ export async function POST(request: NextRequest) {
     // userIdの決定：管理者が指定した場合はそれを使用、そうでなければログインユーザーのID
     let targetUserId = session.user.id
 
-    console.log("📋 [Schedule API] セッション情報:", {
-      sessionUserId: session.user.id,
-      validatedUserId: validatedData.userId,
-      isAdmin: session.user.isAdmin,
-    })
-
     // 管理者が他のユーザーの予定実績を作成する場合
     if (validatedData.userId && validatedData.userId !== session.user.id) {
       // 管理者権限チェック
@@ -244,11 +255,6 @@ export async function POST(request: NextRequest) {
         where: { id: targetUserId },
       })
 
-      console.log("📋 [Schedule API] 対象ユーザー確認:", {
-        targetUserId,
-        found: !!targetUser,
-      })
-
       if (!targetUser) {
         return NextResponse.json({ error: "指定されたユーザーが見つかりません" }, { status: 400 })
       }
@@ -257,12 +263,6 @@ export async function POST(request: NextRequest) {
     // ログインユーザー自身の場合も存在確認
     const currentUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-    })
-
-    console.log("📋 [Schedule API] 最終ユーザー確認:", {
-      targetUserId,
-      found: !!currentUser,
-      userExists: currentUser ? true : false,
     })
 
     if (!currentUser) {

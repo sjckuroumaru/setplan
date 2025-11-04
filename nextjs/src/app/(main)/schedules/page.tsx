@@ -40,16 +40,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
-import { 
-  Plus, 
-  Search, 
-  Edit, 
+import {
+  Plus,
+  Search,
+  Edit,
   Trash2,
   Calendar,
   BarChart3,
   FileText,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Copy
 } from "lucide-react"
 
 export default function SchedulesPage() {
@@ -181,6 +182,42 @@ export default function SchedulesPage() {
     } finally {
       setDeleteLoading(false)
     }
+  }
+
+  // 予定実績複製
+  const handleDuplicate = (schedule: any) => {
+
+    // 今日の日付を取得（YYYY-MM-DD形式、ローカル時刻を使用）
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
+    const todayStr = `${year}-${month}-${day}`
+
+    // 複製用データを作成（IDと退社時間と所感を除外、日付は今日に設定）
+    const duplicateData = {
+      scheduleDate: todayStr, // 今日の日付に設定
+      checkInTime: schedule.checkInTime,
+      checkOutTime: null, // 退社時間は空欄にする
+      reflection: null, // 所感も空欄にする
+      plans: (schedule.plans || []).map((plan: any) => ({
+        projectId: plan.projectId,
+        content: plan.content,
+        details: plan.details,
+        project: plan.project,
+      })),
+      actuals: (schedule.actuals || []).map((actual: any) => ({
+        projectId: actual.projectId,
+        content: actual.content,
+        hours: actual.hours,
+        details: actual.details,
+        project: actual.project,
+      })),
+    }
+
+    // sessionStorageに保存して新規作成ページへ遷移
+    sessionStorage.setItem('duplicateScheduleData', JSON.stringify(duplicateData))
+    router.push('/schedules/new?duplicate=true')
   }
 
   // 日付フォーマット
@@ -458,6 +495,14 @@ export default function SchedulesPage() {
                               <Link href={`/schedules/${schedule.id}/edit`}>
                                 <Edit className="h-4 w-4" />
                               </Link>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDuplicate(schedule)}
+                              title="複製"
+                            >
+                              <Copy className="h-4 w-4" />
                             </Button>
                             {canEditOrDelete(schedule) && (
                               <Button

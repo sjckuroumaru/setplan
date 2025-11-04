@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -32,19 +32,43 @@ type ScheduleFormValues = {
 export default function NewSchedulePage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showAllProjects, setShowAllProjects] = useState(false)
+  const [duplicateSchedule, setDuplicateSchedule] = useState<any>(null)
 
   // 認証チェック
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
   }, [session, status, router])
+
+  // 複製データの取得
+  useEffect(() => {
+    const isDuplicate = searchParams.get('duplicate') === 'true'
+
+    if (isDuplicate) {
+      const duplicateData = sessionStorage.getItem('duplicateScheduleData')
+
+      if (duplicateData) {
+        try {
+          const parsedData = JSON.parse(duplicateData)
+          setDuplicateSchedule(parsedData)
+          // 使用後にsessionStorageをクリア
+          sessionStorage.removeItem('duplicateScheduleData')
+        } catch (error) {
+          console.warn('Failed to parse duplicate schedule data:', error)
+        }
+      } else {
+        console.warn('sessionStorageにデータが見つかりませんでした')
+      }
+    }
+  }, [searchParams])
 
   const handleSubmit = async (data: ScheduleFormValues) => {
     try {
@@ -140,6 +164,7 @@ export default function NewSchedulePage() {
       )}
 
       <ScheduleForm
+        schedule={duplicateSchedule}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         isLoading={isLoading}

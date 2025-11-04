@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "開始日と終了日は必須です" }, { status: 400 })
     }
 
-    // 日本時間対応
-    const startDateTime = new Date(startDate + 'T00:00:00.000+09:00')
-    const endDateTime = new Date(endDate + 'T23:59:59.999+09:00')
+    // DATE型と比較するため、タイムゾーンオフセットなしでUTCとして扱う
+    const startDateTime = new Date(startDate + 'T00:00:00.000Z')
+    const endDateTime = new Date(endDate + 'T23:59:59.999Z')
     
     const where: any = {
       scheduleDate: {

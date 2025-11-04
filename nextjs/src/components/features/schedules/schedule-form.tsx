@@ -251,22 +251,32 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   const watchActuals = form.watch("actuals")
   const totalHours = watchActuals?.reduce((sum, actual) => sum + (Number(actual.hours) || 0), 0) || 0
 
-  // scheduleプロパティが変更された時にフォームをリセット（編集モード用）
+  // scheduleプロパティが変更された時にフォームをリセット（編集モード・複製モード用）
   useEffect(() => {
-    // スケジュールIDが変わった場合は、フラグをリセット
-    if (previousScheduleId.current !== schedule?.id) {
-      hasInitializedData.current = false
-      previousScheduleId.current = schedule?.id || null
+
+    if (!schedule) {
+      console.log('scheduleがnullのため処理をスキップ')
+      return
     }
 
-    // 既にデータを設定済み、またはscheduleがない場合はスキップ
-    if (hasInitializedData.current || !schedule) {
+    // スケジュールIDが変わった場合（編集モード）または複製モード（IDなし）の場合
+    const currentScheduleId = schedule.id || null
+    const hasScheduleChanged = previousScheduleId.current !== currentScheduleId
+
+    if (hasScheduleChanged) {
+      hasInitializedData.current = false
+      previousScheduleId.current = currentScheduleId
+    }
+
+    // 既にデータを設定済みの場合はスキップ
+    if (hasInitializedData.current) {
+      console.log('既に初期化済みのためスキップ')
       return
     }
 
     hasInitializedData.current = true
 
-    form.reset({
+    const resetData = {
       scheduleDate: formatDateForInput(schedule.scheduleDate),
       checkInTime: schedule.checkInTime || "none",
       checkOutTime: schedule.checkOutTime || "none",
@@ -287,9 +297,11 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
             details: actual.details || "",
           }))
         : [{ projectId: "none", content: "", hours: 0, details: "" }],
-    })
+    }
+
+    form.reset(resetData)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schedule?.id])
+  }, [schedule])
 
   const handleSubmit = async (data: ScheduleFormValues) => {
     // 空の項目を除外し、"none"を空文字列に変換
@@ -381,7 +393,12 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>出社時刻</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={readOnly}>
+                      <Select
+                        key={`checkInTime-${field.value || 'none'}`}
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        disabled={readOnly}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="出社時刻を選択" />
@@ -407,7 +424,12 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>退社時刻</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={readOnly}>
+                      <Select
+                        key={`checkOutTime-${field.value || 'none'}`}
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                        disabled={readOnly}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="退社時刻を選択" />

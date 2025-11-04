@@ -135,7 +135,7 @@ describe('Schedules Edit Page', () => {
     cy.get('body').then(($body) => {
       if ($body.find('textarea[name="actuals.0.content"]').length > 0) {
         cy.get('textarea[name="actuals.0.content"]').should('be.visible').clear().type('実績内容を更新');
-        cy.get('input[name="actuals.0.hours"]').clear().type('5');
+        cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('5');
       }
     });
 
