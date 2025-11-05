@@ -15,7 +15,7 @@ interface Schedule {
   scheduleDate: string
   checkInTime: string | null
   checkOutTime: string | null
-  breakTime: number
+  breakTime: number | null
   reflection?: string | null
   plans: any[]
   actuals: any[]

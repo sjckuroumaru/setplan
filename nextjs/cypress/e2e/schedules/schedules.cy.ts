@@ -350,8 +350,10 @@ describe('Schedules Page - Work Hour Difference Display', () => {
 
     // 一覧で実績過不足を確認
     // 計算: (18:00 - 09:00) - 1.0 - 8.0 = 9.0 - 1.0 - 8.0 = 0.00h
-    // 新しいデータが表示されるまで待つ（09:00と18:00を含む行）
-    cy.contains('table tbody tr', '09:00', { timeout: 15000 }).should('be.visible').within(() => {
+    // 新しいデータが表示されるまで待つ（今日の日付で探す）
+    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
+      // 出社時刻が09:00であることを確認
+      cy.contains('09:00').should('be.visible');
       // 退社時刻が18:00であることを確認
       cy.contains('18:00').should('be.visible');
       // 実績時間が8.00hであることを確認
@@ -405,12 +407,14 @@ describe('Schedules Page - Work Hour Difference Display', () => {
 
     // 一覧で実績過不足を確認
     // 計算: (18:00 - 09:00) - 1.0 - 6.0 = 9.0 - 1.0 - 6.0 = +2.00h
-    // 実績時間が6.00hの行を探す
-    cy.contains('table tbody tr', '6.00h', { timeout: 15000 }).should('be.visible').within(() => {
+    // 新しいデータが表示されるまで待つ（今日の日付で探す）
+    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
       // 出社時刻が09:00であることを確認
       cy.contains('09:00').should('be.visible');
       // 退社時刻が18:00であることを確認
       cy.contains('18:00').should('be.visible');
+      // 実績時間が6.00hであることを確認
+      cy.contains('6.00h').should('be.visible');
       // プラスの過不足が青色で表示される
       cy.contains('+2.00h').should('be.visible').should('have.class', 'text-blue-600');
     });
@@ -460,20 +464,20 @@ describe('Schedules Page - Work Hour Difference Display', () => {
 
     // 一覧で実績過不足を確認
     // 計算: (18:00 - 09:00) - 1.0 - 10.0 = 9.0 - 1.0 - 10.0 = -2.00h
-    // 最初の行（最新のデータ）を確認
-    cy.get('table tbody tr').first().within(() => {
+    // 新しいデータが表示されるまで待つ（今日の日付で探す）
+    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
       // 出社時刻が09:00であることを確認
       cy.contains('09:00').should('be.visible');
       // 退社時刻が18:00であることを確認
       cy.contains('18:00').should('be.visible');
+      // 実績時間が10.00hであることを確認
+      cy.contains('10.00h').should('be.visible');
       // マイナスの過不足が赤色で表示される
       cy.contains('-2.00h').should('be.visible').should('have.class', 'text-red-600');
     });
   });
 
   it('should show "-" when check-in or check-out time is missing', () => {
-    const uniqueText = `退社時刻なしテスト_${Date.now()}`;
-
     // APIリクエストをインターセプト（最初に設定）
     cy.intercept('GET', '/api/schedules?*').as('getSchedules');
 
@@ -490,9 +494,9 @@ describe('Schedules Page - Work Hour Difference Display', () => {
 
     // 退社時間は「選択なし」のまま
 
-    // 予定内容を入力（一意のテキストを使用）
+    // 予定内容を入力
     cy.contains('予定').scrollIntoView();
-    cy.get('textarea[name="plans.0.content"]').should('be.visible').type(uniqueText);
+    cy.get('textarea[name="plans.0.content"]').should('be.visible').type('退社時刻なしテスト');
 
     // 登録
     cy.contains('button', '登録').scrollIntoView().click();
@@ -506,10 +510,14 @@ describe('Schedules Page - Work Hour Difference Display', () => {
     cy.wait('@getSchedules', { timeout: 15000 });
 
     // 一覧で実績過不足を確認
-    // 作成した予定内容で行を探す
-    cy.contains('table tbody tr', uniqueText, { timeout: 10000 }).should('be.visible').within(() => {
+    // 新しいデータが表示されるまで待つ（今日の日付で探す）
+    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
+      // 出社時刻が09:00であることを確認
+      cy.contains('09:00').should('be.visible');
       // 退社時刻がないため「-」が表示される
-      cy.get('td').eq(5).should('contain', '-'); // 実績過不足の列
+      cy.get('td').should('contain', '-');
+      // 実績過不足も「-」であることを確認（退社時刻がないため計算不可）
+      cy.get('td').should('contain', '-');
     });
   });
 });

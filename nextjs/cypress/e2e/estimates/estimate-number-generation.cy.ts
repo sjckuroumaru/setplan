@@ -22,14 +22,13 @@ describe('見積番号生成テスト', () => {
 
       cy.get('input[name="subject"]').type('番号生成テスト用見積')
 
-      // 明細を追加
-      cy.contains('button', '明細を追加').click()
+      // デフォルトの明細に入力
       cy.get('input[name="items.0.name"]').type('テスト品目')
       cy.get('input[name="items.0.quantity"]').clear().type('1')
       cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
 
-      // 保存
-      cy.contains('button', '保存').click()
+      // 作成
+      cy.contains('button', '作成').click()
 
       // APIレスポンスを待つ
       cy.wait('@createEstimate').then((interception) => {
@@ -58,11 +57,10 @@ describe('見積番号生成テスト', () => {
       cy.get('button[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'ABC株式会社').click()
       cy.get('input[name="subject"]').type('連番テスト1')
-      cy.contains('button', '明細を追加').click()
       cy.get('input[name="items.0.name"]').type('テスト品目1')
       cy.get('input[name="items.0.quantity"]').clear().type('1')
       cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
-      cy.contains('button', '保存').click()
+      cy.contains('button', '作成').click()
 
       cy.wait('@createEstimate1').then((interception1) => {
         const estimateNumber1 = interception1.response?.body.estimate.estimateNumber
@@ -75,11 +73,10 @@ describe('見積番号生成テスト', () => {
         cy.get('button[role="combobox"]').first().click()
         cy.contains('[role="option"]', 'ABC株式会社').click()
         cy.get('input[name="subject"]').type('連番テスト2')
-        cy.contains('button', '明細を追加').click()
         cy.get('input[name="items.0.name"]').type('テスト品目2')
         cy.get('input[name="items.0.quantity"]').clear().type('1')
         cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
-        cy.contains('button', '保存').click()
+        cy.contains('button', '作成').click()
 
         cy.wait('@createEstimate2').then((interception2) => {
           const estimateNumber2 = interception2.response?.body.estimate.estimateNumber
@@ -140,11 +137,10 @@ describe('見積番号生成テスト', () => {
       cy.get('button[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'ABC株式会社').click()
       cy.get('input[name="subject"]').type('桁数テスト')
-      cy.contains('button', '明細を追加').click()
       cy.get('input[name="items.0.name"]').type('テスト品目')
       cy.get('input[name="items.0.quantity"]').clear().type('1')
       cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
-      cy.contains('button', '保存').click()
+      cy.contains('button', '作成').click()
 
       cy.wait('@createEstimate').then((interception) => {
         const estimateNumber = interception.response?.body.estimate.estimateNumber
@@ -169,11 +165,10 @@ describe('見積番号生成テスト', () => {
       cy.get('button[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'ABC株式会社').click()
       cy.get('input[name="subject"]').type('年月テスト')
-      cy.contains('button', '明細を追加').click()
       cy.get('input[name="items.0.name"]').type('テスト品目')
       cy.get('input[name="items.0.quantity"]').clear().type('1')
       cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
-      cy.contains('button', '保存').click()
+      cy.contains('button', '作成').click()
 
       cy.wait('@createEstimate').then((interception) => {
         const estimateNumber = interception.response?.body.estimate.estimateNumber

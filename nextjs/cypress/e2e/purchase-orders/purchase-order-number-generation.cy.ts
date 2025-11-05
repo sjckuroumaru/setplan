@@ -22,11 +22,10 @@ describe('発注書番号生成テスト', () => {
 
       cy.get('input[name="subject"]').type('番号生成テスト用発注書')
 
-      // 明細追加
-      cy.contains('button', '明細追加').click()
-      cy.get('input[placeholder="品名"]').first().type('テスト品目')
-      cy.get('input[placeholder="数量"]').first().clear().type('1')
-      cy.get('input[placeholder="単価"]').first().clear().type('10000')
+      // デフォルトの明細に入力
+      cy.get('input[name="items.0.name"]').type('テスト品目')
+      cy.get('input[name="items.0.quantity"]').clear().type('1')
+      cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
 
       // 保存
       cy.contains('button', '保存').click()
@@ -58,10 +57,9 @@ describe('発注書番号生成テスト', () => {
       cy.get('button[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'GHI株式会社').click()
       cy.get('input[name="subject"]').type('連番テスト1')
-      cy.contains('button', '明細追加').click()
-      cy.get('input[placeholder="品名"]').first().type('テスト品目1')
-      cy.get('input[placeholder="数量"]').first().clear().type('1')
-      cy.get('input[placeholder="単価"]').first().clear().type('10000')
+      cy.get('input[name="items.0.name"]').type('テスト品目1')
+      cy.get('input[name="items.0.quantity"]').clear().type('1')
+      cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
       cy.contains('button', '保存').click()
 
       cy.wait('@createPurchaseOrder1').then((interception1) => {
@@ -75,10 +73,9 @@ describe('発注書番号生成テスト', () => {
         cy.get('button[role="combobox"]').first().click()
         cy.contains('[role="option"]', 'GHI株式会社').click()
         cy.get('input[name="subject"]').type('連番テスト2')
-        cy.contains('button', '明細追加').click()
-        cy.get('input[placeholder="品名"]').first().type('テスト品目2')
-        cy.get('input[placeholder="数量"]').first().clear().type('1')
-        cy.get('input[placeholder="単価"]').first().clear().type('10000')
+        cy.get('input[name="items.0.name"]').type('テスト品目2')
+        cy.get('input[name="items.0.quantity"]').clear().type('1')
+        cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
         cy.contains('button', '保存').click()
 
         cy.wait('@createPurchaseOrder2').then((interception2) => {
@@ -174,10 +171,9 @@ describe('発注書番号生成テスト', () => {
       cy.get('button[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'GHI株式会社').click()
       cy.get('input[name="subject"]').type('桁数テスト')
-      cy.contains('button', '明細追加').click()
-      cy.get('input[placeholder="品名"]').first().type('テスト品目')
-      cy.get('input[placeholder="数量"]').first().clear().type('1')
-      cy.get('input[placeholder="単価"]').first().clear().type('10000')
+      cy.get('input[name="items.0.name"]').type('テスト品目')
+      cy.get('input[name="items.0.quantity"]').clear().type('1')
+      cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
       cy.contains('button', '保存').click()
 
       cy.wait('@createPurchaseOrder').then((interception) => {
@@ -203,10 +199,9 @@ describe('発注書番号生成テスト', () => {
       cy.get('button[role="combobox"]').first().click()
       cy.contains('[role="option"]', 'GHI株式会社').click()
       cy.get('input[name="subject"]').type('年月テスト')
-      cy.contains('button', '明細追加').click()
-      cy.get('input[placeholder="品名"]').first().type('テスト品目')
-      cy.get('input[placeholder="数量"]').first().clear().type('1')
-      cy.get('input[placeholder="単価"]').first().clear().type('10000')
+      cy.get('input[name="items.0.name"]').type('テスト品目')
+      cy.get('input[name="items.0.quantity"]').clear().type('1')
+      cy.get('input[name="items.0.unitPrice"]').clear().type('10000')
       cy.contains('button', '保存').click()
 
       cy.wait('@createPurchaseOrder').then((interception) => {

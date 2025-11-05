@@ -60,7 +60,7 @@ const scheduleFormSchema = z.object({
   scheduleDate: z.string().min(1, "日付は必須です"),
   checkInTime: z.string().optional(),
   checkOutTime: z.string().optional(),
-  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional().default(1.0),
+  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください"),
   reflection: z.string().optional(),
   plans: z.array(planSchema),
   actuals: z.array(actualSchema),
@@ -75,7 +75,7 @@ interface Schedule {
   scheduleDate: string
   checkInTime: string | null
   checkOutTime: string | null
-  breakTime: number
+  breakTime: number | null
   reflection: string | null
   plans: Array<{
     id: string
