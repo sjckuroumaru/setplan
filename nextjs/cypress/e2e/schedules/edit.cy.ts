@@ -98,6 +98,9 @@ describe('Schedules Edit Page', () => {
     // 退社時刻フィールド
     cy.contains('label', '退社時刻').should('be.visible');
 
+    // 休憩時間フィールド
+    cy.contains('label', '休憩時間').should('be.visible');
+
     // 振り返りフィールド
     cy.contains('label', '振り返り').should('exist');
 
@@ -119,6 +122,10 @@ describe('Schedules Edit Page', () => {
 
   it('should update schedule with modified data', () => {
     // beforeEachで編集ページに遷移済み
+
+    // 休憩時間を更新
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('1.5');
+
     // 振り返りを更新
     cy.get('textarea[name="reflection"]').scrollIntoView().clear().type('編集テスト：更新内容');
 

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useIssues } from "@/hooks/use-issues"
+import { AttendanceButtons } from "@/components/features/schedules/attendance-buttons"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -115,6 +116,9 @@ export default function DashboardPage() {
           </Link>
         </Button>
       </div>
+
+      {/* 出勤・退勤ボタン */}
+      <AttendanceButtons />
 
       {/* クイックアクション */}
       <div className="grid gap-4 md:grid-cols-3">

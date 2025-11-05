@@ -41,7 +41,7 @@ export async function POST(
       return NextResponse.json({ error: "複製権限がありません" }, { status: 403 })
     }
 
-    // 新しい発注書番号を生成 (YYYY-MM-NNNN形式)
+    // 新しい発注書番号を生成 (YYYY-MM-NNN形式)
     const date = new Date()
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 
@@ -53,7 +53,7 @@ export async function POST(
       },
     })
 
-    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const sequenceNumber = String(count + 1).padStart(3, "0")
     const orderNumber = `${yearMonth}-${sequenceNumber}`
 
     // 発注書を複製

@@ -60,6 +60,7 @@ const scheduleFormSchema = z.object({
   scheduleDate: z.string().min(1, "日付は必須です"),
   checkInTime: z.string().optional(),
   checkOutTime: z.string().optional(),
+  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional().default(1.0),
   reflection: z.string().optional(),
   plans: z.array(planSchema),
   actuals: z.array(actualSchema),
@@ -74,6 +75,7 @@ interface Schedule {
   scheduleDate: string
   checkInTime: string | null
   checkOutTime: string | null
+  breakTime: number
   reflection: string | null
   plans: Array<{
     id: string
@@ -151,6 +153,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
         scheduleDate: formatDateForInput(schedule.scheduleDate),
         checkInTime: schedule.checkInTime || "none",
         checkOutTime: schedule.checkOutTime || "none",
+        breakTime: schedule.breakTime || 1.0,
         reflection: schedule.reflection || "",
         userId: schedule.userId || undefined,
         plans: schedule.plans && schedule.plans.length > 0
@@ -187,6 +190,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       scheduleDate: date,
       checkInTime: time,
       checkOutTime: "none",
+      breakTime: 1.0,
       reflection: "",
       userId: undefined,
       plans: [{ projectId: "none", content: "", details: "" }],
@@ -408,6 +412,55 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="breakTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>休憩時間</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          name={field.name}
+                          placeholder="1.0"
+                          value={field.value === 0 ? "" : field.value}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            // 数値または小数点のみ許可（入力途中の「.」も許可）
+                            if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                              // 空の場合は0、入力途中（例: "1."）の場合はそのまま、完全な数値の場合はparseFloat
+                              if (value === "") {
+                                field.onChange(0)
+                              } else if (value.endsWith(".") || value === ".") {
+                                // 小数点で終わる場合は文字列として保持（入力途中）
+                                field.onChange(value)
+                              } else {
+                                const numValue = parseFloat(value)
+                                field.onChange(isNaN(numValue) ? 0 : numValue)
+                              }
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // フォーカスが外れた時に数値に変換
+                            const value = e.target.value
+                            if (value === "" || value === ".") {
+                              field.onChange(1.0)
+                            } else {
+                              const numValue = parseFloat(value)
+                              field.onChange(isNaN(numValue) ? 1.0 : numValue)
+                            }
+                          }}
+                          disabled={readOnly}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        時間単位で入力してください（0.25時間刻み、例: 1.0）
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

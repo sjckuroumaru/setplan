@@ -8,6 +8,7 @@ import { useSchedules } from "@/hooks/use-schedules"
 import { useDepartments } from "@/hooks/use-departments"
 import { useUsers } from "@/hooks/use-users"
 import { PaginationControls } from "@/components/ui/pagination-controls"
+import { AttendanceButtons } from "@/components/features/schedules/attendance-buttons"
 import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -203,6 +204,33 @@ export default function SchedulesPage() {
     return actuals.reduce((sum, actual) => sum + actual.hours, 0)
   }
 
+  // 実績過不足計算：退社時間 - 出社時間 - 休憩時間 - 実績時間
+  const calculateTimeDifference = (schedule: {
+    checkInTime: string | null
+    checkOutTime: string | null
+    breakTime?: number
+    actuals: Array<{ hours: number }>
+  }) => {
+    if (!schedule.checkInTime || !schedule.checkOutTime) {
+      return null
+    }
+
+    // 時刻をパース（HH:mm形式）
+    const parseTime = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(":").map(Number)
+      return hours + minutes / 60
+    }
+
+    const checkInHours = parseTime(schedule.checkInTime)
+    const checkOutHours = parseTime(schedule.checkOutTime)
+    const workHours = checkOutHours - checkInHours
+    const totalActualHours = getTotalHours(schedule.actuals)
+    const breakTime = schedule.breakTime ?? 1.0 // デフォルト値1.0
+
+    // 実績過不足 = 勤務時間 - 休憩時間 - 実績時間
+    return workHours - breakTime - totalActualHours
+  }
+
   // 編集・削除権限チェック
   const canEditOrDelete = (schedule: { userId: string }) => {
     if (!session) return false
@@ -256,6 +284,9 @@ export default function SchedulesPage() {
           <AlertDescription>{isError.message || "エラーが発生しました"}</AlertDescription>
         </Alert>
       )}
+
+      {/* 出勤・退勤ボタン */}
+      <AttendanceButtons onAttendanceChange={mutate} />
 
       <Tabs defaultValue="list" className="space-y-4">
         <TabsList>
@@ -386,6 +417,7 @@ export default function SchedulesPage() {
                       <TableHead className="w-20">出社</TableHead>
                       <TableHead className="w-20">退社</TableHead>
                       <TableHead className="w-24">実績時間</TableHead>
+                      <TableHead className="w-24">実績過不足</TableHead>
                       <TableHead className="min-w-[200px]">予定</TableHead>
                       <TableHead className="min-w-[200px]">実績</TableHead>
                       <TableHead className="w-24">操作</TableHead>
@@ -395,7 +427,7 @@ export default function SchedulesPage() {
                   {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 8 }).map((_, j) => (
+                        {Array.from({ length: 9 }).map((_, j) => (
                           <TableCell key={j}>
                             <Skeleton className="h-4 w-full" />
                           </TableCell>
@@ -404,7 +436,7 @@ export default function SchedulesPage() {
                     ))
                   ) : schedules.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
+                      <TableCell colSpan={9} className="text-center py-8">
                         予定実績が見つかりません
                       </TableCell>
                     </TableRow>
@@ -428,6 +460,20 @@ export default function SchedulesPage() {
                             <Clock className="h-3 w-3" />
                             {getTotalHours(schedule.actuals).toFixed(2)}h
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {(() => {
+                            const diff = calculateTimeDifference(schedule)
+                            if (diff === null) return "-"
+                            const diffAbs = Math.abs(diff)
+                            const color = diff < 0 ? "text-red-600" : diff > 0 ? "text-blue-600" : "text-gray-600"
+                            const sign = diff < 0 ? "-" : diff > 0 ? "+" : ""
+                            return (
+                              <div className={`flex items-center gap-1 ${color} font-medium`}>
+                                {sign}{diffAbs.toFixed(2)}h
+                              </div>
+                            )
+                          })()}
                         </TableCell>
                         <TableCell className="max-w-xs">
                           <div className="flex flex-wrap gap-1 max-w-xs">

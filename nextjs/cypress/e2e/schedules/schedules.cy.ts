@@ -281,3 +281,235 @@ describe('Schedules Page - Filters', () => {
     cy.get('table tbody tr').should('exist');
   });
 });
+
+describe('Schedules Page - Work Hour Difference Display', () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.clearCookies();
+    cy.clearLocalStorage();
+    cy.resetAndSeedDb();
+  });
+
+  beforeEach(() => {
+    // 各テストの前にデータベースをリセット（重複を防ぐため）
+    cy.resetAndSeedDb();
+    cy.login('admin@example.com', 'password123');
+  });
+
+  it('should display work hour difference column header', () => {
+    cy.visit('/schedules');
+
+    // 実績過不足のカラムヘッダーが表示されている
+    cy.get('table').within(() => {
+      cy.contains('th', '実績過不足').should('be.visible');
+    });
+  });
+
+  it('should calculate and display work hour difference correctly', () => {
+    // APIリクエストをインターセプト（最初に設定）
+    cy.intercept('GET', '/api/schedules?*').as('getSchedules');
+
+    cy.visit('/schedules');
+
+    // 新しいスケジュールを作成
+    cy.contains('新規登録').click();
+    cy.url().should('include', '/schedules/new');
+
+    // 日付はデフォルトの今日の日付を使用
+
+    // 出社時間: 09:00
+    cy.contains('label', '出社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '09:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 退社時間: 18:00
+    cy.contains('label', '退社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '18:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 休憩時間: 1.0時間
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('1.0');
+
+    // 予定内容を入力
+    cy.contains('予定').scrollIntoView();
+    cy.get('textarea[name="plans.0.content"]').should('be.visible').type('実績過不足テスト');
+
+    // 実績: 8時間
+    cy.contains('実績').scrollIntoView();
+    cy.get('textarea[name="actuals.0.content"]').should('be.visible').type('実績入力');
+    cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('8');
+
+    // 登録
+    cy.contains('button', '登録').scrollIntoView().click();
+    cy.contains('予定実績を登録しました').should('be.visible');
+
+    // 一覧ページにリダイレクトされることを確認
+    cy.url().should('not.include', '/new');
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+
+    // データの取得が完了するまで待つ
+    cy.wait('@getSchedules', { timeout: 15000 });
+
+    // 一覧で実績過不足を確認
+    // 計算: (18:00 - 09:00) - 1.0 - 8.0 = 9.0 - 1.0 - 8.0 = 0.00h
+    // 新しいデータが表示されるまで待つ（09:00と18:00を含む行）
+    cy.contains('table tbody tr', '09:00', { timeout: 15000 }).should('be.visible').within(() => {
+      // 退社時刻が18:00であることを確認
+      cy.contains('18:00').should('be.visible');
+      // 実績時間が8.00hであることを確認
+      cy.contains('8.00h').should('be.visible');
+      // 実績過不足が0.00h（ちょうど）
+      cy.contains('0.00h').should('be.visible');
+    });
+  });
+
+  it('should show positive difference in blue when actual hours are less than work hours', () => {
+    // APIリクエストをインターセプト（最初に設定）
+    cy.intercept('GET', '/api/schedules?*').as('getSchedules');
+
+    cy.visit('/schedules');
+
+    // 新しいスケジュールを作成
+    cy.contains('新規登録').click();
+
+    // 日付はデフォルトの今日の日付を使用
+
+    // 出社時間: 09:00
+    cy.contains('label', '出社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '09:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 退社時間: 18:00
+    cy.contains('label', '退社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '18:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 休憩時間: 1.0時間
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('1.0');
+
+    // 予定内容を入力
+    cy.contains('予定').scrollIntoView();
+    cy.get('textarea[name="plans.0.content"]').should('be.visible').type('実績過不足+2hテスト');
+
+    // 実績: 6時間（2時間少ない）
+    cy.contains('実績').scrollIntoView();
+    cy.get('textarea[name="actuals.0.content"]').should('be.visible').type('実績入力');
+    cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('6');
+
+    // 登録
+    cy.contains('button', '登録').scrollIntoView().click();
+    cy.contains('予定実績を登録しました').should('be.visible');
+
+    // 一覧ページにリダイレクトされることを確認
+    cy.url().should('not.include', '/new');
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+
+    // データの取得が完了するまで待つ
+    cy.wait('@getSchedules', { timeout: 15000 });
+
+    // 一覧で実績過不足を確認
+    // 計算: (18:00 - 09:00) - 1.0 - 6.0 = 9.0 - 1.0 - 6.0 = +2.00h
+    // 実績時間が6.00hの行を探す
+    cy.contains('table tbody tr', '6.00h', { timeout: 15000 }).should('be.visible').within(() => {
+      // 出社時刻が09:00であることを確認
+      cy.contains('09:00').should('be.visible');
+      // 退社時刻が18:00であることを確認
+      cy.contains('18:00').should('be.visible');
+      // プラスの過不足が青色で表示される
+      cy.contains('+2.00h').should('be.visible').should('have.class', 'text-blue-600');
+    });
+  });
+
+  it('should show negative difference in red when actual hours exceed work hours', () => {
+    // APIリクエストをインターセプト（最初に設定）
+    cy.intercept('GET', '/api/schedules?*').as('getSchedules');
+
+    cy.visit('/schedules');
+
+    // 新しいスケジュールを作成
+    cy.contains('新規登録').click();
+
+    // 日付はデフォルトの今日の日付を使用
+
+    // 出社時間: 09:00
+    cy.contains('label', '出社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '09:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 退社時間: 18:00
+    cy.contains('label', '退社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '18:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 休憩時間: 1.0時間
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('1.0');
+
+    // 予定内容を入力
+    cy.contains('予定').scrollIntoView();
+    cy.get('textarea[name="plans.0.content"]').should('be.visible').type('実績過不足-2hテスト');
+
+    // 実績: 10時間（2時間多い）
+    cy.contains('実績').scrollIntoView();
+    cy.get('textarea[name="actuals.0.content"]').should('be.visible').type('実績入力');
+    cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('10');
+
+    // 登録
+    cy.contains('button', '登録').scrollIntoView().click();
+    cy.contains('予定実績を登録しました').should('be.visible');
+
+    // 一覧ページにリダイレクトされることを確認
+    cy.url().should('not.include', '/new');
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+
+    // データの取得が完了するまで待つ
+    cy.wait('@getSchedules', { timeout: 15000 });
+
+    // 一覧で実績過不足を確認
+    // 計算: (18:00 - 09:00) - 1.0 - 10.0 = 9.0 - 1.0 - 10.0 = -2.00h
+    // 最初の行（最新のデータ）を確認
+    cy.get('table tbody tr').first().within(() => {
+      // 出社時刻が09:00であることを確認
+      cy.contains('09:00').should('be.visible');
+      // 退社時刻が18:00であることを確認
+      cy.contains('18:00').should('be.visible');
+      // マイナスの過不足が赤色で表示される
+      cy.contains('-2.00h').should('be.visible').should('have.class', 'text-red-600');
+    });
+  });
+
+  it('should show "-" when check-in or check-out time is missing', () => {
+    const uniqueText = `退社時刻なしテスト_${Date.now()}`;
+
+    // APIリクエストをインターセプト（最初に設定）
+    cy.intercept('GET', '/api/schedules?*').as('getSchedules');
+
+    cy.visit('/schedules');
+
+    // 新しいスケジュールを作成（出社時刻のみ、退社時刻なし）
+    cy.contains('新規登録').click();
+
+    // 日付はデフォルトの今日の日付を使用
+
+    // 出社時間: 09:00のみ設定
+    cy.contains('label', '出社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
+    cy.contains('[data-slot="select-item"]', '09:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 退社時間は「選択なし」のまま
+
+    // 予定内容を入力（一意のテキストを使用）
+    cy.contains('予定').scrollIntoView();
+    cy.get('textarea[name="plans.0.content"]').should('be.visible').type(uniqueText);
+
+    // 登録
+    cy.contains('button', '登録').scrollIntoView().click();
+    cy.contains('予定実績を登録しました').should('be.visible');
+
+    // 一覧ページにリダイレクトされることを確認
+    cy.url().should('not.include', '/new');
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+
+    // データの取得が完了するまで待つ
+    cy.wait('@getSchedules', { timeout: 15000 });
+
+    // 一覧で実績過不足を確認
+    // 作成した予定内容で行を探す
+    cy.contains('table tbody tr', uniqueText, { timeout: 10000 }).should('be.visible').within(() => {
+      // 退社時刻がないため「-」が表示される
+      cy.get('td').eq(5).should('contain', '-'); // 実績過不足の列
+    });
+  });
+});

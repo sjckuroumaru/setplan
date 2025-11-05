@@ -88,6 +88,7 @@ model DailySchedule {
   scheduleDate DateTime  @db.Date
   checkInTime  String?   // "09:00" 形式
   checkOutTime String?   // "18:00" 形式
+  breakTime    Float     @default(1.0) // 休憩時間（時間単位）
   reflection   String?   @db.Text  // 所感
   status       String    @default("planned") // planned, in_progress, completed
   createdAt    DateTime  @default(now())

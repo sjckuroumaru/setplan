@@ -15,6 +15,7 @@ type ScheduleFormValues = {
   scheduleDate: string
   checkInTime?: string
   checkOutTime?: string
+  breakTime?: number
   reflection?: string
   plans: Array<{
     projectId?: string
@@ -77,6 +78,7 @@ function NewSchedulePageContent() {
             scheduleDate: todayStr,
             checkInTime: data.schedule.checkInTime,
             checkOutTime: null, // 退社時間は空欄
+            breakTime: data.schedule.breakTime, // 休憩時間をコピー
             reflection: null, // 所感も空欄
             plans: data.schedule.plans || [],
             actuals: data.schedule.actuals || [],

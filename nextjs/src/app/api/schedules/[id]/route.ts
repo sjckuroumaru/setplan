@@ -25,6 +25,7 @@ const updateScheduleSchema = z.object({
   userId: z.string().optional(), // 管理者のみ変更可能
   checkInTime: z.string().optional(),
   checkOutTime: z.string().optional(),
+  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional(),
   reflection: z.string().max(2000, "所感は2000文字以内で入力してください").optional(),
   plans: z.array(planSchema).optional().default([]),
   actuals: z.array(actualSchema).optional().default([]),
@@ -164,6 +165,7 @@ export async function PUT(
       const updateData: any = {
         checkInTime: validatedData.checkInTime,
         checkOutTime: validatedData.checkOutTime,
+        breakTime: validatedData.breakTime,
         reflection: validatedData.reflection,
       }
 

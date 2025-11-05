@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "見積書が見つかりません" }, { status: 404 })
     }
 
-    // 発注書番号の生成 (YYYY-MM-NNNN形式)
+    // 発注書番号の生成 (YYYY-MM-NNN形式)
     const date = new Date()
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const sequenceNumber = String(count + 1).padStart(3, "0")
     const orderNumber = `${yearMonth}-${sequenceNumber}`
 
     // 納期を30日後に設定

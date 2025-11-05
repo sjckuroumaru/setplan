@@ -37,7 +37,7 @@ export async function POST(
       return NextResponse.json({ error: "見積が見つかりません" }, { status: 404 })
     }
 
-    // 新しい見積番号を生成 (YYYY-MM-NNNN形式)
+    // 新しい見積番号を生成 (YYYY-MM-NNN形式)
     const date = new Date()
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 
@@ -49,7 +49,7 @@ export async function POST(
         }
       }
     })
-    const sequenceNumber = String(estimateCount + 1).padStart(4, "0")
+    const sequenceNumber = String(estimateCount + 1).padStart(3, "0")
     const estimateNumber = `${yearMonth}-${sequenceNumber}`
 
     // 現在の日付で新規作成

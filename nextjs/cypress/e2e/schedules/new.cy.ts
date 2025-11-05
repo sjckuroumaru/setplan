@@ -71,6 +71,10 @@ describe('Schedules New Page', () => {
     // 退社時間フィールド
     cy.contains('label', '退社時刻').should('be.visible');
 
+    // 休憩時間フィールド
+    cy.contains('label', '休憩時間').should('be.visible');
+    cy.contains('時間単位で入力してください（0.25時間刻み、例: 1.0）').should('be.visible');
+
     // 振り返りフィールド（スクロールが必要な場合があるため存在確認）
     cy.contains('label', '振り返り').should('exist');
 
@@ -95,7 +99,7 @@ describe('Schedules New Page', () => {
     cy.visit('/schedules/new');
 
     // 日付を入力
-    cy.get('input[type="date"]').clear().type('2024-02-01');
+    cy.get('input[type="date"]').invoke('val', '2024-02-01').trigger('change');
 
     // 予定セクションまでスクロール
     cy.contains('予定').scrollIntoView();
@@ -120,15 +124,18 @@ describe('Schedules New Page', () => {
     cy.visit('/schedules/new');
 
     // 日付を入力
-    cy.get('input[type="date"]').clear().type('2024-02-02');
+    cy.get('input[type="date"]').invoke('val', '2024-02-02').trigger('change');
 
     // 出社時間を選択
-    cy.get('button[role="combobox"]').first().click();
+    cy.contains('label', '出社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
     cy.contains('[data-slot="select-item"]', '09:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
 
     // 退社時間を選択
-    cy.get('button[role="combobox"]').eq(1).click();
+    cy.contains('label', '退社時刻').parent().find('button[role="combobox"]').should('be.visible').click();
     cy.contains('[data-slot="select-item"]', '18:00', { timeout: 10000 }).scrollIntoView().should('be.visible').click();
+
+    // 休憩時間を入力
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('1.0');
 
     // 振り返りを入力
     cy.get('textarea[name="reflection"]').scrollIntoView().type('テストの振り返り');
@@ -225,7 +232,7 @@ describe('Schedules New Page', () => {
     cy.visit('/schedules/new');
 
     // データを入力
-    cy.get('input[type="date"]').clear().type('2024-02-03');
+    cy.get('input[type="date"]').invoke('val', '2024-02-03').trigger('change');
 
     // 予定セクションまでスクロール
     cy.contains('予定').scrollIntoView();
@@ -329,7 +336,7 @@ describe('Schedules New Page - Project Selection', () => {
     cy.visit('/schedules/new');
 
     // 日付を入力
-    cy.get('input[type="date"]').clear().type('2024-02-04');
+    cy.get('input[type="date"]').invoke('val', '2024-02-04').trigger('change');
 
     // 予定セクションまでスクロール
     cy.contains('予定').scrollIntoView();
@@ -360,5 +367,91 @@ describe('Schedules New Page - Project Selection', () => {
 
     // 一覧ページにリダイレクトされる
     cy.url().should('include', '/schedules', { timeout: 10000 });
+  });
+});
+
+describe('Schedules New Page - Break Time Input', () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.clearCookies();
+    cy.clearLocalStorage();
+    cy.resetAndSeedDb();
+  });
+
+  beforeEach(() => {
+    cy.viewport(1280, 1400);
+    cy.login('admin@example.com', 'password123');
+  });
+
+  it('should have default break time value of 1.0', () => {
+    cy.visit('/schedules/new');
+
+    // デフォルト値が1.0になっている
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').should('have.value', '1');
+  });
+
+  it('should allow decimal input for break time', () => {
+    cy.visit('/schedules/new');
+
+    // 休憩時間を小数で入力
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('1.5');
+
+    // 入力値が保持される
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').should('have.value', '1.5');
+  });
+
+  it('should allow typing decimal point', () => {
+    cy.visit('/schedules/new');
+
+    // 小数点を含む入力
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('0.25');
+
+    // 入力値が保持される
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').should('have.value', '0.25');
+  });
+
+  it('should create schedule with custom break time', () => {
+    cy.visit('/schedules/new');
+
+    // 日付を入力（再レンダリングを避けるため、直接値を設定）
+    cy.get('input[type="date"]').invoke('val', '2024-02-10').trigger('change');
+
+    // 休憩時間を変更
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('0.5');
+
+    // 予定内容を入力
+    cy.contains('予定').scrollIntoView();
+    cy.get('textarea[name="plans.0.content"]').should('be.visible').type('休憩時間カスタムテスト');
+
+    // 登録ボタンをクリック
+    cy.contains('button', '登録').scrollIntoView().click();
+
+    // 成功メッセージが表示される
+    cy.contains('予定実績を登録しました').should('be.visible');
+
+    // 一覧ページにリダイレクトされる
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+  });
+
+  it('should validate break time is numeric', () => {
+    cy.visit('/schedules/new');
+
+    // 文字を入力しようとしても入力できない
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type('abc');
+
+    // 値が変わらない（空または初期値）
+    cy.contains('label', '休憩時間').parent().find('input[type="text"]').should('not.have.value', 'abc');
+  });
+
+  it('should handle 0.25 hour intervals', () => {
+    cy.visit('/schedules/new');
+
+    // 0.25刻みで入力
+    const values = ['0.25', '0.5', '0.75', '1.25', '1.5'];
+
+    values.forEach((value) => {
+      cy.contains('label', '休憩時間').parent().find('input[type="text"]').clear().type(value);
+      cy.contains('label', '休憩時間').parent().find('input[type="text"]').should('have.value', value);
+    });
   });
 });

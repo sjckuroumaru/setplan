@@ -35,6 +35,7 @@ interface Schedule {
   scheduleDate: string
   checkInTime: string | null
   checkOutTime: string | null
+  breakTime: number | null
   reflection: string | null
   plans: Array<{
     id: string
@@ -58,6 +59,7 @@ type ScheduleFormValues = {
   userId?: string
   checkInTime?: string
   checkOutTime?: string
+  breakTime?: number
   reflection?: string
   plans: Array<{
     projectId?: string

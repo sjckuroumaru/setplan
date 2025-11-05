@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = EstimateFormSchema.parse(body)
 
-    // 見積番号を生成 (YYYY-MM-NNNN形式)
+    // 見積番号を生成 (YYYY-MM-NNN形式)
     const date = new Date()
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         }
       }
     })
-    const sequenceNumber = String(estimateCount + 1).padStart(4, "0")
+    const sequenceNumber = String(estimateCount + 1).padStart(3, "0")
     const estimateNumber = `${yearMonth}-${sequenceNumber}`
 
     // 日付の処理
