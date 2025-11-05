@@ -153,7 +153,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
         scheduleDate: formatDateForInput(schedule.scheduleDate),
         checkInTime: schedule.checkInTime || "none",
         checkOutTime: schedule.checkOutTime || "none",
-        breakTime: schedule.breakTime || 1.0,
+        breakTime: schedule.breakTime ?? 1.0,
         reflection: schedule.reflection || "",
         userId: schedule.userId || undefined,
         plans: schedule.plans && schedule.plans.length > 0
@@ -248,6 +248,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       scheduleDate: formatDateForInput(schedule.scheduleDate),
       checkInTime: schedule.checkInTime || "none",
       checkOutTime: schedule.checkOutTime || "none",
+      breakTime: schedule.breakTime ?? 1.0,
       reflection: schedule.reflection || "",
       userId: schedule.userId || undefined,
       plans: schedule.plans && schedule.plans.length > 0

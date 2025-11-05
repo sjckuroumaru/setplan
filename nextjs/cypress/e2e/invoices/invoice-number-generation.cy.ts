@@ -141,7 +141,7 @@ describe('請求番号生成テスト', () => {
       cy.intercept('POST', '/api/invoices/from-estimate').as('createInvoiceFromEstimate')
 
       // 請求書作成ボタンをクリック
-      cy.contains('button', '請求書を作成').click()
+      cy.contains('button', '請求書作成').click()
 
       // APIレスポンスを待つ
       cy.wait('@createInvoiceFromEstimate').then((interception) => {
