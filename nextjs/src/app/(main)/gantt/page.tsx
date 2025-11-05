@@ -81,7 +81,11 @@ export default function GanttChartPage() {
     assigneeId: selectedAssignee !== "all" ? selectedAssignee : undefined,
   })
 
-  const { projects } = useProjects({ page: 1, limit: 1000 })
+  const { projects } = useProjects({
+    page: 1,
+    limit: 1000,
+    enabled: departmentFilterInitialized && assigneeFilterInitialized
+  })
   const { users: usersData } = useUsers({ limit: 1000, basic: true })
   const { departments } = useDepartments()
 

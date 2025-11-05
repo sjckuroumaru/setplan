@@ -43,6 +43,18 @@ declare global {
        * @example cy.visitSchedulesAndWaitForData(true) // with filtering all departments
        */
       visitSchedulesAndWaitForData(filterAllDepartments?: boolean): Chainable<void>;
+
+      /**
+       * Custom command to query a schedule from database
+       * @example cy.querySchedule('schedule-id')
+       */
+      querySchedule(scheduleId: string): Chainable<any>;
+
+      /**
+       * Custom command to query the latest schedule for a user from database
+       * @example cy.queryLatestSchedule('user-id')
+       */
+      queryLatestSchedule(userId: string): Chainable<any>;
     }
   }
 }
@@ -52,18 +64,24 @@ Cypress.Commands.add('login', (email: string, password: string) => {
   cy.session(
     [email, password],
     () => {
-      cy.visit('/login');
+      // callbackUrlを指定してログインページにアクセス
+      cy.visit('/login?callbackUrl=/dashboard');
       cy.get('input#email').type(email);
       cy.get('input#password').type(password);
       cy.get('button[type="submit"]').click();
-      cy.url().should('not.include', '/login', { timeout: 10000 });
-      cy.url().should('include', '/dashboard');
+
+      // ダッシュボードにリダイレクトされることを確認
+      cy.url().should('not.include', '/login', { timeout: 15000 });
+      cy.url().should('include', '/dashboard', { timeout: 15000 });
+
+      // ページが完全に読み込まれるまで待つ
+      cy.contains('ダッシュボード', { timeout: 10000 }).should('be.visible');
     },
     {
       validate() {
         // Validate that the session is still valid
         cy.visit('/dashboard');
-        cy.url().should('include', '/dashboard');
+        cy.url().should('include', '/dashboard', { timeout: 10000 });
       },
     }
   );
@@ -105,26 +123,33 @@ Cypress.Commands.add('visitSchedulesAndWaitForData', (filterAllDepartments = fal
   cy.visit('/schedules');
 
   // 初期データの読み込みが完了するまで待つ
-  // 初期表示時に2つのAPIリクエストが発生する：
-  // 1. GET /api/schedules?page=1&limit=30
-  // 2. GET /api/schedules?page=1&limit=30&departmentId=... (自動的な部署フィルタリング)
-  cy.wait('@getSchedules'); // 1つ目のリクエスト
-  cy.wait('@getSchedules'); // 2つ目のリクエスト（部署フィルタリング）
+  // 2回取得の問題を修正したため、1回のみのリクエストが発生する
+  cy.wait('@getSchedules');
 
   cy.get('table tbody tr').should('exist');
 
   // オプションで部署フィルターで「すべて」を選択
   if (filterAllDepartments) {
+    cy.intercept('GET', '/api/schedules*').as('getSchedulesAll');
+
     cy.get('#department-filter').should('be.visible').as('departmentFilter');
     cy.get('@departmentFilter').click();
     cy.contains('[data-slot="select-item"]', 'すべて', { timeout: 10000 }).should('be.visible').click();
 
-    // フィルター変更後のデータが表示されるまで待つ
-    // 注: 「すべて」を選択した場合、URLが初回ロード時と同じになるため、
-    // SWRのdedupingInterval設定により新しいリクエストは発生しない（キャッシュが使用される）
-    // そのため、cy.waitではなくテーブルの状態を確認する
+    // フィルター変更後の新しいリクエストを待つ
+    cy.wait('@getSchedulesAll');
     cy.get('table tbody tr').should('exist');
   }
+});
+
+// Custom command to query a schedule from database
+Cypress.Commands.add('querySchedule', (scheduleId: string) => {
+  return cy.task('querySchedule', scheduleId);
+});
+
+// Custom command to query the latest schedule for a user from database
+Cypress.Commands.add('queryLatestSchedule', (userId: string) => {
+  return cy.task('queryLatestSchedule', userId);
 });
 
 export {};

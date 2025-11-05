@@ -75,45 +75,54 @@ export default function InvoicesPage() {
     total: 0,
   })
   const [shouldRefetch, setShouldRefetch] = useState(0)
+  const [initialized, setInitialized] = useState(false)
 
-  useEffect(() => {
-    if (!session) return
+  const fetchInvoices = async () => {
+    try {
+      setIsLoading(true)
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: "10",
+        ...(statusFilter !== "all" && { status: statusFilter }),
+        ...(searchTerm && { search: searchTerm }),
+      })
 
-    const fetchInvoices = async () => {
-      try {
-        setIsLoading(true)
-        const params = new URLSearchParams({
-          page: pagination.page.toString(),
-          limit: "10",
-          ...(statusFilter !== "all" && { status: statusFilter }),
-          ...(searchTerm && { search: searchTerm }),
-        })
-
-        const response = await fetch(`/api/invoices?${params}`)
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          console.error("Invoice fetch error:", response.status, errorData)
-          throw new Error(errorData.error || "Failed to fetch invoices")
-        }
-
-        const data = await response.json()
-        console.log("Invoice data received:", data)
-        setInvoices(data.invoices || [])
-        setPagination(prev => ({
-          ...prev,
-          totalPages: data.totalPages || 1,
-          total: data.total || 0,
-        }))
-      } catch (error) {
-        console.error("Error fetching invoices:", error)
-        toast.error("請求書の取得に失敗しました")
-      } finally {
-        setIsLoading(false)
+      const response = await fetch(`/api/invoices?${params}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("Invoice fetch error:", response.status, errorData)
+        throw new Error(errorData.error || "Failed to fetch invoices")
       }
-    }
 
-    fetchInvoices()
-  }, [session, pagination.page, statusFilter, searchTerm, shouldRefetch])
+      const data = await response.json()
+      setInvoices(data.invoices || [])
+      setPagination(prev => ({
+        ...prev,
+        totalPages: data.totalPages || 1,
+        total: data.total || 0,
+      }))
+    } catch (error) {
+      console.error("Error fetching invoices:", error)
+      toast.error("請求書の取得に失敗しました")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // 初回データ取得
+  useEffect(() => {
+    if (session && !initialized) {
+      fetchInvoices()
+      setInitialized(true)
+    }
+  }, [session, initialized])
+
+  // フィルター・ページ変更時のデータ取得
+  useEffect(() => {
+    if (initialized) {
+      fetchInvoices()
+    }
+  }, [pagination.page, statusFilter, searchTerm, shouldRefetch])
 
   const handleDelete = async (id: string) => {
     if (!confirm("この請求書を削除してもよろしいですか？")) return

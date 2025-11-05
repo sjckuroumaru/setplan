@@ -129,7 +129,6 @@ export async function POST(
       },
     })
 
-    console.log(`New comment added to issue ${id} by ${session.user.name}`)
 
     // データの整形
     const formattedComment = {

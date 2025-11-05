@@ -9,6 +9,7 @@ interface UseSchedulesParams {
   startDate?: string
   endDate?: string
   searchQuery?: string
+  enabled?: boolean
 }
 
 interface Schedule {
@@ -63,19 +64,21 @@ interface SchedulesResponse {
 }
 
 export function useSchedules(params: UseSchedulesParams) {
+  const { enabled = true, ...fetchParams } = params
+
   const queryParams = new URLSearchParams({
-    page: params.page.toString(),
-    limit: params.limit.toString(),
+    page: fetchParams.page.toString(),
+    limit: fetchParams.limit.toString(),
   })
 
-  if (params.userId) queryParams.append('userId', params.userId)
-  if (params.departmentId) queryParams.append('departmentId', params.departmentId)
-  if (params.startDate) queryParams.append('startDate', params.startDate)
-  if (params.endDate) queryParams.append('endDate', params.endDate)
-  if (params.searchQuery) queryParams.append('search', params.searchQuery)
+  if (fetchParams.userId) queryParams.append('userId', fetchParams.userId)
+  if (fetchParams.departmentId) queryParams.append('departmentId', fetchParams.departmentId)
+  if (fetchParams.startDate) queryParams.append('startDate', fetchParams.startDate)
+  if (fetchParams.endDate) queryParams.append('endDate', fetchParams.endDate)
+  if (fetchParams.searchQuery) queryParams.append('search', fetchParams.searchQuery)
 
   const { data, error, isLoading, mutate } = useSWR<SchedulesResponse>(
-    `/api/schedules?${queryParams}`,
+    enabled ? `/api/schedules?${queryParams}` : null,
     fetcher,
     {
       revalidateOnFocus: false,

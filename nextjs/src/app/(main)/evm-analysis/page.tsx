@@ -82,6 +82,7 @@ export default function EVMAnalysisPage() {
   const [loading, setLoading] = useState(false)
   const [projectLoading, setProjectLoading] = useState(true)
   const [error, setError] = useState("")
+  const [projectsInitialized, setProjectsInitialized] = useState(false)
 
   // 認証チェック
   useEffect(() => {
@@ -95,7 +96,7 @@ export default function EVMAnalysisPage() {
 
   // プロジェクト一覧を取得
   useEffect(() => {
-    if (!session) return
+    if (!session || projectsInitialized) return
 
     const fetchProjects = async () => {
       try {
@@ -112,6 +113,7 @@ export default function EVMAnalysisPage() {
           (project: Project) => project.budget && project.hourlyRate
         )
         setProjects(projectsWithBudget)
+        setProjectsInitialized(true)
       } catch (error) {
         console.warn("Fetch projects error:", error)
         setError(error instanceof Error ? error.message : "エラーが発生しました")
@@ -121,7 +123,7 @@ export default function EVMAnalysisPage() {
     }
 
     fetchProjects()
-  }, [session])
+  }, [session, projectsInitialized])
 
   // EVM分析データを取得
   const fetchEVMData = async (projectId: string) => {

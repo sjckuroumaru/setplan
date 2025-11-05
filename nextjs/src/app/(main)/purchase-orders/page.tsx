@@ -69,17 +69,23 @@ export default function PurchaseOrdersPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [shouldRefetch, setShouldRefetch] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
+  // 初回データ取得
   useEffect(() => {
-    fetchPurchaseOrders()
-  }, [])
+    if (session && !initialized) {
+      fetchPurchaseOrders()
+      setInitialized(true)
+    }
+  }, [session, initialized])
 
+  // 再取得処理
   useEffect(() => {
-    if (shouldRefetch) {
+    if (initialized && shouldRefetch) {
       fetchPurchaseOrders()
       setShouldRefetch(false)
     }
-  }, [shouldRefetch])
+  }, [shouldRefetch, initialized])
 
   const fetchPurchaseOrders = async () => {
     try {

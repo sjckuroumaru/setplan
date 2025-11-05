@@ -337,7 +337,6 @@ export async function DELETE(
       where: { id },
     })
 
-    console.log(`Project ${project.projectName} deleted`)
     return NextResponse.json({ message: "案件を削除しました" })
   } catch (error) {
     console.warn("Project deletion error:", error)

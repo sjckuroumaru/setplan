@@ -274,7 +274,6 @@ export async function PUT(
       },
     })
 
-    console.log(`Issue ${id} updated by ${session.user.name}`)
 
     return NextResponse.json({
       issue: {
@@ -350,7 +349,6 @@ export async function DELETE(
       where: { id },
     })
 
-    console.log(`Issue ${id} deleted by ${session.user.name}`)
     return NextResponse.json({ message: "課題を削除しました" })
   } catch (error) {
     console.warn("Issue deletion error:", error)

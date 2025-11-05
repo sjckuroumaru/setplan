@@ -224,12 +224,11 @@ export async function DELETE(
     }
 
     // ステータスをinactiveに変更（論理削除）
-    const updatedUser = await prisma.user.update({
+    await prisma.user.update({
       where: { id },
       data: { status: "inactive" },
     })
 
-    console.log(`User ${updatedUser.username} status updated to inactive`)
     return NextResponse.json({ message: "ユーザーを削除しました" })
   } catch (error) {
     console.warn("User deletion error:", error)

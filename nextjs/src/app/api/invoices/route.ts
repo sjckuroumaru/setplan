@@ -10,7 +10,6 @@ import { InvoiceFormSchema } from "@/lib/validations/document"
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    console.log("Invoice API - Session:", session ? "Found" : "Not found")
     if (!session) {
       return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
     }

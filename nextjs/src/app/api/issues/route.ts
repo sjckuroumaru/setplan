@@ -272,7 +272,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log(`New issue created: ${issue.title} by ${session.user.name}`)
 
     return NextResponse.json({
       issue: {

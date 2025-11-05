@@ -8,6 +8,7 @@ interface UseProjectsParams {
   departmentId?: string
   customerId?: string
   searchQuery?: string
+  enabled?: boolean
 }
 
 interface Project {
@@ -47,18 +48,20 @@ interface ProjectsResponse {
 }
 
 export function useProjects(params: UseProjectsParams) {
+  const { enabled = true, ...fetchParams } = params
+
   const queryParams = new URLSearchParams({
-    page: params.page.toString(),
-    limit: params.limit.toString(),
+    page: fetchParams.page.toString(),
+    limit: fetchParams.limit.toString(),
   })
 
-  if (params.status) queryParams.append('status', params.status)
-  if (params.departmentId) queryParams.append('departmentId', params.departmentId)
-  if (params.customerId) queryParams.append('customerId', params.customerId)
-  if (params.searchQuery) queryParams.append('search', params.searchQuery)
+  if (fetchParams.status) queryParams.append('status', fetchParams.status)
+  if (fetchParams.departmentId) queryParams.append('departmentId', fetchParams.departmentId)
+  if (fetchParams.customerId) queryParams.append('customerId', fetchParams.customerId)
+  if (fetchParams.searchQuery) queryParams.append('search', fetchParams.searchQuery)
 
   const { data, error, isLoading, mutate } = useSWR<ProjectsResponse>(
-    `/api/projects?${queryParams}`,
+    enabled ? `/api/projects?${queryParams}` : null,
     fetcher,
     {
       revalidateOnFocus: false,

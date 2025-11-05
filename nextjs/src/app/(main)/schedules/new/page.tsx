@@ -29,42 +29,16 @@ type ScheduleFormValues = {
   }>
 }
 
-// useSearchParams()を使用する部分を別コンポーネントに分離
-function DuplicateDataLoader({ onLoad }: { onLoad: (data: any) => void }) {
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    const isDuplicate = searchParams.get('duplicate') === 'true'
-
-    if (isDuplicate) {
-      const duplicateData = sessionStorage.getItem('duplicateScheduleData')
-
-      if (duplicateData) {
-        try {
-          const parsedData = JSON.parse(duplicateData)
-          onLoad(parsedData)
-          // 使用後にsessionStorageをクリア
-          sessionStorage.removeItem('duplicateScheduleData')
-        } catch (error) {
-          console.warn('Failed to parse duplicate schedule data:', error)
-        }
-      } else {
-        console.warn('sessionStorageにデータが見つかりませんでした')
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
-
-  return null
-}
 
 function NewSchedulePageContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [duplicateSchedule, setDuplicateSchedule] = useState<any>(null)
+  const [isDuplicateLoading, setIsDuplicateLoading] = useState(false)
 
   // 認証チェック
   useEffect(() => {
@@ -75,6 +49,49 @@ function NewSchedulePageContent() {
       return
     }
   }, [session, status, router])
+
+  // 複製データの読み込み
+  useEffect(() => {
+    const duplicateId = searchParams.get('duplicateId')
+
+    if (duplicateId && session) {
+      setIsDuplicateLoading(true)
+
+      fetch(`/api/schedules/${duplicateId}`)
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch schedule for duplication')
+          }
+          return response.json()
+        })
+        .then((data) => {
+          // 今日の日付を取得
+          const today = new Date()
+          const year = today.getFullYear()
+          const month = String(today.getMonth() + 1).padStart(2, '0')
+          const day = String(today.getDate()).padStart(2, '0')
+          const todayStr = `${year}-${month}-${day}`
+
+          // 複製用データを作成（IDと退社時間と所感を除外、日付は今日に設定）
+          const duplicateData = {
+            scheduleDate: todayStr,
+            checkInTime: data.schedule.checkInTime,
+            checkOutTime: null, // 退社時間は空欄
+            reflection: null, // 所感も空欄
+            plans: data.schedule.plans || [],
+            actuals: data.schedule.actuals || [],
+          }
+
+          setDuplicateSchedule(duplicateData)
+          setIsDuplicateLoading(false)
+        })
+        .catch((error) => {
+          console.warn('Failed to load schedule for duplication:', error)
+          setIsDuplicateLoading(false)
+          toast.error('複製元のデータの読み込みに失敗しました')
+        })
+    }
+  }, [searchParams, session])
 
   const handleSubmit = async (data: ScheduleFormValues) => {
     try {
@@ -125,7 +142,7 @@ function NewSchedulePageContent() {
     router.push("/schedules")
   }
 
-  if (status === "loading" || !session) {
+  if (status === "loading" || !session || isDuplicateLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -135,11 +152,7 @@ function NewSchedulePageContent() {
   }
 
   return (
-    <>
-      <Suspense fallback={null}>
-        <DuplicateDataLoader onLoad={setDuplicateSchedule} />
-      </Suspense>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
@@ -182,8 +195,7 @@ function NewSchedulePageContent() {
           showAllProjects={showAllProjects}
           setShowAllProjects={setShowAllProjects}
         />
-      </div>
-    </>
+    </div>
   )
 }
 

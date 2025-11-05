@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ProjectSelect, Project } from "@/components/ui/project-select"
+import { useActiveProjects } from "@/hooks/use-active-projects"
 import {
   Form,
   FormControl,
@@ -136,12 +137,11 @@ const TIME_OPTIONS = generateTimeOptions()
 
 export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [], showAllProjects = false }: ScheduleFormProps) {
   const { data: session } = useSession()
-  const [projects, setProjects] = useState<Project[]>([])
-  const [projectsLoading, setProjectsLoading] = useState(true)
+  const { projects, isLoading: projectsLoading } = useActiveProjects({ showAllProjects })
 
   // データ設定済みフラグと前回のスケジュールID
   const hasInitializedData = useRef(false)
-  const previousScheduleId = useRef<string | null>(null)
+  const previousScheduleKey = useRef<string | null>(null)
 
   // 新規作成時の初期値を計算
   const defaultFormValues = useMemo(() => {
@@ -199,43 +199,6 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
     defaultValues: defaultFormValues,
   })
 
-  // プロジェクトリストを取得
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        setProjectsLoading(true)
-
-        // URLパラメータを構築
-        const params = new URLSearchParams({ activeOnly: "true" })
-
-        // showAllProjectsがfalseで、かつユーザーにdepartmentIdがある場合、部署フィルタを適用
-        if (!showAllProjects && session?.user?.departmentId) {
-          params.append("departmentId", session.user.departmentId)
-        }
-
-        const response = await fetch(`/api/projects?${params}`)
-        const data = await response.json()
-
-        if (response.ok) {
-          setProjects(data.projects || [])
-        } else {
-          console.error("Failed to fetch projects:", data.error)
-        }
-      } catch (error) {
-        console.error("Failed to fetch projects:", error)
-      } finally {
-        setProjectsLoading(false)
-      }
-    }
-
-    // sessionが存在する場合のみfetch実行
-    if (session?.user) {
-      fetchProjects()
-    } else {
-      // sessionがない場合はローディングを終了
-      setProjectsLoading(false)
-    }
-  }, [showAllProjects, session?.user?.departmentId, session?.user])
 
   const { fields: planFields, append: appendPlan, remove: removePlan } = useFieldArray({
     control: form.control,
@@ -255,22 +218,23 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   useEffect(() => {
 
     if (!schedule) {
-      console.log('scheduleがnullのため処理をスキップ')
+      // scheduleがnullの場合、初期化フラグもリセット
+      hasInitializedData.current = false
+      previousScheduleKey.current = null
       return
     }
 
-    // スケジュールIDが変わった場合（編集モード）または複製モード（IDなし）の場合
-    const currentScheduleId = schedule.id || null
-    const hasScheduleChanged = previousScheduleId.current !== currentScheduleId
+    // スケジュールの一意なキーを生成（IDがあればID、なければ日付+チェックイン時刻）
+    const scheduleKey = schedule.id || `${schedule.scheduleDate}-${schedule.checkInTime || 'none'}`
+    const hasScheduleChanged = previousScheduleKey.current !== scheduleKey
 
     if (hasScheduleChanged) {
       hasInitializedData.current = false
-      previousScheduleId.current = currentScheduleId
+      previousScheduleKey.current = scheduleKey
     }
 
     // 既にデータを設定済みの場合はスキップ
     if (hasInitializedData.current) {
-      console.log('既に初期化済みのためスキップ')
       return
     }
 
@@ -611,6 +575,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                                 <FormControl>
                                   <Input
                                     type="text"
+                                    name={field.name}
                                     placeholder="2.5"
                                     className="w-24"
                                     value={field.value === 0 ? "" : field.value}

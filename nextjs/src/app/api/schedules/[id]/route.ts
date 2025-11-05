@@ -319,7 +319,6 @@ export async function DELETE(
       }
     })
 
-    console.log(`Schedule for date ${schedule.scheduleDate} deleted`)
     return NextResponse.json({ message: "予定実績を削除しました" })
   } catch (error) {
     console.warn("Schedule deletion error:", error)

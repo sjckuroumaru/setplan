@@ -77,6 +77,7 @@ export default function EstimatesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [initialized, setInitialized] = useState(false)
 
   // 見積一覧取得
   const fetchEstimates = async () => {
@@ -105,11 +106,20 @@ export default function EstimatesPage() {
     }
   }
 
+  // 初回データ取得
   useEffect(() => {
-    if (session) {
+    if (session && !initialized) {
+      fetchEstimates()
+      setInitialized(true)
+    }
+  }, [session, initialized])
+
+  // フィルター・ページ変更時のデータ取得
+  useEffect(() => {
+    if (initialized) {
       fetchEstimates()
     }
-  }, [session, currentPage, statusFilter])
+  }, [currentPage, statusFilter])
 
   // 見積削除
   const handleDelete = async (id: string) => {

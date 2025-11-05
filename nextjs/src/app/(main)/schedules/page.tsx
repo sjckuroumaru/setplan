@@ -76,6 +76,7 @@ export default function SchedulesPage() {
   const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
 
   // SWRフックでデータ取得
+  // フィルターの初期化が完了するまでAPIリクエストをスキップ
   const { schedules, pagination: swrPagination, isLoading, isError, mutate } = useSchedules({
     page: currentPage,
     limit: pagination.limit,
@@ -84,6 +85,7 @@ export default function SchedulesPage() {
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     searchQuery: searchQuery || undefined,
+    enabled: departmentFilterInitialized,
   })
 
   const { users: usersData } = useUsers({ limit: 1000, basic: true })
@@ -186,38 +188,8 @@ export default function SchedulesPage() {
 
   // 予定実績複製
   const handleDuplicate = (schedule: any) => {
-
-    // 今日の日付を取得（YYYY-MM-DD形式、ローカル時刻を使用）
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    const todayStr = `${year}-${month}-${day}`
-
-    // 複製用データを作成（IDと退社時間と所感を除外、日付は今日に設定）
-    const duplicateData = {
-      scheduleDate: todayStr, // 今日の日付に設定
-      checkInTime: schedule.checkInTime,
-      checkOutTime: null, // 退社時間は空欄にする
-      reflection: null, // 所感も空欄にする
-      plans: (schedule.plans || []).map((plan: any) => ({
-        projectId: plan.projectId,
-        content: plan.content,
-        details: plan.details,
-        project: plan.project,
-      })),
-      actuals: (schedule.actuals || []).map((actual: any) => ({
-        projectId: actual.projectId,
-        content: actual.content,
-        hours: actual.hours,
-        details: actual.details,
-        project: actual.project,
-      })),
-    }
-
-    // sessionStorageに保存して新規作成ページへ遷移
-    sessionStorage.setItem('duplicateScheduleData', JSON.stringify(duplicateData))
-    router.push('/schedules/new?duplicate=true')
+    // URLパラメータでスケジュールIDを渡して新規作成ページへ遷移
+    router.push(`/schedules/new?duplicate=true&duplicateId=${schedule.id}`)
   }
 
   // 日付フォーマット

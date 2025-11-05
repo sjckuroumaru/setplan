@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { handleApiError, handleError } from "@/lib/error-handler"
+import { useActiveProjects } from "@/hooks/use-active-projects"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -55,11 +56,10 @@ export default function NewIssuePage() {
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [users, setUsers] = useState<User[]>([])
-  const [projects, setProjects] = useState<Project[]>([])
-  const [projectsLoading, setProjectsLoading] = useState(true)
   const [isDataLoading, setIsDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAllProjects, setShowAllProjects] = useState(false)
+  const { projects, isLoading: projectsLoading } = useActiveProjects({ showAllProjects })
   
   const [formData, setFormData] = useState({
     title: "",
@@ -111,39 +111,6 @@ export default function NewIssuePage() {
     }
   }, [session])
 
-  // プロジェクトリストを取得
-  useEffect(() => {
-    async function fetchProjects() {
-      try {
-        setProjectsLoading(true)
-
-        // URLパラメータを構築
-        const params = new URLSearchParams({ activeOnly: "true" })
-
-        // showAllProjectsがfalseで、かつユーザーにdepartmentIdがある場合、部署フィルタを適用
-        if (!showAllProjects && session?.user?.departmentId) {
-          params.append("departmentId", session.user.departmentId)
-        }
-
-        const response = await fetch(`/api/projects?${params}`)
-        const data = await response.json()
-
-        if (response.ok) {
-          setProjects(data.projects || [])
-        } else {
-          console.error("Failed to fetch projects:", data.error)
-        }
-      } catch (error) {
-        console.error("Failed to fetch projects:", error)
-      } finally {
-        setProjectsLoading(false)
-      }
-    }
-
-    if (session) {
-      fetchProjects()
-    }
-  }, [showAllProjects, session])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
