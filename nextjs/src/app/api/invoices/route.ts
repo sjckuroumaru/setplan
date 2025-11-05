@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { generateDocumentNumber, calculateAmounts, isOverdue } from "@/lib/utils/document"
+import { calculateAmounts, isOverdue } from "@/lib/utils/document"
 import { InvoiceFormSchema } from "@/lib/validations/document"
 
 // GET - 請求書一覧取得
@@ -107,21 +107,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = InvoiceFormSchema.parse(body)
 
-    // 請求書番号の生成
-    const prefix = "INV-"
+    // 請求書番号の生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
     // 今月の請求書数を取得
     const count = await prisma.invoice.count({
       where: {
         invoiceNumber: {
-          startsWith: `${prefix}${yearMonth}`,
+          startsWith: yearMonth,
         },
       },
     })
-    
-    const invoiceNumber = generateDocumentNumber(prefix, count)
+
+    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const invoiceNumber = `${yearMonth}-${sequenceNumber}`
 
     // 税額計算
     const calculationResult = calculateAmounts(

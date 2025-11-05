@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Files,
   TrendingUp,
+  BarChart3,
   type LucideIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -78,6 +79,11 @@ const menuItems: MenuItem[] = [
     icon: TrendingUp,
   },
   {
+    title: "実績台帳",
+    href: "/performance-ledger",
+    icon: BarChart3,
+  },
+  {
     title: "書類管理",
     icon: Files,
     subItems: [
@@ -87,14 +93,14 @@ const menuItems: MenuItem[] = [
         icon: FileText,
       },
       {
-        title: "請求書管理",
-        href: "/invoices",
-        icon: Receipt,
-      },
-      {
         title: "発注書管理",
         href: "/purchase-orders",
         icon: ShoppingCart,
+      },
+      {
+        title: "請求書管理",
+        href: "/invoices",
+        icon: Receipt,
       }
     ],
   },
@@ -193,8 +199,8 @@ export function Sidebar({ isOpen = true, onClose, className }: SidebarProps) {
           <nav className="space-y-1 p-4">
             {menuItems
               .filter((item) => {
-                // 設定メニューは管理者のみ表示
-                if (item.title === "設定") {
+                // adminOnlyまたは設定メニューは管理者のみ表示
+                if (item.adminOnly || item.title === "設定") {
                   return isAdmin
                 }
                 return true

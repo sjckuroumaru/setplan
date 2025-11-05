@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateDocumentNumber } from "@/lib/utils/document"
 
 // POST - 発注書複製
 export async function POST(
@@ -42,20 +41,20 @@ export async function POST(
       return NextResponse.json({ error: "複製権限がありません" }, { status: 403 })
     }
 
-    // 新しい発注書番号を生成
-    const prefix = "PO-"
+    // 新しい発注書番号を生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
     const count = await prisma.purchaseOrder.count({
       where: {
         orderNumber: {
-          startsWith: `${prefix}${yearMonth}`,
+          startsWith: yearMonth,
         },
       },
     })
-    
-    const orderNumber = generateDocumentNumber(prefix, count)
+
+    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const orderNumber = `${yearMonth}-${sequenceNumber}`
 
     // 発注書を複製
     const duplicatedOrder = await prisma.purchaseOrder.create({

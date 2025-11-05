@@ -38,21 +38,21 @@ export async function POST(
       return NextResponse.json({ error: "請求書が見つかりません" }, { status: 404 })
     }
 
-    // 請求書番号の生成
-    const prefix = "INV-"
+    // 請求書番号の生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
     // 今月の請求書数を取得
     const count = await prisma.invoice.count({
       where: {
         invoiceNumber: {
-          startsWith: `${prefix}${yearMonth}`,
+          startsWith: yearMonth,
         },
       },
     })
-    
-    const invoiceNumber = `${prefix}${yearMonth}-${String(count + 1).padStart(4, "0")}`
+
+    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const invoiceNumber = `${yearMonth}-${sequenceNumber}`
 
     // 新しい請求書を作成
     const newInvoice = await prisma.invoice.create({

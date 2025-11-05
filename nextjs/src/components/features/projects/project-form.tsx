@@ -33,6 +33,13 @@ const formSchema = z.object({
   actualEndDate: z.string().optional(),
   budget: z.string().optional(),
   hourlyRate: z.string().optional(),
+  // 実績台帳用の新規フィールド
+  projectType: z.enum(["development", "ses", "maintenance", "other"]),
+  deliveryDate: z.string().optional(),
+  invoiceableDate: z.string().optional(),
+  memo: z.string().optional(),
+  outsourcingCost: z.string().optional(),
+  serverDomainCost: z.string().optional(),
 })
 
 // フォーム内部の型定義
@@ -52,6 +59,13 @@ type ProjectFormValues = {
   actualEndDate?: string
   budget?: number
   hourlyRate?: number
+  // 実績台帳用の新規フィールド
+  projectType: "development" | "ses" | "maintenance" | "other"
+  deliveryDate?: string
+  invoiceableDate?: string
+  memo?: string
+  outsourcingCost?: number
+  serverDomainCost?: number
 }
 
 interface Project {
@@ -77,6 +91,13 @@ interface Project {
   actualEndDate: string | null
   budget: string | null
   hourlyRate: string | null
+  // 実績台帳用の新規フィールド
+  projectType: string | null
+  deliveryDate: string | null
+  invoiceableDate: string | null
+  memo: string | null
+  outsourcingCost: string | null
+  serverDomainCost: string | null
   createdAt: string
   updatedAt: string
 }
@@ -106,6 +127,13 @@ const statusOptions = [
   { value: "active", label: "稼働中" },
   { value: "suspended", label: "停止中" },
   { value: "completed", label: "完了" },
+]
+
+const projectTypeOptions = [
+  { value: "development", label: "開発" },
+  { value: "ses", label: "SES" },
+  { value: "maintenance", label: "保守" },
+  { value: "other", label: "その他" },
 ]
 
 // 日付をYYYY-MM-DD形式に変換
@@ -140,6 +168,13 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       actualEndDate: formatDateForInput(project?.actualEndDate || null),
       budget: project?.budget || "",
       hourlyRate: project?.hourlyRate || "",
+      // 実績台帳用の新規フィールド
+      projectType: (project?.projectType as "development" | "ses" | "maintenance" | "other") || "development",
+      deliveryDate: formatDateForInput(project?.deliveryDate || null),
+      invoiceableDate: formatDateForInput(project?.invoiceableDate || null),
+      memo: project?.memo || "",
+      outsourcingCost: project?.outsourcingCost || "",
+      serverDomainCost: project?.serverDomainCost || "",
     },
   })
 
@@ -208,6 +243,13 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       actualEndDate: formatDateForInput(project.actualEndDate),
       budget: project.budget || "",
       hourlyRate: project.hourlyRate || "",
+      // 実績台帳用の新規フィールド
+      projectType: (project.projectType as "development" | "ses" | "maintenance" | "other") || "development",
+      deliveryDate: formatDateForInput(project.deliveryDate),
+      invoiceableDate: formatDateForInput(project.invoiceableDate),
+      memo: project.memo || "",
+      outsourcingCost: project.outsourcingCost || "",
+      serverDomainCost: project.serverDomainCost || "",
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id])
@@ -227,6 +269,13 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       actualEndDate: data.actualEndDate,
       budget: data.budget ? parseFloat(data.budget) : undefined,
       hourlyRate: data.hourlyRate ? parseFloat(data.hourlyRate) : undefined,
+      // 実績台帳用の新規フィールド
+      projectType: data.projectType,
+      deliveryDate: data.deliveryDate,
+      invoiceableDate: data.invoiceableDate,
+      memo: data.memo,
+      outsourcingCost: data.outsourcingCost ? parseFloat(data.outsourcingCost) : undefined,
+      serverDomainCost: data.serverDomainCost ? parseFloat(data.serverDomainCost) : undefined,
     }
     await onSubmit(submitData)
   }
@@ -497,6 +546,141 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
                   )}
                 />
               </div>
+            </div>
+
+            {/* 実績台帳情報 */}
+            <div className="space-y-6 pt-6 border-t">
+              <h3 className="text-lg font-medium">実績台帳情報</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="projectType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>案件種別 *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="案件種別を選択" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {projectTypeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        実績台帳での案件分類
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="deliveryDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>納品日</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormDescription>
+                        成果物を納品した日付
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="invoiceableDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>請求可能日</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormDescription>
+                        請求書を発行可能な日付
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="outsourcingCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>外注費（円）</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        外部委託にかかった費用
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="serverDomainCost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>サーバー・ドメイン代（円）</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        サーバーやドメインの費用
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="memo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>メモ</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="案件に関するメモや特記事項..."
+                        className="min-h-[100px]"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      実績台帳用のメモ・特記事項
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="flex justify-end gap-4">

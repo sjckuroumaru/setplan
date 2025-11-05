@@ -128,6 +128,64 @@ describe('案件新規作成ページ', () => {
     })
   })
 
+  describe('実績台帳情報入力', () => {
+    it('should display performance ledger fields', () => {
+      cy.scrollTo('bottom')
+      cy.contains('実績台帳情報').scrollIntoView().should('be.visible')
+      cy.contains('label', '案件種別').should('be.visible')
+      cy.contains('label', '納品日').should('be.visible')
+      cy.contains('label', '請求可能日').should('be.visible')
+      cy.contains('label', 'メモ').should('be.visible')
+      cy.contains('label', '外注費').should('be.visible')
+      cy.contains('label', 'サーバー・ドメイン代').should('be.visible')
+    })
+
+    it('should have default project type as development', () => {
+      cy.scrollTo('bottom')
+      cy.contains('label', '案件種別').parent().should('contain', '開発')
+    })
+
+    it('should allow selecting project type', () => {
+      cy.scrollTo('bottom')
+      cy.contains('label', '案件種別').parent().find('button[role="combobox"]').click()
+      cy.contains('[role="option"]', 'SES', { timeout: 10000 }).click()
+
+      // 選択されたことを確認
+      cy.contains('label', '案件種別').parent().should('contain', 'SES')
+    })
+
+    it('should allow entering delivery date', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="deliveryDate"]').scrollIntoView().type('2024-06-01')
+      cy.get('input[name="deliveryDate"]').should('have.value', '2024-06-01')
+    })
+
+    it('should allow entering invoiceable date', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="invoiceableDate"]').scrollIntoView().type('2024-06-15')
+      cy.get('input[name="invoiceableDate"]').should('have.value', '2024-06-15')
+    })
+
+    it('should allow entering outsourcing cost', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="outsourcingCost"]').scrollIntoView().type('500000')
+      cy.get('input[name="outsourcingCost"]').should('have.value', '500000')
+    })
+
+    it('should allow entering server domain cost', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="serverDomainCost"]').scrollIntoView().type('50000')
+      cy.get('input[name="serverDomainCost"]').should('have.value', '50000')
+    })
+
+    it('should allow entering memo', () => {
+      cy.scrollTo('bottom')
+      const memo = '実績台帳用のメモです。'
+      cy.get('textarea[name="memo"]').scrollIntoView().type(memo)
+      cy.get('textarea[name="memo"]').should('have.value', memo)
+    })
+  })
+
   describe('フォーム送信', () => {
     it('should successfully create a new project with minimum required fields', () => {
       const timestamp = Date.now()
@@ -166,6 +224,16 @@ describe('案件新規作成ページ', () => {
       // 予算情報
       cy.get('input[name="budget"]').scrollIntoView().type('15000000')
       cy.get('input[name="hourlyRate"]').scrollIntoView().type('8000')
+
+      // 実績台帳情報
+      cy.scrollTo('bottom')
+      cy.contains('label', '案件種別').parent().find('button[role="combobox"]').click()
+      cy.contains('[role="option"]', '保守', { timeout: 10000 }).click()
+      cy.get('input[name="deliveryDate"]').scrollIntoView().type('2024-09-20')
+      cy.get('input[name="invoiceableDate"]').scrollIntoView().type('2024-09-30')
+      cy.get('input[name="outsourcingCost"]').scrollIntoView().type('300000')
+      cy.get('input[name="serverDomainCost"]').scrollIntoView().type('30000')
+      cy.get('textarea[name="memo"]').scrollIntoView().type('テスト用メモ')
 
       // 作成
       cy.contains('button', '作成').click()

@@ -42,21 +42,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "見積書が見つかりません" }, { status: 404 })
     }
 
-    // 発注書番号の生成
-    const prefix = "PO-"
+    // 発注書番号の生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
     // 今月の発注書数を取得
     const count = await prisma.purchaseOrder.count({
       where: {
         orderNumber: {
-          startsWith: `${prefix}${yearMonth}`,
+          startsWith: yearMonth,
         },
       },
     })
-    
-    const orderNumber = `${prefix}${yearMonth}-${String(count + 1).padStart(4, "0")}`
+
+    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const orderNumber = `${yearMonth}-${sequenceNumber}`
 
     // 納期を30日後に設定
     const deliveryDate = new Date()

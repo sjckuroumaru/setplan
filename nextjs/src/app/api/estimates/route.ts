@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateDocumentNumber, calculateAmounts } from "@/lib/utils/document"
+import { calculateAmounts } from "@/lib/utils/document"
 import { EstimateFormSchema } from "@/lib/validations/document"
 import { z } from "zod"
 import { Decimal } from "@prisma/client/runtime/library"
@@ -92,20 +92,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = EstimateFormSchema.parse(body)
 
-    // 見積番号を生成
-    const prefix = "EST-"
+    // 見積番号を生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
     // 今月の見積数を取得
     const estimateCount = await prisma.estimate.count({
       where: {
         estimateNumber: {
-          startsWith: `${prefix}${yearMonth}`
+          startsWith: yearMonth
         }
       }
     })
-    const estimateNumber = generateDocumentNumber(prefix, estimateCount)
+    const sequenceNumber = String(estimateCount + 1).padStart(4, "0")
+    const estimateNumber = `${yearMonth}-${sequenceNumber}`
 
     // 日付の処理
     const issueDate = validatedData.issueDate 

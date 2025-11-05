@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { generateDocumentNumber } from "@/lib/utils/document"
 
 // POST - 見積複製
 export async function POST(
@@ -38,20 +37,20 @@ export async function POST(
       return NextResponse.json({ error: "見積が見つかりません" }, { status: 404 })
     }
 
-    // 新しい見積番号を生成
-    const prefix = "EST-"
+    // 新しい見積番号を生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
 
     // 今月の見積数を取得
     const estimateCount = await prisma.estimate.count({
       where: {
         estimateNumber: {
-          startsWith: `${prefix}${yearMonth}`
+          startsWith: yearMonth
         }
       }
     })
-    const estimateNumber = generateDocumentNumber(prefix, estimateCount, date)
+    const sequenceNumber = String(estimateCount + 1).padStart(4, "0")
+    const estimateNumber = `${yearMonth}-${sequenceNumber}`
 
     // 現在の日付で新規作成
     const now = new Date()

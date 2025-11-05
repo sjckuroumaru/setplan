@@ -133,7 +133,7 @@ describe('発注書編集ページ', () => {
     })
 
     it('should update completion period', () => {
-      // 研修完了期間を変更
+      // 検収完了期間を変更
       cy.get('input[name="completionPeriod"]').scrollIntoView().clear().type('契約締結後6ヶ月')
 
       // 更新

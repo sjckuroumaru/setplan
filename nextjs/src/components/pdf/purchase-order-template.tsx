@@ -394,7 +394,7 @@ export function PurchaseOrderTemplate({
               )}
               {purchaseOrder.completionPeriod && (
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>研修完了期間：</Text>
+                  <Text style={styles.summaryLabel}>検収完了期間：</Text>
                   <Text style={styles.summaryValue}>
                     {purchaseOrder.completionPeriod}
                   </Text>

@@ -324,7 +324,7 @@ export default function PurchaseOrderDetailPage({
               </div>
               {purchaseOrder.completionPeriod && (
                 <div>
-                  <p className="text-sm text-muted-foreground">研修完了期間</p>
+                  <p className="text-sm text-muted-foreground">検収完了期間</p>
                   <p className="font-medium">{purchaseOrder.completionPeriod}</p>
                 </div>
               )}

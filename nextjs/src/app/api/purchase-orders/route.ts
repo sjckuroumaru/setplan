@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
-import { generateDocumentNumber, calculateAmounts } from "@/lib/utils/document"
+import { calculateAmounts } from "@/lib/utils/document"
 import { PurchaseOrderFormSchema } from "@/lib/validations/document"
 
 // GET - 発注書一覧取得
@@ -98,21 +98,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = PurchaseOrderFormSchema.parse(body)
 
-    // 発注書番号の生成
-    const prefix = "PO-"
+    // 発注書番号の生成 (YYYY-MM-NNNN形式)
     const date = new Date()
-    const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}`
-    
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+
     // 今月の発注書数を取得
     const count = await prisma.purchaseOrder.count({
       where: {
         orderNumber: {
-          startsWith: `${prefix}${yearMonth}`,
+          startsWith: yearMonth,
         },
       },
     })
-    
-    const orderNumber = generateDocumentNumber(prefix, count)
+
+    const sequenceNumber = String(count + 1).padStart(4, "0")
+    const orderNumber = `${yearMonth}-${sequenceNumber}`
 
     // 税額計算
     const calculationResult = calculateAmounts(

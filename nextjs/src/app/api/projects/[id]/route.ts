@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { recalculateProjectLaborCost } from "@/lib/project-utils"
 
 // 更新用スキーマ
 const updateProjectSchema = z.object({
@@ -18,6 +19,13 @@ const updateProjectSchema = z.object({
   actualEndDate: z.string().optional(),
   budget: z.number().optional(),
   hourlyRate: z.number().optional(),
+  // 実績台帳用の新規フィールド
+  projectType: z.enum(["development", "ses", "maintenance", "other"]).optional(),
+  deliveryDate: z.string().optional(),
+  invoiceableDate: z.string().optional(),
+  memo: z.string().max(10000, "メモは10000文字以内で入力してください").optional(),
+  outsourcingCost: z.number().min(0, "外注費は0以上で入力してください").optional(),
+  serverDomainCost: z.number().min(0, "サーバー・ドメイン代は0以上で入力してください").optional(),
 })
 
 async function checkAdminPermission() {
@@ -72,6 +80,13 @@ export async function GET(
         actualEndDate: true,
         budget: true,
         hourlyRate: true,
+        // 実績台帳用の新規フィールド
+        projectType: true,
+        deliveryDate: true,
+        invoiceableDate: true,
+        memo: true,
+        outsourcingCost: true,
+        serverDomainCost: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -148,6 +163,10 @@ export async function PUT(
       return NextResponse.json({ error: "案件番号が既に存在します" }, { status: 400 })
     }
 
+    // hourlyRate変更チェック（集計値再計算用）
+    const hourlyRateChanged = validatedData.hourlyRate !== undefined &&
+                               validatedData.hourlyRate !== (existingProject.hourlyRate ? Number(existingProject.hourlyRate) : null)
+
     // 更新データの準備
     const updateData: any = {
       projectNumber: validatedData.projectNumber,
@@ -166,6 +185,20 @@ export async function PUT(
       updateData.hourlyRate = validatedData.hourlyRate
     }
 
+    // 実績台帳用の新規フィールドの設定
+    if (validatedData.projectType !== undefined) {
+      updateData.projectType = validatedData.projectType
+    }
+    if (validatedData.outsourcingCost !== undefined) {
+      updateData.outsourcingCost = validatedData.outsourcingCost
+    }
+    if (validatedData.serverDomainCost !== undefined) {
+      updateData.serverDomainCost = validatedData.serverDomainCost
+    }
+    if (validatedData.memo !== undefined) {
+      updateData.memo = validatedData.memo
+    }
+
     // 日付フィールドの変換
     if (validatedData.plannedStartDate) {
       updateData.plannedStartDate = new Date(validatedData.plannedStartDate)
@@ -178,6 +211,12 @@ export async function PUT(
     }
     if (validatedData.actualEndDate) {
       updateData.actualEndDate = new Date(validatedData.actualEndDate)
+    }
+    if (validatedData.deliveryDate) {
+      updateData.deliveryDate = new Date(validatedData.deliveryDate)
+    }
+    if (validatedData.invoiceableDate) {
+      updateData.invoiceableDate = new Date(validatedData.invoiceableDate)
     }
 
     const project = await prisma.project.update({
@@ -210,10 +249,27 @@ export async function PUT(
         actualEndDate: true,
         budget: true,
         hourlyRate: true,
+        // 実績台帳用の新規フィールド
+        projectType: true,
+        deliveryDate: true,
+        invoiceableDate: true,
+        memo: true,
+        outsourcingCost: true,
+        serverDomainCost: true,
         createdAt: true,
         updatedAt: true,
       },
     })
+
+    // hourlyRateが変更された場合、集計値を再計算
+    if (hourlyRateChanged) {
+      try {
+        await recalculateProjectLaborCost(id)
+      } catch (error) {
+        console.warn(`Failed to recalculate labor cost for project ${id}:`, error)
+        // 集計値の再計算失敗は警告のみ（案件更新自体は成功とする）
+      }
+    }
 
     return NextResponse.json({ project })
   } catch (error) {

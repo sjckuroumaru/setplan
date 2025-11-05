@@ -58,6 +58,19 @@ model Project {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  // 実績台帳用の新規フィールド
+  projectType      String?   @default("development") // 種別: development(開発), ses(SES), maintenance(保守), other(その他)
+  deliveryDate     DateTime? @db.Date // 納品日
+  invoiceableDate  DateTime? @db.Date // 請求可能日
+  memo             String?   @db.Text // メモ
+  outsourcingCost  Decimal?  @default(0) @db.Decimal(15, 2) // 外注費（円）
+  serverDomainCost Decimal?  @default(0) @db.Decimal(15, 2) // サーバー・ドメイン代（円）
+
+  // パフォーマンス最適化：集計値の事前計算
+  totalLaborHours  Decimal?  @default(0) @db.Decimal(10, 2) // 総作業時間（実績の合計）
+  totalLaborCost   Decimal?  @default(0) @db.Decimal(15, 2) // 総投下工数（円）= totalLaborHours × hourlyRate
+  lastCalculatedAt DateTime? // 最終集計日時
+
   // Relations
   department       Department?    @relation(fields: [departmentId], references: [id])
   purchaseOrder    PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
@@ -342,7 +355,7 @@ model PurchaseOrder {
   subject           String
   issueDate         DateTime  @default(now())
   deliveryDate      DateTime? // 納期
-  completionPeriod  String?   // 研修完了期間
+  completionPeriod  String?   // 検収完了期間
   deliveryLocation  String?   // 納入場所
   paymentTerms      String?   // お支払い条件
   userId            String

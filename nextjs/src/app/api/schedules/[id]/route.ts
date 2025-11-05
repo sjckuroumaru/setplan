@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { recalculateProjectLaborCost } from "@/lib/project-utils"
 
 // バリデーションスキーマ
 const planSchema = z.object({
@@ -154,6 +155,11 @@ export async function PUT(
 
     // トランザクション内で更新
     const result = await prisma.$transaction(async (tx) => {
+      // 集計値再計算用: 既存の実績に紐づく案件IDを取得
+      const oldProjectIds = existingSchedule.actuals
+        .map(actual => actual.projectId)
+        .filter((id): id is string => id !== null)
+
       // 日別基本情報を更新
       const updateData: any = {
         checkInTime: validatedData.checkInTime,
@@ -194,6 +200,11 @@ export async function PUT(
         where: { scheduleId: id },
       })
 
+      // 集計値再計算用: 新しい実績に紐づく案件IDを取得
+      const newProjectIds = validatedData.actuals
+        .map(actual => actual.projectId)
+        .filter((id): id is string => id !== undefined)
+
       // 新しい実績項目を作成
       if (validatedData.actuals.length > 0) {
         await tx.scheduleActual.createMany({
@@ -206,6 +217,13 @@ export async function PUT(
             displayOrder: index,
           })),
         })
+      }
+
+      // 集計値再計算: 影響を受ける全ての案件（重複除去）
+      const affectedProjectIds = [...new Set([...oldProjectIds, ...newProjectIds])]
+
+      for (const projectId of affectedProjectIds) {
+        await recalculateProjectLaborCost(projectId, tx)
       }
 
       // 更新後のデータを取得
@@ -277,9 +295,28 @@ export async function DELETE(
       return NextResponse.json({ error: "削除権限がありません" }, { status: 403 })
     }
 
-    // カスケード削除により関連する予定・実績項目も自動削除される
-    await prisma.dailySchedule.delete({
-      where: { id },
+    // トランザクション内で削除と集計値再計算
+    await prisma.$transaction(async (tx) => {
+      // 削除前に実績に紐づく案件IDを取得
+      const actuals = await tx.scheduleActual.findMany({
+        where: { scheduleId: id },
+        select: { projectId: true },
+      })
+
+      const projectIds = actuals
+        .map(actual => actual.projectId)
+        .filter((id): id is string => id !== null)
+
+      // カスケード削除により関連する予定・実績項目も自動削除される
+      await tx.dailySchedule.delete({
+        where: { id },
+      })
+
+      // 影響を受ける案件の集計値を再計算
+      const uniqueProjectIds = [...new Set(projectIds)]
+      for (const projectId of uniqueProjectIds) {
+        await recalculateProjectLaborCost(projectId, tx)
+      }
     })
 
     console.log(`Schedule for date ${schedule.scheduleDate} deleted`)

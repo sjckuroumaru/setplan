@@ -18,6 +18,13 @@ const createProjectSchema = z.object({
   actualEndDate: z.string().optional(),
   budget: z.number().optional(),
   hourlyRate: z.number().optional(),
+  // 実績台帳用の新規フィールド
+  projectType: z.enum(["development", "ses", "maintenance", "other"]).default("development"),
+  deliveryDate: z.string().optional(),
+  invoiceableDate: z.string().optional(),
+  memo: z.string().max(10000, "メモは10000文字以内で入力してください").optional(),
+  outsourcingCost: z.number().min(0, "外注費は0以上で入力してください").default(0),
+  serverDomainCost: z.number().min(0, "サーバー・ドメイン代は0以上で入力してください").default(0),
 })
 
 // 管理者権限チェック
@@ -198,6 +205,14 @@ export async function POST(request: NextRequest) {
       projectData.hourlyRate = validatedData.hourlyRate
     }
 
+    // 実績台帳用の新規フィールドの設定
+    projectData.projectType = validatedData.projectType
+    projectData.outsourcingCost = validatedData.outsourcingCost
+    projectData.serverDomainCost = validatedData.serverDomainCost
+    if (validatedData.memo !== undefined) {
+      projectData.memo = validatedData.memo
+    }
+
     // 日付フィールドの変換
     if (validatedData.plannedStartDate) {
       projectData.plannedStartDate = new Date(validatedData.plannedStartDate)
@@ -210,6 +225,12 @@ export async function POST(request: NextRequest) {
     }
     if (validatedData.actualEndDate) {
       projectData.actualEndDate = new Date(validatedData.actualEndDate)
+    }
+    if (validatedData.deliveryDate) {
+      projectData.deliveryDate = new Date(validatedData.deliveryDate)
+    }
+    if (validatedData.invoiceableDate) {
+      projectData.invoiceableDate = new Date(validatedData.invoiceableDate)
     }
 
     const project = await prisma.project.create({
@@ -241,6 +262,13 @@ export async function POST(request: NextRequest) {
         actualEndDate: true,
         budget: true,
         hourlyRate: true,
+        // 実績台帳用の新規フィールド
+        projectType: true,
+        deliveryDate: true,
+        invoiceableDate: true,
+        memo: true,
+        outsourcingCost: true,
+        serverDomainCost: true,
         createdAt: true,
         updatedAt: true,
       },

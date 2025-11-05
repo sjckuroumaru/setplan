@@ -258,6 +258,71 @@ describe('案件編集ページ', () => {
     })
   })
 
+  describe('実績台帳情報編集', () => {
+    it('should display performance ledger fields', () => {
+      cy.scrollTo('bottom')
+      cy.contains('実績台帳情報').scrollIntoView().should('be.visible')
+      cy.contains('label', '案件種別').should('be.visible')
+      cy.contains('label', '納品日').should('be.visible')
+      cy.contains('label', '請求可能日').should('be.visible')
+      cy.contains('label', 'メモ').should('be.visible')
+      cy.contains('label', '外注費').should('be.visible')
+      cy.contains('label', 'サーバー・ドメイン代').should('be.visible')
+    })
+
+    it('should allow changing project type', () => {
+      cy.scrollTo('bottom')
+      cy.contains('label', '案件種別').parent().find('button[role="combobox"]').click()
+      cy.contains('[role="option"]', 'その他', { timeout: 10000 }).click()
+
+      // 選択されたことを確認
+      cy.contains('label', '案件種別').parent().should('contain', 'その他')
+    })
+
+    it('should allow editing delivery date', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="deliveryDate"]').scrollIntoView().clear().type('2024-08-01')
+      cy.get('input[name="deliveryDate"]').should('have.value', '2024-08-01')
+    })
+
+    it('should allow editing invoiceable date', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="invoiceableDate"]').scrollIntoView().clear().type('2024-08-15')
+      cy.get('input[name="invoiceableDate"]').should('have.value', '2024-08-15')
+    })
+
+    it('should allow editing outsourcing cost', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="outsourcingCost"]').scrollIntoView().clear().type('600000')
+      cy.get('input[name="outsourcingCost"]').should('have.value', '600000')
+    })
+
+    it('should allow editing server domain cost', () => {
+      cy.scrollTo('bottom')
+      cy.get('input[name="serverDomainCost"]').scrollIntoView().clear().type('60000')
+      cy.get('input[name="serverDomainCost"]').should('have.value', '60000')
+    })
+
+    it('should allow editing memo', () => {
+      cy.scrollTo('bottom')
+      const memo = '編集後のメモです。'
+      cy.get('textarea[name="memo"]').scrollIntoView().clear().type(memo)
+      cy.get('textarea[name="memo"]').should('have.value', memo)
+    })
+
+    it('should handle numeric inputs correctly for performance ledger fields', () => {
+      cy.scrollTo('bottom')
+
+      // 数値フィールドに文字列を入力しようとする
+      cy.get('input[name="outsourcingCost"]').scrollIntoView().clear().type('abc')
+      cy.get('input[name="outsourcingCost"]').should('have.value', '')
+
+      // 正しい数値を入力
+      cy.get('input[name="outsourcingCost"]').clear().type('750000')
+      cy.get('input[name="outsourcingCost"]').should('have.value', '750000')
+    })
+  })
+
   // データを実際に更新するテストは別のdescribeブロックで、独自のbeforeEachを使用
   describe('フォーム送信', () => {
     let updateProjectId: string
@@ -375,6 +440,16 @@ describe('案件編集ページ', () => {
       cy.get('input[name="budget"]').scrollIntoView().clear().type('30000000')
       cy.get('input[name="hourlyRate"]').scrollIntoView().clear().type('12000')
 
+      // 実績台帳情報
+      cy.scrollTo('bottom')
+      cy.contains('label', '案件種別').parent().find('button[role="combobox"]').click()
+      cy.contains('[role="option"]', 'SES', { timeout: 10000 }).click()
+      cy.get('input[name="deliveryDate"]').scrollIntoView().clear().type('2024-12-10')
+      cy.get('input[name="invoiceableDate"]').scrollIntoView().clear().type('2024-12-20')
+      cy.get('input[name="outsourcingCost"]').scrollIntoView().clear().type('800000')
+      cy.get('input[name="serverDomainCost"]').scrollIntoView().clear().type('80000')
+      cy.get('textarea[name="memo"]').scrollIntoView().clear().type('更新後のメモ')
+
       cy.intercept('PUT', '/api/projects/*').as('updateProject')
 
       cy.contains('button', '更新').click()
@@ -384,6 +459,11 @@ describe('案件編集ページ', () => {
         // 数値フィールドが正しく数値として送信されることを確認
         expect(interception.request.body.budget).to.eq(30000000)
         expect(interception.request.body.hourlyRate).to.eq(12000)
+        expect(interception.request.body.outsourcingCost).to.eq(800000)
+        expect(interception.request.body.serverDomainCost).to.eq(80000)
+        // 実績台帳フィールドが送信されることを確認
+        expect(interception.request.body.projectType).to.eq('ses')
+        expect(interception.request.body.memo).to.eq('更新後のメモ')
       })
 
       cy.contains('案件情報を更新しました').should('be.visible')

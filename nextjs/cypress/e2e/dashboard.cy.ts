@@ -50,4 +50,12 @@ describe('Dashboard', () => {
     cy.get('a[href="/schedules"]').first().click();
     cy.url().should('include', '/schedules');
   });
+
+  it('should navigate to performance ledger page', () => {
+    cy.visit('/dashboard');
+
+    // 実績台帳ページへのリンクをクリック
+    cy.get('a[href="/performance-ledger"]').first().click();
+    cy.url().should('include', '/performance-ledger');
+  });
 });
