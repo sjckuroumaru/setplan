@@ -87,6 +87,10 @@ export async function GET(
         memo: true,
         outsourcingCost: true,
         serverDomainCost: true,
+        // 投下工数の集計値
+        totalLaborHours: true,
+        totalLaborCost: true,
+        lastCalculatedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -256,6 +260,10 @@ export async function PUT(
         memo: true,
         outsourcingCost: true,
         serverDomainCost: true,
+        // 投下工数の集計値
+        totalLaborHours: true,
+        totalLaborCost: true,
+        lastCalculatedAt: true,
         createdAt: true,
         updatedAt: true,
       },

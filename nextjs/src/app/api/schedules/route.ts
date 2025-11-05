@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { config } from "@/lib/config"
 import { z } from "zod"
+import { recalculateProjectLaborCost } from "@/lib/project-utils"
 
 // バリデーションスキーマ
 const planSchema = z.object({
@@ -323,6 +324,16 @@ export async function POST(request: NextRequest) {
             displayOrder: index,
           })),
         })
+
+        // 実績に紐づく案件の投下工数を再計算
+        const projectIds = validatedData.actuals
+          .map(actual => actual.projectId)
+          .filter((id): id is string => id !== undefined)
+
+        const uniqueProjectIds = [...new Set(projectIds)]
+        for (const projectId of uniqueProjectIds) {
+          await recalculateProjectLaborCost(projectId, tx)
+        }
       }
 
       // 完全な予定実績データを取得
