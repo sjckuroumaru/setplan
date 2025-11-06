@@ -82,7 +82,7 @@ export default function CustomersPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchTerm, resetToFirstPage])
+  }, [searchTerm, resetToFirstPage, session])
 
   // 顧客削除
   const handleDelete = async (id: string) => {

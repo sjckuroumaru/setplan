@@ -196,7 +196,7 @@ export default function IssuesPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter, resetToFirstPage])
+  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter, resetToFirstPage, session])
 
   // 課題削除
   const handleDelete = async () => {

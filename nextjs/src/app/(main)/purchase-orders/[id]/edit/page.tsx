@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PurchaseOrderForm } from "@/components/documents/purchase-order-form"
@@ -21,20 +21,14 @@ export default function EditPurchaseOrderPage({
     params.then(setResolvedParams)
   }, [params])
 
-  useEffect(() => {
-    if (resolvedParams) {
-      fetchPurchaseOrder()
-    }
-  }, [resolvedParams])
-
-  const fetchPurchaseOrder = async () => {
+  const fetchPurchaseOrder = useCallback(async () => {
     if (!resolvedParams) return
 
     try {
       const response = await fetch(`/api/purchase-orders/${resolvedParams.id}`)
       if (!response.ok) throw new Error()
       const data = await response.json()
-      
+
       // フォーム用にデータを整形
       const formData = {
         id: data.id,
@@ -71,7 +65,13 @@ export default function EditPurchaseOrderPage({
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams, router])
+
+  useEffect(() => {
+    if (resolvedParams) {
+      fetchPurchaseOrder()
+    }
+  }, [resolvedParams, fetchPurchaseOrder])
 
   if (loading) {
     return (

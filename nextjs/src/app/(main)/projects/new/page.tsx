@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { ProjectForm } from "@/components/features/projects/project-form"
 import { toast } from "sonner"
+import { mutate } from "swr"
 
 type ProjectFormValues = {
   projectNumber: string
@@ -65,6 +66,10 @@ export default function NewProjectPage() {
       }
 
       toast.success("案件を作成しました")
+
+      // SWRのキャッシュを無効化して、一覧ページで最新データを取得
+      await mutate((key) => typeof key === 'string' && key.startsWith('/api/projects'))
+
       router.push("/projects")
     } catch (error) {
       console.warn("Create project error:", error)

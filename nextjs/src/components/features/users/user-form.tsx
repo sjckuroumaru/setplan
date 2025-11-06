@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useForm } from "react-hook-form"
+import Image from "next/image"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -158,7 +159,7 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
   const handleSubmit = async (data: UserFormValues) => {
     // 編集モードでパスワードが空の場合は除外
     if (isEdit && !data.password) {
-      const { password, ...dataWithoutPassword } = data
+      const { password: _password, ...dataWithoutPassword } = data
       await onSubmit(dataWithoutPassword as UserFormValues)
     } else {
       await onSubmit(data)
@@ -426,11 +427,12 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
                 <div className="flex items-center gap-4">
                   {sealImageUrl ? (
                     <div className="relative">
-                      <div className="w-24 h-24 border rounded-lg overflow-hidden bg-gray-50">
-                        <img
+                      <div className="relative w-24 h-24 border rounded-lg overflow-hidden bg-gray-50">
+                        <Image
                           src={sealImageUrl}
                           alt="押印"
-                          className="w-full h-full object-contain"
+                          fill
+                          className="object-contain"
                         />
                       </div>
                       <Button

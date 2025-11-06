@@ -363,9 +363,9 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
                         <SelectContent>
                           <SelectItem value="draft">下書き</SelectItem>
                           <SelectItem value="sent">送付済</SelectItem>
-                          <SelectItem value="accepted">承認済</SelectItem>
+                          <SelectItem value="accepted">受注</SelectItem>
                           <SelectItem value="rejected">却下</SelectItem>
-                          <SelectItem value="expired">期限切れ</SelectItem>
+                          <SelectItem value="expired">失注</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

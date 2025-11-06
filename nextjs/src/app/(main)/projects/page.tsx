@@ -111,7 +111,7 @@ export default function ProjectsPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, resetToFirstPage])
+  }, [searchQuery, statusFilter, resetToFirstPage, session])
 
   // 案件削除
   const handleDelete = async () => {

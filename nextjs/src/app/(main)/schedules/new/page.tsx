@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { ScheduleForm } from "@/components/features/schedules/schedule-form"
 import { toast } from "sonner"
+import { mutate } from "swr"
 
 type ScheduleFormValues = {
   scheduleDate: string
@@ -129,6 +130,10 @@ function NewSchedulePageContent() {
       }
 
       toast.success("予定実績を登録しました")
+
+      // SWRのキャッシュを無効化して、一覧ページで最新データを取得
+      await mutate((key) => typeof key === 'string' && key.startsWith('/api/schedules'))
+
       router.push("/schedules")
     } catch (error) {
       console.warn("Create schedule error:", error)

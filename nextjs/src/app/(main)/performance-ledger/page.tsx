@@ -4,10 +4,12 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { usePerformanceLedger } from "@/hooks/use-performance-ledger"
+import { useLedgerSummary } from "@/hooks/use-ledger-summary"
 import { usePagination } from "@/hooks/use-pagination"
 import { config } from "@/lib/config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -31,6 +33,8 @@ import {
   ArrowUp,
   ArrowDown
 } from "lucide-react"
+import { OverallSummaryCard } from "@/components/performance-ledger/overall-summary"
+import { TeamSummaryTable } from "@/components/performance-ledger/team-summary-table"
 
 const projectTypeLabels = {
   development: "開発",
@@ -80,6 +84,19 @@ export default function PerformanceLedgerPage() {
     endDate: endDate || undefined,
     sortBy,
     sortOrder,
+  })
+
+  // サマリデータ取得
+  const {
+    overall,
+    byTeam,
+    isLoading: isSummaryLoading,
+  } = useLedgerSummary({
+    projectType: projectTypeFilter !== "all" ? projectTypeFilter : undefined,
+    status: statusFilter === "not_completed" ? undefined : statusFilter !== "all" ? statusFilter : "all",
+    departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
   })
 
   // 認証チェック
@@ -185,51 +202,66 @@ export default function PerformanceLedgerPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Select value={projectTypeFilter} onValueChange={setProjectTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="案件種別" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                <SelectItem value="development">開発</SelectItem>
-                <SelectItem value="ses">SES</SelectItem>
-                <SelectItem value="maintenance">保守</SelectItem>
-                <SelectItem value="other">その他</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="project-type-filter">案件種別</Label>
+              <Select value={projectTypeFilter} onValueChange={setProjectTypeFilter}>
+                <SelectTrigger id="project-type-filter">
+                  <SelectValue placeholder="案件種別" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">すべて</SelectItem>
+                  <SelectItem value="development">開発</SelectItem>
+                  <SelectItem value="ses">SES</SelectItem>
+                  <SelectItem value="maintenance">保守</SelectItem>
+                  <SelectItem value="other">その他</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="ステータス（デフォルト：完了以外）" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="not_completed">完了以外</SelectItem>
-                <SelectItem value="all">すべて</SelectItem>
-                <SelectItem value="planning">計画中</SelectItem>
-                <SelectItem value="developing">開発中</SelectItem>
-                <SelectItem value="active">稼働中</SelectItem>
-                <SelectItem value="suspended">停止中</SelectItem>
-                <SelectItem value="completed">完了</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="status-filter">ステータス</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="ステータス（デフォルト：完了以外）" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_completed">完了以外</SelectItem>
+                  <SelectItem value="all">すべて</SelectItem>
+                  <SelectItem value="planning">計画中</SelectItem>
+                  <SelectItem value="developing">開発中</SelectItem>
+                  <SelectItem value="active">稼働中</SelectItem>
+                  <SelectItem value="suspended">停止中</SelectItem>
+                  <SelectItem value="completed">完了</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className="flex gap-2">
-              <Input
-                type="date"
-                placeholder="開始日"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-              <Input
-                type="date"
-                placeholder="終了日"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+            <div className="space-y-2">
+              <Label>発行日期間</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  placeholder="開始日"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <Input
+                  type="date"
+                  placeholder="終了日"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* サマリセクション */}
+      <div className="space-y-4">
+        <OverallSummaryCard data={overall} isLoading={isSummaryLoading} />
+        <TeamSummaryTable data={byTeam} isLoading={isSummaryLoading} />
+      </div>
 
       {/* 実績台帳テーブル */}
       <Card>

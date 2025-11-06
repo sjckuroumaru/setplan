@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -51,7 +51,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   }, [session, status, router])
 
   // 案件情報取得
-  const fetchProject = async () => {
+  const fetchProject = useCallback(async () => {
     try {
       setLoading(true)
       setError("")
@@ -70,13 +70,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     if (session?.user?.isAdmin) {
       fetchProject()
     }
-  }, [session, id])
+  }, [session, id, fetchProject])
 
   const handleSubmit = async (data: ProjectFormValues) => {
     try {

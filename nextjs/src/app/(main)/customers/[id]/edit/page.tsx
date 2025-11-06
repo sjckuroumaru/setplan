@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { toast } from "sonner"
+import { mutate } from "swr"
 import {
   Card,
   CardContent,
@@ -139,8 +140,12 @@ export default function EditCustomerPage({ params }: { params: Promise<{ id: str
       })
 
       if (!response.ok) throw new Error()
-      
+
       toast.success("顧客情報を更新しました")
+
+      // SWRのキャッシュを無効化して、一覧ページで最新データを取得
+      await mutate((key) => typeof key === 'string' && key.startsWith('/api/customers'))
+
       router.push("/customers")
     } catch {
       toast.error("更新に失敗しました")

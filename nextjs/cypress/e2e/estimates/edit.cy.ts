@@ -462,7 +462,7 @@ describe('見積編集ページ', () => {
       cy.get('input[name="subject"]').scrollIntoView().should('be.visible').clear().type('一括更新テスト')
 
       cy.contains('label', 'ステータス').scrollIntoView().parent().find('button[role="combobox"]').should('be.visible').click()
-      cy.contains('[role="option"]', '承認済', { timeout: 10000 }).click()
+      cy.contains('[role="option"]', '受注', { timeout: 10000 }).click()
 
       cy.get('input[name="items.0.name"]').scrollIntoView().should('be.visible').clear().type('一括更新明細')
       cy.get('input[name="items.0.quantity"]').scrollIntoView().should('be.visible').clear().type('3')

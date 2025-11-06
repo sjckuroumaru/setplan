@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { useSession } from "next-auth/react"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -138,7 +138,6 @@ const generateTimeOptions = () => {
 const TIME_OPTIONS = generateTimeOptions()
 
 export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit = false, readOnly = false, isAdmin = false, users = [], showAllProjects = false }: ScheduleFormProps) {
-  const { data: session } = useSession()
   const { projects, isLoading: projectsLoading } = useActiveProjects({ showAllProjects })
 
   // データ設定済みフラグと前回のスケジュールID

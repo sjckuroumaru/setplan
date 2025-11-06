@@ -9,11 +9,6 @@ import {
   ViewMode,
   jaDateLocale,
   jaDateFormats,
-  TitleColumn,
-  DateStartColumn,
-  DateEndColumn,
-  type Column,
-  type ColumnProps,
 } from "@sjckuroumaru/gantt-task-react"
 import "@sjckuroumaru/gantt-task-react/dist/style.css"
 import { useGantt } from "@/hooks/use-gantt"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -103,13 +103,7 @@ export default function PurchaseOrderDetailPage({
     params.then(setResolvedParams)
   }, [params])
 
-  useEffect(() => {
-    if (resolvedParams) {
-      fetchPurchaseOrder()
-    }
-  }, [resolvedParams])
-
-  const fetchPurchaseOrder = async () => {
+  const fetchPurchaseOrder = useCallback(async () => {
     if (!resolvedParams) return
 
     try {
@@ -123,7 +117,13 @@ export default function PurchaseOrderDetailPage({
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams, router])
+
+  useEffect(() => {
+    if (resolvedParams) {
+      fetchPurchaseOrder()
+    }
+  }, [resolvedParams, fetchPurchaseOrder])
 
   const handleDownloadPDF = async () => {
     if (!resolvedParams || !purchaseOrder) return

@@ -345,13 +345,14 @@ describe('Schedules Page - Work Hour Difference Display', () => {
     cy.url().should('not.include', '/new');
     cy.url().should('include', '/schedules', { timeout: 10000 });
 
-    // データの取得が完了するまで待つ
-    cy.wait('@getSchedules', { timeout: 15000 });
-
     // 一覧で実績過不足を確認
     // 計算: (18:00 - 09:00) - 1.0 - 8.0 = 9.0 - 1.0 - 8.0 = 0.00h
     // 新しいデータが表示されるまで待つ（今日の日付で探す）
-    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+
+    // テーブルにデータが表示されるまで待つ（最大20秒）
+    cy.contains('table tbody tr', formattedDate, { timeout: 20000 }).should('be.visible').within(() => {
       // 出社時刻が09:00であることを確認
       cy.contains('09:00').should('be.visible');
       // 退社時刻が18:00であることを確認
@@ -402,13 +403,14 @@ describe('Schedules Page - Work Hour Difference Display', () => {
     cy.url().should('not.include', '/new');
     cy.url().should('include', '/schedules', { timeout: 10000 });
 
-    // データの取得が完了するまで待つ
-    cy.wait('@getSchedules', { timeout: 15000 });
-
     // 一覧で実績過不足を確認
     // 計算: (18:00 - 09:00) - 1.0 - 6.0 = 9.0 - 1.0 - 6.0 = +2.00h
     // 新しいデータが表示されるまで待つ（今日の日付で探す）
-    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+
+    // テーブルにデータが表示されるまで待つ（最大20秒）
+    cy.contains('table tbody tr', formattedDate, { timeout: 20000 }).should('be.visible').within(() => {
       // 出社時刻が09:00であることを確認
       cy.contains('09:00').should('be.visible');
       // 退社時刻が18:00であることを確認
@@ -459,13 +461,13 @@ describe('Schedules Page - Work Hour Difference Display', () => {
     cy.url().should('not.include', '/new');
     cy.url().should('include', '/schedules', { timeout: 10000 });
 
-    // データの取得が完了するまで待つ
-    cy.wait('@getSchedules', { timeout: 15000 });
-
     // 一覧で実績過不足を確認
     // 計算: (18:00 - 09:00) - 1.0 - 10.0 = 9.0 - 1.0 - 10.0 = -2.00h
     // 新しいデータが表示されるまで待つ（今日の日付で探す）
-    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+
+    cy.contains('table tbody tr', formattedDate, { timeout: 20000 }).should('be.visible').within(() => {
       // 出社時刻が09:00であることを確認
       cy.contains('09:00').should('be.visible');
       // 退社時刻が18:00であることを確認
@@ -506,12 +508,12 @@ describe('Schedules Page - Work Hour Difference Display', () => {
     cy.url().should('not.include', '/new');
     cy.url().should('include', '/schedules', { timeout: 10000 });
 
-    // データの取得が完了するまで待つ
-    cy.wait('@getSchedules', { timeout: 15000 });
-
     // 一覧で実績過不足を確認
     // 新しいデータが表示されるまで待つ（今日の日付で探す）
-    cy.contains('table tbody tr', '2025/11/5', { timeout: 15000 }).should('be.visible').within(() => {
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+
+    cy.contains('table tbody tr', formattedDate, { timeout: 20000 }).should('be.visible').within(() => {
       // 出社時刻が09:00であることを確認
       cy.contains('09:00').should('be.visible');
       // 退社時刻がないため「-」が表示される

@@ -97,7 +97,7 @@ export default function DepartmentsPage() {
     if (session?.user?.isAdmin) {
       resetToFirstPage()
     }
-  }, [searchQuery, resetToFirstPage])
+  }, [searchQuery, resetToFirstPage, session?.user?.isAdmin])
 
   // 部署削除
   const handleDelete = async () => {

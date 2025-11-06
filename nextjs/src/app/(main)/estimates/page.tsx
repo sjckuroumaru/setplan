@@ -4,6 +4,9 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useEstimates } from "@/hooks/use-estimates"
+import { usePagination } from "@/hooks/use-pagination"
+import { config } from "@/lib/config"
 import {
   Card,
   CardContent,
@@ -70,56 +73,55 @@ interface Estimate {
 }
 
 export default function EstimatesPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const [estimates, setEstimates] = useState<Estimate[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: config.pagination.defaultLimit })
   const [statusFilter, setStatusFilter] = useState("all")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [initialized, setInitialized] = useState(false)
 
-  // 見積一覧取得
-  const fetchEstimates = async () => {
-    try {
-      setIsLoading(true)
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "20",
-      })
-      
-      if (statusFilter !== "all") {
-        params.append("status", statusFilter)
-      }
-
-      const response = await fetch(`/api/estimates?${params}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        setEstimates(data.estimates)
-        setTotalPages(data.totalPages)
-      }
-    } catch (error) {
-      console.error("Failed to fetch estimates:", error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // 初回データ取得
+  // 認証チェック
   useEffect(() => {
-    if (session && !initialized) {
-      fetchEstimates()
-      setInitialized(true)
+    if (status === "loading") return
+    if (!session) {
+      router.push("/login")
+      return
     }
-  }, [session, initialized])
+  }, [session, status, router])
 
-  // フィルター・ページ変更時のデータ取得
+  // SWRフックでデータ取得
+  const { estimates, pagination: swrPagination, isLoading, isError, mutate } = useEstimates({
+    page: currentPage,
+    limit: pagination.limit,
+    status: statusFilter,
+  })
+
+  // SWRのpaginationで更新
   useEffect(() => {
-    if (initialized) {
-      fetchEstimates()
+    if (swrPagination) {
+      setPagination(prev => ({
+        ...prev,
+        page: swrPagination.currentPage,
+        total: swrPagination.total,
+        totalPages: swrPagination.totalPages,
+      }))
     }
-  }, [currentPage, statusFilter])
+  }, [swrPagination?.currentPage, swrPagination?.total, swrPagination?.totalPages, setPagination])
+
+  // フィルター変更時はページを1に戻す
+  useEffect(() => {
+    if (session) {
+      resetToFirstPage()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter])
 
   // 見積削除
   const handleDelete = async (id: string) => {
@@ -131,9 +133,9 @@ export default function EstimatesPage() {
       })
 
       if (!response.ok) throw new Error()
-      
+
       toast.success("見積を削除しました")
-      fetchEstimates()
+      mutate() // SWRでデータ再取得
     } catch {
       toast.error("削除に失敗しました")
     }
@@ -166,7 +168,7 @@ export default function EstimatesPage() {
   }
 
 
-  if (isLoading) {
+  if (status === "loading" || !session) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-48" />
@@ -209,9 +211,9 @@ export default function EstimatesPage() {
                 <SelectItem value="all">すべて</SelectItem>
                 <SelectItem value="draft">下書き</SelectItem>
                 <SelectItem value="sent">送付済</SelectItem>
-                <SelectItem value="accepted">承認済</SelectItem>
+                <SelectItem value="accepted">受注</SelectItem>
                 <SelectItem value="rejected">却下</SelectItem>
-                <SelectItem value="expired">期限切れ</SelectItem>
+                <SelectItem value="expired">失注</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -329,24 +331,24 @@ export default function EstimatesPage() {
             </Table>
           )}
 
-          {totalPages > 1 && (
+          {pagination.totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-4">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                onClick={goToPreviousPage}
+                disabled={!hasPreviousPage || isLoading}
               >
                 前へ
               </Button>
               <span className="text-sm text-muted-foreground">
-                {currentPage} / {totalPages}
+                {currentPage} / {pagination.totalPages}ページ （{pagination.total}件）
               </span>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                onClick={goToNextPage}
+                disabled={!hasNextPage || isLoading}
               >
                 次へ
               </Button>

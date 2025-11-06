@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -66,7 +66,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   }, [session, status, router])
 
   // ユーザー情報取得
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       setLoading(true)
       setError("")
@@ -85,13 +85,13 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     if (session?.user?.isAdmin) {
       fetchUser()
     }
-  }, [session, id])
+  }, [session, id, fetchUser])
 
   const handleSubmit = async (data: UserFormValues) => {
     try {

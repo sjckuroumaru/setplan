@@ -92,7 +92,7 @@ export function usePurchaseOrderCalculations(form: UseFormReturn<any>) {
       taxAmount10,
       totalAmount,
     }
-  }, [])
+  }, [form])
 
   // 明細変更時に金額を再計算
   useEffect(() => {
@@ -102,7 +102,7 @@ export function usePurchaseOrderCalculations(form: UseFormReturn<any>) {
       }
     })
     return () => subscription.unsubscribe()
-  }, [calculateAmounts])
+  }, [calculateAmounts, form])
 
   return { calculatedAmounts, calculateAmounts }
 }

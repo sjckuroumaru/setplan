@@ -249,10 +249,8 @@ describe('部署・チーム一覧ページ', () => {
       // APIレスポンスを待つ
       cy.wait('@deleteDepartmentError')
 
-      // エラーのトースト通知が表示されることを確認（Sonnerのトースト要素を使用）
-      cy.get('[data-sonner-toast]', { timeout: 10000 })
-        .should('be.visible')
-        .and('contain', '所属ユーザーまたは関連案件が存在するため削除できません')
+      // エラーのトースト通知が表示されることを確認
+      cy.contains('所属ユーザーまたは関連案件が存在するため削除できません').should('be.visible')
     })
 
     it('should disable delete button while deleting', () => {

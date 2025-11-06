@@ -73,10 +73,8 @@ describe('請求書一覧ページ', () => {
       // すべてのステータスオプションが表示されることを確認
       cy.contains('[role="option"]', 'すべて').should('be.visible')
       cy.contains('[role="option"]', '下書き').should('be.visible')
-      cy.contains('[role="option"]', '送付済').should('be.visible')
+      cy.contains('[role="option"]', '入金待ち').should('be.visible')
       cy.contains('[role="option"]', '入金済').should('be.visible')
-      cy.contains('[role="option"]', '期限超過').should('be.visible')
-      cy.contains('[role="option"]', 'キャンセル').should('be.visible')
     })
   })
 
@@ -180,10 +178,10 @@ describe('請求書一覧ページ', () => {
         cy.get('button[aria-haspopup="menu"]').last().scrollIntoView().click()
       })
 
-      // 送付済みにするメニューが表示されることを確認（下書きステータスのみ）
+      // 入金待ちにするメニューが表示されることを確認（下書きステータスのみ）
       cy.get('body').then(($body) => {
-        if ($body.find('[role="menuitem"]:contains("送付済みにする")').length > 0) {
-          cy.contains('[role="menuitem"]', '送付済みにする').should('be.visible')
+        if ($body.find('[role="menuitem"]:contains("入金待ちにする")').length > 0) {
+          cy.contains('[role="menuitem"]', '入金待ちにする').should('be.visible')
         }
       })
     })
@@ -191,9 +189,9 @@ describe('請求書一覧ページ', () => {
     it('should show status update option for sent invoices', () => {
       cy.visit('/invoices')
 
-      // 送付済みステータスの請求書を探す
+      // 入金待ちステータスの請求書を探す
       cy.get('button[role="combobox"]').click()
-      cy.contains('[role="option"]', '送付済').click()
+      cy.contains('[role="option"]', '入金待ち').click()
       cy.wait(1000)
 
       // テーブルにデータがある場合のみテスト実行
@@ -204,7 +202,7 @@ describe('請求書一覧ページ', () => {
             cy.get('button[aria-haspopup="menu"]').last().scrollIntoView().click()
           })
 
-          // 入金済みにするメニューが表示されることを確認（送付済みステータスのみ）
+          // 入金済みにするメニューが表示されることを確認（入金待ちステータスのみ）
           cy.get('body').then(($innerBody) => {
             if ($innerBody.find('[role="menuitem"]:contains("入金済みにする")').length > 0) {
               cy.contains('[role="menuitem"]', '入金済みにする').should('be.visible')
@@ -287,13 +285,13 @@ describe('請求書一覧ページ', () => {
             cy.get('button[aria-haspopup="menu"]').last().scrollIntoView().click()
           })
 
-          // 送付済みにするメニューが存在する場合のみクリック
+          // 入金待ちにするメニューが存在する場合のみクリック
           cy.get('body').then(($innerBody) => {
-            if ($innerBody.find('[role="menuitem"]:contains("送付済みにする")').length > 0) {
+            if ($innerBody.find('[role="menuitem"]:contains("入金待ちにする")').length > 0) {
               // APIリクエストをインターセプト
               cy.intercept('PUT', '/api/invoices/*/status').as('updateStatus')
 
-              cy.contains('[role="menuitem"]', '送付済みにする').should('be.visible').click()
+              cy.contains('[role="menuitem"]', '入金待ちにする').should('be.visible').click()
 
               // APIレスポンスを待つ
               cy.wait('@updateStatus').then((interception) => {
@@ -311,9 +309,9 @@ describe('請求書一覧ページ', () => {
     it('should update invoice status from sent to paid', () => {
       cy.visit('/invoices')
 
-      // 送付済みステータスの請求書を探す
+      // 入金待ちステータスの請求書を探す
       cy.get('button[role="combobox"]').click()
-      cy.contains('[role="option"]', '送付済').click()
+      cy.contains('[role="option"]', '入金待ち').click()
       cy.wait(1000)
 
       // テーブルにデータがある場合のみテスト実行

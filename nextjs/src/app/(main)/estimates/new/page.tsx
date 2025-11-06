@@ -116,7 +116,7 @@ export default function NewEstimatePage() {
   })
 
   // 金額計算カスタムフックを使用
-  const { calculatedAmounts, calculateAmounts } = useEstimateCalculations(form)
+  const { calculatedAmounts } = useEstimateCalculations(form)
 
   // 顧客一覧取得
   useEffect(() => {

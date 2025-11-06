@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -487,10 +488,11 @@ export default function CompanySettingsPage() {
             {company?.sealImagePath ? (
               <div className="flex items-center gap-4">
                 <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
-                  <img
+                  <Image
                     src={company.sealImagePath}
                     alt="会社印"
-                    className="object-contain w-full h-full"
+                    fill
+                    className="object-contain"
                   />
                 </div>
                 <Button

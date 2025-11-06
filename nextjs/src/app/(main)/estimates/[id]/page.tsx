@@ -81,9 +81,9 @@ interface EstimateDetail {
 const statusLabels: Record<string, string> = {
   draft: "下書き",
   sent: "送付済",
-  accepted: "承認済",
+  accepted: "受注",
   rejected: "却下",
-  expired: "期限切れ",
+  expired: "失注",
 }
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {

@@ -421,14 +421,14 @@ export const EstimatePDF: React.FC<EstimatePDFProps> = ({ estimate, company, use
               {/* 会社印 - 自社情報の右上に配置 */}
               {company.sealImagePath && (
                 <View style={styles.companySealBox}>
-                  <Image style={styles.companySealImage} src={company.sealImagePath} />
+                  <Image style={styles.companySealImage} src={company.sealImagePath} alt="会社印" />
                 </View>
               )}
-              
+
               {/* 担当者印 - 自社情報の右下に配置 */}
               {user.sealImagePath && (
                 <View style={styles.userSealBox}>
-                  <Image style={styles.userSealImage} src={user.sealImagePath} />
+                  <Image style={styles.userSealImage} src={user.sealImagePath} alt="担当者印" />
                 </View>
               )}
             </View>

@@ -67,7 +67,7 @@ const formSchema = z.object({
   taxRate: z.coerce.number().default(10),
   roundingType: z.enum(["floor", "ceil", "round"]).default("floor"),
   remarks: z.string().optional(),
-  status: z.enum(["draft", "sent", "paid", "overdue", "cancelled"]).default("draft"),
+  status: z.enum(["draft", "sent", "paid"]).default("draft"),
   items: z.array(invoiceItemSchema).min(1, "明細を1件以上追加してください"),
 })
 
@@ -116,7 +116,7 @@ export default function NewInvoicePage() {
   })
 
   // 金額計算カスタムフックを使用
-  const { calculatedAmounts, calculateAmounts } = useInvoiceCalculations(form)
+  const { calculatedAmounts } = useInvoiceCalculations(form)
 
   // 顧客一覧を取得
   useEffect(() => {
@@ -367,10 +367,8 @@ export default function NewInvoicePage() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="draft">下書き</SelectItem>
-                        <SelectItem value="sent">送付済み</SelectItem>
+                        <SelectItem value="sent">入金待ち</SelectItem>
                         <SelectItem value="paid">入金済み</SelectItem>
-                        <SelectItem value="overdue">期限超過</SelectItem>
-                        <SelectItem value="cancelled">キャンセル</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

@@ -458,7 +458,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ invoice, customer, compa
               )}
               {company.sealImagePath && (
                 <View style={styles.companySealBox}>
-                  <Image style={styles.companySealImage} src={company.sealImagePath} />
+                  <Image style={styles.companySealImage} src={company.sealImagePath} alt="会社印" />
                 </View>
               )}
             </View>

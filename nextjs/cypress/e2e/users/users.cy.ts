@@ -180,18 +180,11 @@ describe('ユーザー一覧ページ', () => {
     it('should open delete dialog when clicking delete button', () => {
       cy.visit('/users')
 
-      // 削除ボタンが存在する最初の行を探してクリック
-      cy.get('table tbody tr').then(($rows) => {
-        for (let i = 0; i < $rows.length; i++) {
-          const $row = $rows.eq(i)
-          if ($row.find('button.text-red-600').length > 0) {
-            cy.wrap($row).within(() => {
-              cy.get('button.text-red-600').click()
-            })
-            return
-          }
-        }
-      })
+      // テーブルにデータがロードされるまで待つ
+      cy.get('table tbody tr').should('have.length.at.least', 1)
+
+      // 削除ボタン（赤色のボタン）が存在する行を探してクリック
+      cy.get('table tbody').find('button.text-red-600').first().click()
 
       // 削除確認ダイアログが表示されることを確認
       cy.contains('ユーザーの削除').should('be.visible')
@@ -217,63 +210,51 @@ describe('ユーザー一覧ページ', () => {
     it('should cancel deletion when clicking cancel button', () => {
       cy.visit('/users')
 
-      // 削除ボタンが存在する最初の行を見つける
-      cy.get('table tbody tr').then(($rows) => {
-        for (let i = 0; i < $rows.length; i++) {
-          const $row = $rows.eq(i)
-          if ($row.find('button.text-red-600').length > 0) {
-            // ユーザー名を取得
-            const userName = $row.find('td').eq(1).text()
+      // テーブルにデータがロードされるまで待つ
+      cy.get('table tbody tr').should('have.length.at.least', 1)
 
-            // 削除ボタンをクリック
-            cy.wrap($row).scrollIntoView()
-            cy.wrap($row).within(() => {
-              cy.get('button.text-red-600').click()
-            })
+      // 削除ボタンが存在する行のユーザー名を取得
+      cy.get('table tbody').find('button.text-red-600').first()
+        .parents('tr').find('td').eq(1).invoke('text').then((userName) => {
+        const trimmedName = userName.trim()
 
-            // ダイアログでキャンセルをクリック
-            cy.contains('button', 'キャンセル').click()
+        // 削除ボタンをクリック
+        cy.get('table tbody').find('button.text-red-600').first().click()
 
-            // ダイアログが閉じることを確認
-            cy.contains('ユーザーの削除').should('not.exist')
+        // ダイアログでキャンセルをクリック
+        cy.contains('button', 'キャンセル').click()
 
-            // ユーザーがまだ存在することを確認
-            cy.contains(userName.trim()).should('be.visible')
-            return
-          }
-        }
+        // ダイアログが閉じることを確認
+        cy.contains('ユーザーの削除').should('not.exist')
+
+        // ユーザーがまだ存在することを確認
+        cy.contains(trimmedName).should('be.visible')
       })
     })
 
     it('should delete user when confirming deletion', () => {
       cy.visit('/users')
 
-      // 削除ボタンが存在する最初の行を見つける
-      cy.get('table tbody tr').then(($rows) => {
-        for (let i = 0; i < $rows.length; i++) {
-          const $row = $rows.eq(i)
-          if ($row.find('button.text-red-600').length > 0) {
-            // ユーザー名を取得
-            const userName = $row.find('td').eq(1).text()
+      // テーブルにデータがロードされるまで待つ
+      cy.get('table tbody tr').should('have.length.at.least', 1)
 
-            // 削除ボタンをクリック
-            cy.wrap($row).scrollIntoView()
-            cy.wrap($row).within(() => {
-              cy.get('button.text-red-600').click()
-            })
+      // 削除ボタンが存在する行のユーザー名を取得
+      cy.get('table tbody').find('button.text-red-600').first()
+        .parents('tr').find('td').eq(1).invoke('text').then((userName) => {
+        const trimmedName = userName.trim()
 
-            // ダイアログで削除を確認
-            cy.contains('button', '削除').click()
+        // 削除ボタンをクリック
+        cy.get('table tbody').find('button.text-red-600').first().click()
 
-            // 削除成功のトースト通知が表示されることを確認
-            cy.contains('ユーザーを削除しました', { timeout: 10000 }).should('be.visible')
+        // ダイアログで削除を確認
+        cy.contains('button', '削除').click()
 
-            // 削除されたユーザーが表示されないことを確認
-            cy.wait(1000) // APIレスポンス待ち
-            cy.get('body').should('not.contain', userName.trim())
-            return
-          }
-        }
+        // 削除成功のトースト通知が表示されることを確認
+        cy.contains('ユーザーを削除しました', { timeout: 10000 }).should('be.visible')
+
+        // 削除されたユーザーが表示されないことを確認
+        cy.wait(1000) // APIレスポンス待ち
+        cy.get('body').should('not.contain', trimmedName)
       })
     })
 
@@ -286,18 +267,14 @@ describe('ユーザー一覧ページ', () => {
         body: { error: 'ユーザーの削除に失敗しました' },
       }).as('deleteUserError')
 
-      // 削除ボタンが存在する最初の行を見つけてクリック
-      cy.get('table tbody tr').then(($rows) => {
-        for (let i = 0; i < $rows.length; i++) {
-          const $row = $rows.eq(i)
-          if ($row.find('button.text-red-600').length > 0) {
-            cy.wrap($row).within(() => {
-              cy.get('button.text-red-600').click()
-            })
-            return
-          }
-        }
-      })
+      // テーブルにデータがロードされるまで待つ
+      cy.get('table tbody tr').should('have.length.at.least', 1)
+
+      // 削除ボタンをクリック
+      cy.get('table tbody').find('button.text-red-600').first().click()
+
+      // ダイアログが開くのを待つ
+      cy.contains('ユーザーの削除').should('be.visible')
 
       // ダイアログで削除を確認
       cy.contains('button', '削除').click()
@@ -305,25 +282,24 @@ describe('ユーザー一覧ページ', () => {
       // APIレスポンスを待つ
       cy.wait('@deleteUserError')
 
+      // ダイアログを閉じる（エラー時は自動で閉じないため）
+      cy.contains('button', 'キャンセル').click()
+
       // エラーのトースト通知が表示されることを確認
-      cy.contains('ユーザーの削除に失敗しました').should('be.visible')
+      cy.contains('ユーザーの削除に失敗しました', { timeout: 10000 }).should('be.visible')
     })
 
     it('should disable delete button while deleting', () => {
       cy.visit('/users')
 
-      // 削除ボタンが存在する最初の行を見つけてクリック
-      cy.get('table tbody tr').then(($rows) => {
-        for (let i = 0; i < $rows.length; i++) {
-          const $row = $rows.eq(i)
-          if ($row.find('button.text-red-600').length > 0) {
-            cy.wrap($row).within(() => {
-              cy.get('button.text-red-600').click()
-            })
-            return
-          }
-        }
-      })
+      // テーブルにデータがロードされるまで待つ
+      cy.get('table tbody tr').should('have.length.at.least', 1)
+
+      // 削除ボタンをクリック
+      cy.get('table tbody').find('button.text-red-600').first().click()
+
+      // ダイアログが開くのを待つ
+      cy.contains('ユーザーの削除').should('be.visible')
 
       // 削除ボタンをクリック
       cy.contains('button', '削除').click()

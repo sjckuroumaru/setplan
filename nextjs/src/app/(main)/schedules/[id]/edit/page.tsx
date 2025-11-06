@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, use } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -110,7 +110,7 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
   }
 
   // 予定実績詳細取得
-  const fetchSchedule = async () => {
+  const fetchSchedule = useCallback(async () => {
     try {
       setLoading(true)
       setError("")
@@ -129,7 +129,7 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
     } finally {
       setLoading(false)
     }
-  }
+  }, [resolvedParams.id])
 
   useEffect(() => {
     if (session) {
@@ -139,7 +139,7 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
         fetchUsers()
       }
     }
-  }, [session, resolvedParams.id])
+  }, [session, resolvedParams.id, fetchSchedule])
 
   // 編集権限チェック
   const canEdit = () => {

@@ -99,7 +99,7 @@ export default function UsersPage() {
     if (session?.user?.isAdmin) {
       resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, resetToFirstPage])
+  }, [searchQuery, statusFilter, resetToFirstPage, session?.user?.isAdmin])
 
   // ユーザー削除
   const handleDelete = async () => {

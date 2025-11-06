@@ -22,7 +22,7 @@ const STATUS_ICONS: Record<string, LucideIcon> = {
 
 interface StatusBadgeProps {
   status: string
-  config: {
+  config?: {
     label: string
     variant: "default" | "secondary" | "destructive" | "outline" | "success"
   }
@@ -31,17 +31,25 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, config, showIcon = false }: StatusBadgeProps) {
   const Icon = STATUS_ICONS[status]
-  
+
+  // configがundefinedの場合のフォールバック
+  const defaultConfig = {
+    label: status || "不明",
+    variant: "secondary" as const
+  }
+
+  const finalConfig = config || defaultConfig
+
   // Map "success" variant to "default" with green color styling
-  const badgeVariant = config.variant === "success" ? "default" : config.variant
-  
+  const badgeVariant = finalConfig.variant === "success" ? "default" : finalConfig.variant
+
   return (
-    <Badge 
+    <Badge
       variant={badgeVariant as "default" | "secondary" | "destructive" | "outline"}
-      className={config.variant === "success" ? "bg-green-500 hover:bg-green-600" : ""}
+      className={finalConfig.variant === "success" ? "bg-green-500 hover:bg-green-600" : ""}
     >
       {showIcon && Icon && <Icon className="mr-1 h-3 w-3" />}
-      {config.label}
+      {finalConfig.label}
     </Badge>
   )
 }

@@ -70,17 +70,15 @@ export interface CalculationResult {
 export const ESTIMATE_STATUS = {
   draft: { label: "下書き", variant: "secondary" as const },
   sent: { label: "送付済", variant: "default" as const },
-  accepted: { label: "承認済", variant: "success" as const },
+  accepted: { label: "受注", variant: "success" as const },
   rejected: { label: "却下", variant: "destructive" as const },
-  expired: { label: "期限切れ", variant: "outline" as const },
+  expired: { label: "失注", variant: "outline" as const },
 } as const
 
 export const INVOICE_STATUS = {
   draft: { label: "下書き", variant: "secondary" as const },
-  sent: { label: "送付済", variant: "default" as const },
+  sent: { label: "入金待ち", variant: "default" as const },
   paid: { label: "入金済", variant: "success" as const },
-  overdue: { label: "期限超過", variant: "destructive" as const },
-  cancelled: { label: "キャンセル", variant: "outline" as const },
 } as const
 
 export type EstimateStatus = keyof typeof ESTIMATE_STATUS

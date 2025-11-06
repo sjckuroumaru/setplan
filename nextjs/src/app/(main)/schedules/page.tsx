@@ -157,7 +157,7 @@ export default function SchedulesPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, userFilter, departmentFilter, startDate, endDate, resetToFirstPage])
+  }, [searchQuery, userFilter, departmentFilter, startDate, endDate, resetToFirstPage, session])
 
   // 予定実績削除
   const handleDelete = async () => {

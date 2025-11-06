@@ -57,7 +57,7 @@ describe('見積一覧ページ', () => {
       cy.visit('/estimates')
 
       cy.contains('見積一覧').parent().parent().find('button[role="combobox"]').click()
-      cy.contains('[role="option"]', '承認済', { timeout: 10000 }).should('be.visible').click()
+      cy.contains('[role="option"]', '受注', { timeout: 10000 }).should('be.visible').click()
 
       cy.contains('EST-2024-001').should('be.visible')
       cy.contains('ECサイト構築費用のお見積り').should('be.visible')
@@ -77,7 +77,7 @@ describe('見積一覧ページ', () => {
       cy.visit('/estimates')
 
       cy.contains('見積一覧').parent().parent().find('button[role="combobox"]').click()
-      cy.contains('[role="option"]', '期限切れ', { timeout: 10000 }).should('be.visible').click()
+      cy.contains('[role="option"]', '失注', { timeout: 10000 }).should('be.visible').click()
 
       cy.contains('EST-2024-005').should('be.visible')
       cy.contains('保守運用費用のお見積り').should('be.visible')

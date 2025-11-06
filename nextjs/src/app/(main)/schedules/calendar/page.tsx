@@ -108,7 +108,7 @@ export default function CalendarPage() {
   // useMemoで日付範囲を計算
   const dateRange = useMemo(() => {
     return getDateRange(currentDate, viewMode)
-  }, [currentDate, viewMode])
+  }, [currentDate, viewMode, getDateRange])
 
   // SWRフックでデータ取得
   const { schedules, isLoading, isError } = useSchedulesCalendar({

@@ -8,13 +8,6 @@ interface InvoiceItem {
   taxRate?: number
 }
 
-interface InvoiceFormData {
-  items: InvoiceItem[]
-  taxType: "inclusive" | "exclusive"
-  taxRate: number
-  roundingType: "floor" | "ceil" | "round"
-}
-
 interface CalculatedAmounts {
   subtotal: number
   taxAmount: number

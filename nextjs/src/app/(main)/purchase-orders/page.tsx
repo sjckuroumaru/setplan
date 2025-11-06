@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -65,40 +66,19 @@ const statusLabels: Record<string, string> = {
 
 export default function PurchaseOrdersPage() {
   const router = useRouter()
-  const { data: session } = useSession()
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
-  const [loading, setLoading] = useState(true)
-  const [shouldRefetch, setShouldRefetch] = useState(false)
-  const [initialized, setInitialized] = useState(false)
+  const { data: session, status } = useSession()
 
-  // 初回データ取得
+  // 認証チェック
   useEffect(() => {
-    if (session && !initialized) {
-      fetchPurchaseOrders()
-      setInitialized(true)
+    if (status === "loading") return
+    if (!session) {
+      router.push("/login")
+      return
     }
-  }, [session, initialized])
+  }, [session, status, router])
 
-  // 再取得処理
-  useEffect(() => {
-    if (initialized && shouldRefetch) {
-      fetchPurchaseOrders()
-      setShouldRefetch(false)
-    }
-  }, [shouldRefetch, initialized])
-
-  const fetchPurchaseOrders = async () => {
-    try {
-      const response = await fetch("/api/purchase-orders")
-      if (!response.ok) throw new Error()
-      const data = await response.json()
-      setPurchaseOrders(data.purchaseOrders || [])
-    } catch {
-      toast.error("発注書の取得に失敗しました")
-    } finally {
-      setLoading(false)
-    }
-  }
+  // SWRフックでデータ取得
+  const { purchaseOrders, isLoading, isError, mutate } = usePurchaseOrders()
 
   const handleDownloadPDF = async (order: PurchaseOrder) => {
     const { downloadPDF } = await import("@/lib/pdf-utils")
@@ -133,9 +113,8 @@ export default function PurchaseOrdersPage() {
       })
       if (!response.ok) throw new Error()
 
-
-      setShouldRefetch(true)
       toast.success("発注書を削除しました")
+      mutate() // SWRでデータ再取得
     } catch {
       toast.error("発注書の削除に失敗しました")
     }
@@ -151,7 +130,7 @@ export default function PurchaseOrdersPage() {
     return (session.user.isAdmin || order.user.id === session.user.id) && order.status === "draft"
   }
 
-  if (loading) {
+  if (status === "loading" || isLoading || !session) {
     return (
       <div className="flex justify-center items-center h-96">
         <Loader2 className="animate-spin h-8 w-8" />

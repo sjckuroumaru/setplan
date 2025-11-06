@@ -206,26 +206,43 @@ describe('案件一覧ページ', () => {
     it('should delete project when confirming deletion', () => {
       cy.visit('/projects')
 
-      // 削除対象の案件番号を取得（リンク要素から直接取得）
-      cy.get('table tbody tr').first().scrollIntoView()
-      cy.get('table tbody tr').first().find('a').first().invoke('text').then((projectNumber) => {
-        const trimmedNumber = projectNumber.trim()
+      // 削除可能な案件を作成
+      const testProjectNumber = `DEL_TEST_${Date.now()}`
+      const testProjectName = `削除テスト案件_${Date.now()}`
 
-        // 削除ボタンをクリック（赤色のボタン）
-        cy.get('table tbody tr').first().within(() => {
-          cy.get('button.text-red-600').click()
-        })
+      // 案件作成ページに移動
+      cy.contains('a', '新規案件').click()
 
-        // ダイアログで削除を確認
-        cy.contains('button', '削除').click()
+      // 案件番号と案件名を入力
+      cy.get('input[name="projectNumber"]').type(testProjectNumber)
+      cy.get('input[name="projectName"]').type(testProjectName)
 
-        // 削除成功のトースト通知が表示されることを確認
-        cy.contains('案件を削除しました', { timeout: 10000 }).should('be.visible')
+      // ステータスを選択（デフォルトのままでOK）
 
-        // 削除された案件が表示されないことを確認
-        cy.wait(1000) // APIレスポンス待ち
-        cy.get('body').should('not.contain', trimmedNumber)
+      // 作成ボタンまでスクロールしてクリック
+      cy.contains('button', '作成').scrollIntoView()
+      cy.contains('button', '作成').click()
+
+      // 作成成功を待つ
+      cy.contains('案件を作成しました', { timeout: 10000 }).should('be.visible')
+
+      // 案件一覧に戻る
+      cy.visit('/projects')
+
+      // 作成した案件を検索して削除
+      cy.contains('td', testProjectNumber).parent('tr').within(() => {
+        cy.get('button.text-red-600').click()
       })
+
+      // ダイアログで削除を確認
+      cy.contains('button', '削除').click()
+
+      // 削除成功のトースト通知が表示されることを確認
+      cy.contains('案件を削除しました', { timeout: 10000 }).should('be.visible')
+
+      // 削除された案件が表示されないことを確認
+      cy.wait(1000) // APIレスポンス待ち
+      cy.get('body').should('not.contain', testProjectNumber)
     })
 
     it('should show error toast when deletion fails', () => {

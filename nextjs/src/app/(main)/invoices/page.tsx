@@ -4,6 +4,9 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useInvoices } from "@/hooks/use-invoices"
+import { usePagination } from "@/hooks/use-pagination"
+import { config } from "@/lib/config"
 import {
   Table,
   TableBody,
@@ -63,66 +66,57 @@ interface Invoice {
 }
 
 export default function InvoicesPage() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const [invoices, setInvoices] = useState<Invoice[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const {
+    currentPage,
+    pagination,
+    setPagination,
+    goToNextPage,
+    goToPreviousPage,
+    resetToFirstPage,
+    hasPreviousPage,
+    hasNextPage,
+  } = usePagination({ defaultLimit: 10 })
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [pagination, setPagination] = useState({
-    page: 1,
-    totalPages: 1,
-    total: 0,
+
+  // 認証チェック
+  useEffect(() => {
+    if (status === "loading") return
+    if (!session) {
+      router.push("/login")
+      return
+    }
+  }, [session, status, router])
+
+  // SWRフックでデータ取得
+  const { invoices, pagination: swrPagination, isLoading, isError, mutate } = useInvoices({
+    page: currentPage,
+    limit: pagination.limit,
+    status: statusFilter,
+    search: searchTerm,
   })
-  const [shouldRefetch, setShouldRefetch] = useState(0)
-  const [initialized, setInitialized] = useState(false)
 
-  const fetchInvoices = async () => {
-    try {
-      setIsLoading(true)
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: "10",
-        ...(statusFilter !== "all" && { status: statusFilter }),
-        ...(searchTerm && { search: searchTerm }),
-      })
-
-      const response = await fetch(`/api/invoices?${params}`)
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error("Invoice fetch error:", response.status, errorData)
-        throw new Error(errorData.error || "Failed to fetch invoices")
-      }
-
-      const data = await response.json()
-      setInvoices(data.invoices || [])
+  // SWRのpaginationで更新
+  useEffect(() => {
+    if (swrPagination) {
       setPagination(prev => ({
         ...prev,
-        totalPages: data.totalPages || 1,
-        total: data.total || 0,
+        page: swrPagination.currentPage,
+        total: swrPagination.total,
+        totalPages: swrPagination.totalPages,
       }))
-    } catch (error) {
-      console.error("Error fetching invoices:", error)
-      toast.error("請求書の取得に失敗しました")
-    } finally {
-      setIsLoading(false)
     }
-  }
+  }, [swrPagination?.currentPage, swrPagination?.total, swrPagination?.totalPages, setPagination])
 
-  // 初回データ取得
+  // フィルター・検索変更時はページを1に戻す
   useEffect(() => {
-    if (session && !initialized) {
-      fetchInvoices()
-      setInitialized(true)
+    if (session) {
+      resetToFirstPage()
     }
-  }, [session, initialized])
-
-  // フィルター・ページ変更時のデータ取得
-  useEffect(() => {
-    if (initialized) {
-      fetchInvoices()
-    }
-  }, [pagination.page, statusFilter, searchTerm, shouldRefetch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, searchTerm])
 
   const handleDelete = async (id: string) => {
     if (!confirm("この請求書を削除してもよろしいですか？")) return
@@ -132,9 +126,9 @@ export default function InvoicesPage() {
         method: "DELETE",
       })
       if (!response.ok) throw new Error()
-      
+
       toast.success("請求書を削除しました")
-      setShouldRefetch(prev => prev + 1)
+      mutate() // SWRでデータ再取得
     } catch {
       toast.error("削除に失敗しました")
     }
@@ -163,9 +157,9 @@ export default function InvoicesPage() {
         body: JSON.stringify({ status }),
       })
       if (!response.ok) throw new Error()
-      
+
       toast.success("ステータスを更新しました")
-      setShouldRefetch(prev => prev + 1)
+      mutate() // SWRでデータ再取得
     } catch {
       toast.error("ステータスの更新に失敗しました")
     }
@@ -180,7 +174,7 @@ export default function InvoicesPage() {
   }
 
 
-  if (isLoading) {
+  if (status === "loading" || !session) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -220,10 +214,8 @@ export default function InvoicesPage() {
           <SelectContent>
             <SelectItem value="all">すべて</SelectItem>
             <SelectItem value="draft">下書き</SelectItem>
-            <SelectItem value="sent">送付済</SelectItem>
+            <SelectItem value="sent">入金待ち</SelectItem>
             <SelectItem value="paid">入金済</SelectItem>
-            <SelectItem value="overdue">期限超過</SelectItem>
-            <SelectItem value="cancelled">キャンセル</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -310,7 +302,7 @@ export default function InvoicesPage() {
                               onClick={() => handleStatusUpdate(invoice.id, "sent")}
                             >
                               <Send className="mr-2 h-4 w-4" />
-                              送付済みにする
+                              入金待ちにする
                             </DropdownMenuItem>
                           </>
                         )}
@@ -350,23 +342,23 @@ export default function InvoicesPage() {
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            全 {pagination.total} 件中 {(pagination.page - 1) * 10 + 1} -
-            {Math.min(pagination.page * 10, pagination.total)} 件を表示
+            全 {pagination.total} 件中 {(currentPage - 1) * pagination.limit + 1} -
+            {Math.min(currentPage * pagination.limit, pagination.total)} 件を表示
           </p>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-              disabled={pagination.page === 1}
+              onClick={goToPreviousPage}
+              disabled={!hasPreviousPage || isLoading}
             >
               前へ
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-              disabled={pagination.page === pagination.totalPages}
+              onClick={goToNextPage}
+              disabled={!hasNextPage || isLoading}
             >
               次へ
             </Button>
