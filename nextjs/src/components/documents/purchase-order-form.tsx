@@ -271,7 +271,7 @@ export function PurchaseOrderForm({ initialData, isEditMode = false }: PurchaseO
                 name="completionPeriod"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>検収完了期間</FormLabel>
+                    <FormLabel>検収完了期間（検収完了期日）</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="契約締結後3ヶ月" />
                     </FormControl>

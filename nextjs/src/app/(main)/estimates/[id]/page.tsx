@@ -31,6 +31,8 @@ import {
   Building2,
   Receipt,
   ShoppingCart,
+  FileText,
+  Package,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -191,12 +193,48 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
         body: JSON.stringify({ estimateId: resolvedParams.id }),
       })
       if (!response.ok) throw new Error()
-      
+
       const data = await response.json()
       toast.success("発注書を作成しました")
       router.push(`/purchase-orders/${data.purchaseOrder.id}`)
     } catch {
       toast.error("発注書の作成に失敗しました")
+    }
+  }
+
+  // 発注請書作成
+  const handleCreateOrderConfirmation = async () => {
+    try {
+      const response = await fetch("/api/order-confirmations/from-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estimateId: resolvedParams.id }),
+      })
+      if (!response.ok) throw new Error()
+
+      const data = await response.json()
+      toast.success("発注請書を作成しました")
+      router.push(`/order-confirmations/${data.orderConfirmation.id}`)
+    } catch {
+      toast.error("発注請書の作成に失敗しました")
+    }
+  }
+
+  // 納品書作成
+  const handleCreateDeliveryNote = async () => {
+    try {
+      const response = await fetch("/api/delivery-notes/from-estimate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estimateId: resolvedParams.id }),
+      })
+      if (!response.ok) throw new Error()
+
+      const data = await response.json()
+      toast.success("納品書を作成しました")
+      router.push(`/delivery-notes/${data.deliveryNote.id}`)
+    } catch {
+      toast.error("納品書の作成に失敗しました")
     }
   }
 
@@ -254,41 +292,61 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/estimates/${resolvedParams.id}/edit`)}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            編集
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleDuplicate}
-          >
-            <Copy className="mr-2 h-4 w-4" />
-            複製
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCreateInvoice}
-          >
-            <Receipt className="mr-2 h-4 w-4" />
-            請求書作成
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCreatePurchaseOrder}
-          >
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            発注書作成
-          </Button>
-          <Button
-            onClick={handlePDFDownload}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            PDF出力
-          </Button>
+        <div className="flex flex-col gap-2">
+          {/* 1段目：編集・複製・PDF出力 */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/estimates/${resolvedParams.id}/edit`)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              編集
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDuplicate}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              複製
+            </Button>
+            <Button
+              onClick={handlePDFDownload}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              PDF出力
+            </Button>
+          </div>
+          {/* 2段目：請求書作成・発注書作成・発注請書作成・納品書作成 */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCreateInvoice}
+            >
+              <Receipt className="mr-2 h-4 w-4" />
+              請求書作成
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCreatePurchaseOrder}
+            >
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              発注書作成
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCreateOrderConfirmation}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              発注請書作成
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCreateDeliveryNote}
+            >
+              <Package className="mr-2 h-4 w-4" />
+              納品書作成
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -397,7 +397,7 @@ export default function SchedulesPage() {
                         }
                       }}
                     >
-                      フィルターをクリア
+                      クリア
                     </Button>
                   </div>
                 </div>

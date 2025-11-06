@@ -72,6 +72,36 @@ export const PurchaseOrderFormSchema = z.object({
   items: z.array(DocumentItemSchema),
 })
 
+// 発注請書作成・更新用スキーマ
+export const OrderConfirmationFormSchema = z.object({
+  supplierId: z.string().min(1, "発注先は必須です"),
+  honorific: z.string().optional(),
+  subject: z.string().min(1, "件名は必須です"),
+  issueDate: z.string(),
+  deliveryDate: z.string().optional(),
+  completionPeriod: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  purchaseOrderId: z.string().optional(), // 関連発注書ID
+  taxType: z.enum(["inclusive", "exclusive"]),
+  taxRate: z.number(),
+  roundingType: z.enum(["floor", "ceil", "round"]),
+  remarks: z.string().optional(),
+  items: z.array(DocumentItemSchema),
+})
+
+// 納品書作成・更新用スキーマ
+export const DeliveryNoteFormSchema = z.object({
+  customerId: z.string().min(1, "顧客は必須です"),
+  honorific: z.string().optional(),
+  subject: z.string().min(1, "件名は必須です"),
+  deliveryDate: z.string(),
+  taxType: z.enum(["inclusive", "exclusive"]),
+  taxRate: z.number(),
+  roundingType: z.enum(["floor", "ceil", "round"]),
+  remarks: z.string().optional(),
+  items: z.array(DocumentItemSchema),
+})
+
 // 自社情報スキーマ
 export const CompanySchema = z.object({
   name: z.string().min(1, "会社名は必須です"),

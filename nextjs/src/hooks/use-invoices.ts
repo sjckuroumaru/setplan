@@ -6,6 +6,11 @@ interface UseInvoicesParams {
   limit: number
   status?: string
   search?: string
+  userId?: string
+  issueDateStart?: string
+  issueDateEnd?: string
+  dueDateStart?: string
+  dueDateEnd?: string
   enabled?: boolean
 }
 
@@ -49,6 +54,26 @@ export function useInvoices(params: UseInvoicesParams) {
 
   if (fetchParams.search) {
     queryParams.append('search', fetchParams.search)
+  }
+
+  if (fetchParams.userId && fetchParams.userId !== 'all') {
+    queryParams.append('userId', fetchParams.userId)
+  }
+
+  if (fetchParams.issueDateStart) {
+    queryParams.append('issueDateStart', fetchParams.issueDateStart)
+  }
+
+  if (fetchParams.issueDateEnd) {
+    queryParams.append('issueDateEnd', fetchParams.issueDateEnd)
+  }
+
+  if (fetchParams.dueDateStart) {
+    queryParams.append('dueDateStart', fetchParams.dueDateStart)
+  }
+
+  if (fetchParams.dueDateEnd) {
+    queryParams.append('dueDateEnd', fetchParams.dueDateEnd)
   }
 
   const { data, error, isLoading, mutate } = useSWR<InvoicesResponse>(

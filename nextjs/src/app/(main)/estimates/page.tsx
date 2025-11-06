@@ -48,6 +48,10 @@ import {
   Trash,
   Download,
   Eye,
+  Send,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from "lucide-react"
 import { StatusBadge } from "@/components/documents/status-badge"
 import { formatCurrency, formatDateShort } from "@/lib/utils/document"
@@ -167,6 +171,23 @@ export default function EstimatesPage() {
     )
   }
 
+  // ステータス更新
+  const handleStatusUpdate = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`/api/estimates/${id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) throw new Error()
+
+      toast.success("ステータスを更新しました")
+      mutate() // SWRでデータ再取得
+    } catch {
+      toast.error("ステータスの更新に失敗しました")
+    }
+  }
+
 
   if (status === "loading" || !session) {
     return (
@@ -247,7 +268,8 @@ export default function EstimatesPage() {
                   <TableHead className="text-right">金額</TableHead>
                   <TableHead>ステータス</TableHead>
                   <TableHead>担当者</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableHead className="w-[80px]">操作</TableHead>
+                  <TableHead className="w-[80px]">変更</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -321,6 +343,54 @@ export default function EstimatesPage() {
                           >
                             <Trash className="mr-2 h-4 w-4" />
                             削除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>ステータス変更</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleStatusUpdate(estimate.id, "draft")}
+                            disabled={estimate.status === "draft"}
+                          >
+                            <FileText className="mr-2 h-4 w-4" />
+                            下書き
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStatusUpdate(estimate.id, "sent")}
+                            disabled={estimate.status === "sent"}
+                          >
+                            <Send className="mr-2 h-4 w-4" />
+                            送付済み
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStatusUpdate(estimate.id, "accepted")}
+                            disabled={estimate.status === "accepted"}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            受注
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStatusUpdate(estimate.id, "expired")}
+                            disabled={estimate.status === "expired"}
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            失注
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleStatusUpdate(estimate.id, "rejected")}
+                            disabled={estimate.status === "rejected"}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            却下
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

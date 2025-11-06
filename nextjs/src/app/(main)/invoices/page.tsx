@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useInvoices } from "@/hooks/use-invoices"
 import { usePagination } from "@/hooks/use-pagination"
+import { useUsers } from "@/hooks/use-users"
 import { config } from "@/lib/config"
 import {
   Table,
@@ -19,10 +20,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StatusBadge } from "@/components/documents/status-badge"
 import { formatCurrency, formatDateShort } from "@/lib/utils/document"
 import { INVOICE_STATUS, type InvoiceStatus } from "@/types/document"
@@ -43,6 +48,7 @@ import {
   Trash2,
   CheckCircle,
   Send,
+  FileDown,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -80,6 +86,11 @@ export default function InvoicesPage() {
   } = usePagination({ defaultLimit: 10 })
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [userFilter, setUserFilter] = useState("all")
+  const [issueDateStart, setIssueDateStart] = useState("")
+  const [issueDateEnd, setIssueDateEnd] = useState("")
+  const [dueDateStart, setDueDateStart] = useState("")
+  const [dueDateEnd, setDueDateEnd] = useState("")
 
   // 認証チェック
   useEffect(() => {
@@ -96,7 +107,20 @@ export default function InvoicesPage() {
     limit: pagination.limit,
     status: statusFilter,
     search: searchTerm,
+    userId: userFilter !== "all" ? userFilter : undefined,
+    issueDateStart: issueDateStart || undefined,
+    issueDateEnd: issueDateEnd || undefined,
+    dueDateStart: dueDateStart || undefined,
+    dueDateEnd: dueDateEnd || undefined,
   })
+
+  const { users: usersData } = useUsers({ limit: 1000, basic: true })
+
+  // ユーザーリストを整形
+  const users = usersData.map((user) => ({
+    id: user.id,
+    name: `${user.lastName} ${user.firstName}`,
+  }))
 
   // SWRのpaginationで更新
   useEffect(() => {
@@ -116,7 +140,18 @@ export default function InvoicesPage() {
       resetToFirstPage()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, searchTerm])
+  }, [statusFilter, searchTerm, userFilter, issueDateStart, issueDateEnd, dueDateStart, dueDateEnd])
+
+  // フィルターリセット関数
+  const handleResetFilters = () => {
+    setSearchTerm("")
+    setStatusFilter("all")
+    setUserFilter("all")
+    setIssueDateStart("")
+    setIssueDateEnd("")
+    setDueDateStart("")
+    setDueDateEnd("")
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm("この請求書を削除してもよろしいですか？")) return
@@ -173,6 +208,44 @@ export default function InvoicesPage() {
     )
   }
 
+  const handleListPDFDownload = async () => {
+    try {
+      const response = await fetch("/api/invoices/list-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: statusFilter,
+          search: searchTerm,
+          userId: userFilter,
+          issueDateStart: issueDateStart || undefined,
+          issueDateEnd: issueDateEnd || undefined,
+          dueDateStart: dueDateStart || undefined,
+          dueDateEnd: dueDateEnd || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("PDF生成に失敗しました")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `invoices-${new Date().toISOString().split("T")[0]}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success("PDFをダウンロードしました")
+    } catch (error) {
+      toast.error("PDF生成に失敗しました")
+    }
+  }
+
 
   if (status === "loading" || !session) {
     return (
@@ -191,34 +264,129 @@ export default function InvoicesPage() {
             請求書の作成・管理を行います
           </p>
         </div>
-        <Button onClick={() => router.push("/invoices/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          新規作成
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleListPDFDownload}>
+            <FileDown className="mr-2 h-4 w-4" />
+            PDF出力
+          </Button>
+          <Button onClick={() => router.push("/invoices/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            新規作成
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="請求書番号、件名、顧客名で検索"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="ステータス" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">すべて</SelectItem>
-            <SelectItem value="draft">下書き</SelectItem>
-            <SelectItem value="sent">入金待ち</SelectItem>
-            <SelectItem value="paid">入金済</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* フィルター */}
+      <Card>
+        <CardHeader>
+          <CardTitle>フィルター</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* 1行目 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="search">検索</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="請求書番号、件名、顧客名"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status-filter">ステータス</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger id="status-filter">
+                    <SelectValue placeholder="ステータスを選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    <SelectItem value="draft">下書き</SelectItem>
+                    <SelectItem value="sent">入金待ち</SelectItem>
+                    <SelectItem value="paid">入金済</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="user-filter">担当者</Label>
+                <Select value={userFilter} onValueChange={setUserFilter}>
+                  <SelectTrigger id="user-filter">
+                    <SelectValue placeholder="担当者を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* 2行目 */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+              <div className="space-y-2">
+                <Label htmlFor="issue-date-start">請求日（開始）</Label>
+                <Input
+                  id="issue-date-start"
+                  type="date"
+                  value={issueDateStart}
+                  onChange={(e) => setIssueDateStart(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="issue-date-end">請求日（終了）</Label>
+                <Input
+                  id="issue-date-end"
+                  type="date"
+                  value={issueDateEnd}
+                  onChange={(e) => setIssueDateEnd(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="due-date-start">支払期限（開始）</Label>
+                <Input
+                  id="due-date-start"
+                  type="date"
+                  value={dueDateStart}
+                  onChange={(e) => setDueDateStart(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="due-date-end">支払期限（終了）</Label>
+                <Input
+                  id="due-date-end"
+                  type="date"
+                  value={dueDateEnd}
+                  onChange={(e) => setDueDateEnd(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleResetFilters}
+                >
+                  クリア
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="rounded-md border">
         <Table>
@@ -233,12 +401,13 @@ export default function InvoicesPage() {
               <TableHead>ステータス</TableHead>
               <TableHead>担当者</TableHead>
               <TableHead className="text-right">操作</TableHead>
+              <TableHead className="text-right">変更</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
+                <TableCell colSpan={10} className="text-center py-8">
                   請求書がありません
                 </TableCell>
               </TableRow>
@@ -278,6 +447,8 @@ export default function InvoicesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>操作</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => router.push(`/invoices/${invoice.id}`)}
                         >
@@ -291,27 +462,11 @@ export default function InvoicesPage() {
                           PDF出力
                         </DropdownMenuItem>
                         {invoice.status === "draft" && (
-                          <>
-                            <DropdownMenuItem
-                              onClick={() => router.push(`/invoices/${invoice.id}/edit`)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              編集
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleStatusUpdate(invoice.id, "sent")}
-                            >
-                              <Send className="mr-2 h-4 w-4" />
-                              入金待ちにする
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {invoice.status === "sent" && (
                           <DropdownMenuItem
-                            onClick={() => handleStatusUpdate(invoice.id, "paid")}
+                            onClick={() => router.push(`/invoices/${invoice.id}/edit`)}
                           >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            入金済みにする
+                            <Edit className="mr-2 h-4 w-4" />
+                            編集
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem
@@ -321,14 +476,51 @@ export default function InvoicesPage() {
                           複製
                         </DropdownMenuItem>
                         {session?.user?.isAdmin && (
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(invoice.id)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            削除
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(invoice.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              削除
+                            </DropdownMenuItem>
+                          </>
                         )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>ステータス変更</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(invoice.id, "draft")}
+                          disabled={invoice.status === "draft"}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          下書き
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(invoice.id, "sent")}
+                          disabled={invoice.status === "sent"}
+                        >
+                          <Send className="mr-2 h-4 w-4" />
+                          入金待ち
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(invoice.id, "paid")}
+                          disabled={invoice.status === "paid"}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          入金済
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

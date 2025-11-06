@@ -20,10 +20,15 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const customerId = searchParams.get("customerId")
     const search = searchParams.get("search")
+    const userId = searchParams.get("userId")
+    const issueDateStart = searchParams.get("issueDateStart")
+    const issueDateEnd = searchParams.get("issueDateEnd")
+    const dueDateStart = searchParams.get("dueDateStart")
+    const dueDateEnd = searchParams.get("dueDateEnd")
     const offset = (page - 1) * limit
 
     const where: any = {}
-    
+
     // ステータスフィルタ
     if (status && status !== "all") {
       where.status = status
@@ -32,6 +37,33 @@ export async function GET(request: NextRequest) {
     // 顧客フィルタ
     if (customerId) {
       where.customerId = customerId
+    }
+
+    // 担当者フィルタ
+    if (userId && userId !== "all") {
+      where.userId = userId
+    }
+
+    // 請求日フィルタ
+    if (issueDateStart || issueDateEnd) {
+      where.issueDate = {}
+      if (issueDateStart) {
+        where.issueDate.gte = new Date(issueDateStart)
+      }
+      if (issueDateEnd) {
+        where.issueDate.lte = new Date(issueDateEnd)
+      }
+    }
+
+    // 支払期限フィルタ
+    if (dueDateStart || dueDateEnd) {
+      where.dueDate = {}
+      if (dueDateStart) {
+        where.dueDate.gte = new Date(dueDateStart)
+      }
+      if (dueDateEnd) {
+        where.dueDate.lte = new Date(dueDateEnd)
+      }
     }
 
     // 検索
@@ -66,16 +98,8 @@ export async function GET(request: NextRequest) {
       prisma.invoice.count({ where }),
     ])
 
-    // 期限超過の自動判定
-    const invoicesWithOverdue = invoices.map(invoice => {
-      if (invoice.status === "sent" && isOverdue(invoice.dueDate)) {
-        return { ...invoice, status: "overdue" }
-      }
-      return invoice
-    })
-
     return NextResponse.json({
-      invoices: invoicesWithOverdue,
+      invoices,
       total,
       page,
       totalPages: Math.ceil(total / limit),

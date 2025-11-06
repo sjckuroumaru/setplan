@@ -87,7 +87,7 @@ const menuItems: MenuItem[] = [
     title: "書類管理",
     icon: Files,
     subItems: [
-      { 
+      {
         title: "見積書管理",
         href: "/estimates",
         icon: FileText,
@@ -96,6 +96,16 @@ const menuItems: MenuItem[] = [
         title: "発注書管理",
         href: "/purchase-orders",
         icon: ShoppingCart,
+      },
+      {
+        title: "発注請書管理",
+        href: "/order-confirmations",
+        icon: ShoppingCart,
+      },
+      {
+        title: "納品書管理",
+        href: "/delivery-notes",
+        icon: FileText,
       },
       {
         title: "請求書管理",

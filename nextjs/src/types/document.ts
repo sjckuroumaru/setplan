@@ -81,5 +81,11 @@ export const INVOICE_STATUS = {
   paid: { label: "入金済", variant: "success" as const },
 } as const
 
+export const DELIVERY_NOTE_STATUS = {
+  draft: { label: "下書き", variant: "secondary" as const },
+  sent: { label: "送付済", variant: "default" as const },
+} as const
+
 export type EstimateStatus = keyof typeof ESTIMATE_STATUS
 export type InvoiceStatus = keyof typeof INVOICE_STATUS
+export type DeliveryNoteStatus = keyof typeof DELIVERY_NOTE_STATUS

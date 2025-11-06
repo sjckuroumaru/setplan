@@ -68,12 +68,6 @@ export async function GET(
       return NextResponse.json({ error: "権限がありません" }, { status: 403 })
     }
 
-    // 期限超過の自動判定
-    const now = new Date()
-    if (invoice.status === "sent" && new Date(invoice.dueDate) < now) {
-      invoice.status = "overdue"
-    }
-
     return NextResponse.json({ invoice })
   } catch (error) {
     console.error("Invoice fetch error:", error)

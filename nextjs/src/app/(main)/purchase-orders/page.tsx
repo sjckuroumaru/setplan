@@ -18,11 +18,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Plus, MoreHorizontal, Eye, Pencil, Copy, Download, Trash } from "lucide-react"
+import { Loader2, Plus, MoreHorizontal, Eye, Pencil, Copy, Download, Trash, FileText, Send, CheckCircle, XCircle, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { useSession } from "next-auth/react"
 import { format } from "date-fns"
@@ -120,6 +121,22 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  const handleStatusUpdate = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`/api/purchase-orders/${id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) throw new Error()
+
+      toast.success("ステータスを更新しました")
+      mutate() // SWRでデータ再取得
+    } catch {
+      toast.error("ステータスの更新に失敗しました")
+    }
+  }
+
   const canEdit = (order: PurchaseOrder) => {
     if (!session?.user) return false
     return session.user.isAdmin || order.user.id === session.user.id
@@ -162,7 +179,8 @@ export default function PurchaseOrdersPage() {
                 <TableHead>金額</TableHead>
                 <TableHead>ステータス</TableHead>
                 <TableHead>担当者</TableHead>
-                <TableHead></TableHead>
+                <TableHead>操作</TableHead>
+                <TableHead>変更</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -203,6 +221,8 @@ export default function PurchaseOrdersPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>操作</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
                           <Link href={`/purchase-orders/${order.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
@@ -237,6 +257,54 @@ export default function PurchaseOrdersPage() {
                             </DropdownMenuItem>
                           </>
                         )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>ステータス変更</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(order.id, "draft")}
+                          disabled={order.status === "draft"}
+                        >
+                          <FileText className="mr-2 h-4 w-4" />
+                          下書き
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(order.id, "sent")}
+                          disabled={order.status === "sent"}
+                        >
+                          <Send className="mr-2 h-4 w-4" />
+                          送付済
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(order.id, "approved")}
+                          disabled={order.status === "approved"}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          承認済
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(order.id, "rejected")}
+                          disabled={order.status === "rejected"}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          却下
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleStatusUpdate(order.id, "closed")}
+                          disabled={order.status === "closed"}
+                        >
+                          <Clock className="mr-2 h-4 w-4" />
+                          完了
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

@@ -1,10 +1,9 @@
 import { Badge } from "@/components/ui/badge"
-import { 
-  FileText, 
-  Send, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle, 
+import {
+  FileText,
+  Send,
+  CheckCircle,
+  XCircle,
   Clock,
   type LucideIcon
 } from "lucide-react"
@@ -17,7 +16,6 @@ const STATUS_ICONS: Record<string, LucideIcon> = {
   rejected: XCircle,
   cancelled: XCircle,
   expired: Clock,
-  overdue: AlertCircle,
 }
 
 interface StatusBadgeProps {

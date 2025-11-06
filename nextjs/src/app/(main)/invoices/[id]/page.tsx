@@ -20,6 +20,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -239,10 +241,12 @@ export default function InvoiceDetailPage({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuLabel>操作</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               {invoice.status === "draft" && (
                 <DropdownMenuItem onClick={() => handleStatusUpdate("sent")}>
                   <Send className="mr-2 h-4 w-4" />
-                  送付済みにする
+                  入金待ちにする
                 </DropdownMenuItem>
               )}
               {invoice.status === "sent" && (
@@ -262,13 +266,16 @@ export default function InvoiceDetailPage({
                 複製
               </DropdownMenuItem>
               {session?.user?.isAdmin && (
-                <DropdownMenuItem
-                  onClick={handleDelete}
-                  className="text-red-600"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  削除
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleDelete}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    削除
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
