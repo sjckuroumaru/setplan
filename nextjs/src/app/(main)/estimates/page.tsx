@@ -293,9 +293,9 @@ export default function EstimatesPage() {
                       {formatCurrency(estimate.totalAmount)}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge 
-                        status={estimate.status} 
-                        config={ESTIMATE_STATUS[estimate.status]}
+                      <StatusBadge
+                        status={estimate.status}
+                        config={ESTIMATE_STATUS[estimate.status as EstimateStatus]}
                         showIcon={true}
                       />
                     </TableCell>

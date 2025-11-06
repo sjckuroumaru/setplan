@@ -1,5 +1,6 @@
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
+import type { DeliveryNoteStatus } from '@/types/document'
 
 interface UseDeliveryNotesParams {
   page: number
@@ -15,7 +16,7 @@ interface DeliveryNote {
   deliveryDate: string
   subject: string
   totalAmount: string
-  status: string
+  status: DeliveryNoteStatus
   customer: {
     id: string
     name: string

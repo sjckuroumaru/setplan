@@ -216,9 +216,9 @@ export default function InvoiceDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <StatusBadge 
-            status={invoice.status} 
-            config={INVOICE_STATUS[invoice.status]}
+          <StatusBadge
+            status={invoice.status}
+            config={INVOICE_STATUS[invoice.status as InvoiceStatus]}
             showIcon={true}
           />
           <Button onClick={handlePDFDownload}>

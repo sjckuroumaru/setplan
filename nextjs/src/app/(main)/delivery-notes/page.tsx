@@ -259,7 +259,7 @@ export default function DeliveryNotesPage() {
                   <TableCell>
                     <StatusBadge
                       status={deliveryNote.status}
-                      config={DELIVERY_NOTE_STATUS[deliveryNote.status]}
+                      config={DELIVERY_NOTE_STATUS[deliveryNote.status as DeliveryNoteStatus]}
                       showIcon={true}
                     />
                   </TableCell>

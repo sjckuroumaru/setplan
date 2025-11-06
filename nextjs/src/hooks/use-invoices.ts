@@ -1,5 +1,6 @@
 import useSWR from 'swr'
 import { fetcher } from '@/lib/fetcher'
+import type { InvoiceStatus } from '@/types/document'
 
 interface UseInvoicesParams {
   page: number
@@ -21,7 +22,7 @@ interface Invoice {
   dueDate: string
   subject: string
   totalAmount: string
-  status: string
+  status: InvoiceStatus
   customer: {
     id: string
     name: string

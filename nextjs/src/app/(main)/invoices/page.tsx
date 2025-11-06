@@ -430,9 +430,9 @@ export default function InvoicesPage() {
                     {formatCurrency(invoice.totalAmount)}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge 
-                      status={invoice.status} 
-                      config={INVOICE_STATUS[invoice.status]}
+                    <StatusBadge
+                      status={invoice.status}
+                      config={INVOICE_STATUS[invoice.status as InvoiceStatus]}
                       showIcon={true}
                     />
                   </TableCell>

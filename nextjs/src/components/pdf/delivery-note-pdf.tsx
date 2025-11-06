@@ -434,7 +434,7 @@ export const DeliveryNotePDF: React.FC<DeliveryNotePDFProps> = ({ deliveryNote, 
               )}
               {company.sealImagePath && (
                 <View style={styles.companySealBox}>
-                  <Image style={styles.companySealImage} src={company.sealImagePath} alt="会社印" />
+                  <Image style={styles.companySealImage} src={company.sealImagePath} />
                 </View>
               )}
             </View>

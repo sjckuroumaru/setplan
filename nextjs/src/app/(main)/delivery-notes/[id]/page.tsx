@@ -207,7 +207,7 @@ export default function DeliveryNoteDetailPage({
         <div className="flex items-center gap-2">
           <StatusBadge
             status={deliveryNote.status}
-            config={DELIVERY_NOTE_STATUS[deliveryNote.status]}
+            config={DELIVERY_NOTE_STATUS[deliveryNote.status as DeliveryNoteStatus]}
             showIcon={true}
           />
           <Button onClick={handlePDFDownload}>
