@@ -3,7 +3,7 @@ import { fetcher } from '@/lib/fetcher'
 
 interface UseLedgerSummaryParams {
   projectType?: string
-  status?: string
+  statuses?: string[]
   departmentId?: string
   startDate?: string
   endDate?: string
@@ -43,7 +43,9 @@ export function useLedgerSummary(params: UseLedgerSummaryParams) {
   const queryParams = new URLSearchParams()
 
   if (params.projectType) queryParams.append('projectType', params.projectType)
-  if (params.status) queryParams.append('status', params.status)
+  if (params.statuses && params.statuses.length > 0) {
+    params.statuses.forEach(status => queryParams.append('status', status))
+  }
   if (params.departmentId) queryParams.append('departmentId', params.departmentId)
   if (params.startDate) queryParams.append('startDate', params.startDate)
   if (params.endDate) queryParams.append('endDate', params.endDate)

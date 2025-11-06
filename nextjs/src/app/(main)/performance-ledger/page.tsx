@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation"
 import { usePerformanceLedger } from "@/hooks/use-performance-ledger"
 import { useLedgerSummary } from "@/hooks/use-ledger-summary"
 import { usePagination } from "@/hooks/use-pagination"
+import { useDepartments } from "@/hooks/use-departments"
 import { config } from "@/lib/config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -66,8 +68,8 @@ export default function PerformanceLedgerPage() {
   } = usePagination({ defaultLimit: config.pagination.defaultLimit })
 
   const [projectTypeFilter, setProjectTypeFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("not_completed")
-  const [departmentFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState<string[]>(["planning", "developing", "active"])
+  const [departmentFilter, setDepartmentFilter] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [sortBy, setSortBy] = useState("issueDate")
@@ -78,7 +80,7 @@ export default function PerformanceLedgerPage() {
     page: currentPage,
     limit: pagination.limit,
     projectType: projectTypeFilter !== "all" ? projectTypeFilter : undefined,
-    status: statusFilter === "not_completed" ? undefined : statusFilter !== "all" ? statusFilter : "all",
+    statuses: statusFilter.length > 0 ? statusFilter : undefined,
     departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -93,11 +95,14 @@ export default function PerformanceLedgerPage() {
     isLoading: isSummaryLoading,
   } = useLedgerSummary({
     projectType: projectTypeFilter !== "all" ? projectTypeFilter : undefined,
-    status: statusFilter === "not_completed" ? undefined : statusFilter !== "all" ? statusFilter : "all",
+    statuses: statusFilter.length > 0 ? statusFilter : undefined,
     departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
   })
+
+  // 部門データ取得
+  const { departments } = useDepartments({ limit: 1000 })
 
   // 認証チェック
   useEffect(() => {
@@ -146,6 +151,17 @@ export default function PerformanceLedgerPage() {
     if (rate < 10) return "text-red-500" // 0-10%: 赤色
     if (rate < 30) return "text-yellow-600" // 10-30%: 黄色
     return "text-green-600" // 30%以上: 緑色
+  }
+
+  // ステータスフィルターの切り替え
+  const handleStatusToggle = (status: string) => {
+    setStatusFilter((prev) => {
+      if (prev.includes(status)) {
+        return prev.filter((s) => s !== status)
+      } else {
+        return [...prev, status]
+      }
+    })
   }
 
   // ソート切り替え
@@ -202,7 +218,7 @@ export default function PerformanceLedgerPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-1 lg:col-span-1">
               <Label htmlFor="project-type-filter">案件種別</Label>
               <Select value={projectTypeFilter} onValueChange={setProjectTypeFilter}>
                 <SelectTrigger id="project-type-filter">
@@ -218,25 +234,24 @@ export default function PerformanceLedgerPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status-filter">ステータス</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger id="status-filter">
-                  <SelectValue placeholder="ステータス（デフォルト：完了以外）" />
+            <div className="space-y-2 md:col-span-1 lg:col-span-1">
+              <Label htmlFor="department-filter">チーム</Label>
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger id="department-filter">
+                  <SelectValue placeholder="チーム" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="not_completed">完了以外</SelectItem>
                   <SelectItem value="all">すべて</SelectItem>
-                  <SelectItem value="planning">計画中</SelectItem>
-                  <SelectItem value="developing">開発中</SelectItem>
-                  <SelectItem value="active">稼働中</SelectItem>
-                  <SelectItem value="suspended">停止中</SelectItem>
-                  <SelectItem value="completed">完了</SelectItem>
+                  {departments.map((department) => (
+                    <SelectItem key={department.id} value={department.id}>
+                      {department.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-1 lg:col-span-2">
               <Label>発行日期間</Label>
               <div className="flex gap-2">
                 <Input
@@ -251,6 +266,27 @@ export default function PerformanceLedgerPage() {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
+              </div>
+            </div>
+
+            <div className="space-y-2 md:col-span-2 lg:col-span-3">
+              <Label>ステータス</Label>
+              <div className="flex flex-wrap gap-4">
+                {Object.entries(statusLabels).map(([value, label]) => (
+                  <div key={value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`status-${value}`}
+                      checked={statusFilter.includes(value)}
+                      onCheckedChange={() => handleStatusToggle(value)}
+                    />
+                    <Label
+                      htmlFor={`status-${value}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {label}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ interface UsePerformanceLedgerParams {
   page: number
   limit: number
   projectType?: string
-  status?: string
+  statuses?: string[]
   departmentId?: string
   startDate?: string
   endDate?: string
@@ -52,7 +52,9 @@ export function usePerformanceLedger(params: UsePerformanceLedgerParams) {
   })
 
   if (params.projectType) queryParams.append('projectType', params.projectType)
-  if (params.status) queryParams.append('status', params.status)
+  if (params.statuses && params.statuses.length > 0) {
+    params.statuses.forEach(status => queryParams.append('status', status))
+  }
   if (params.departmentId) queryParams.append('departmentId', params.departmentId)
   if (params.startDate) queryParams.append('startDate', params.startDate)
   if (params.endDate) queryParams.append('endDate', params.endDate)

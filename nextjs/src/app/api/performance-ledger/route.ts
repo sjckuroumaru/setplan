@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "50")
     const projectType = searchParams.get("projectType") || ""
-    const status = searchParams.get("status") || ""
+    const statuses = searchParams.getAll("status")
     const departmentId = searchParams.get("departmentId") || ""
     const startDate = searchParams.get("startDate") || ""
     const endDate = searchParams.get("endDate") || ""
@@ -29,15 +29,12 @@ export async function GET(request: NextRequest) {
     const where: any = {}
 
     // ステータスフィルター
-    // statusが指定されていない、または空文字列の場合：完了案件を除外
-    // statusが"all"の場合：フィルターなし
-    // それ以外：指定されたステータスで絞り込み
-    if (!status || status === "") {
+    // statusesが指定されている場合：指定されたステータスで絞り込み
+    // statusesが空の場合：すべてのステータスを表示
+    if (statuses.length > 0) {
       where.status = {
-        not: "completed"
+        in: statuses
       }
-    } else if (status !== "all") {
-      where.status = status
     }
 
     if (projectType && projectType !== "all") {

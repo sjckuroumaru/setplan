@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const projectType = searchParams.get("projectType") || ""
-    const status = searchParams.get("status") || ""
+    const statuses = searchParams.getAll("status")
     const departmentId = searchParams.get("departmentId") || ""
     const startDate = searchParams.get("startDate") || ""
     const endDate = searchParams.get("endDate") || ""
@@ -23,12 +23,10 @@ export async function GET(request: NextRequest) {
     const where: any = {}
 
     // ステータスフィルター
-    if (!status || status === "") {
+    if (statuses.length > 0) {
       where.status = {
-        not: "completed"
+        in: statuses
       }
-    } else if (status !== "all") {
-      where.status = status
     }
 
     if (projectType && projectType !== "all") {
