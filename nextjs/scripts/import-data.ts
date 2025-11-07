@@ -37,20 +37,24 @@ function convertDates(obj: any, dateFields: string[]): any {
 async function main() {
   console.log('データインポートを開始します...')
 
-  const dataDir = path.join(process.cwd(), '..', 'data', '20251021')
+  const dataDir = path.join(process.cwd(), '..', 'data', '20251107')
 
   try {
     // 既存データの削除（依存関係の逆順）
     console.log('\n既存データを削除中...')
+    await prisma.invoiceItem.deleteMany()
+    await prisma.invoice.deleteMany()
+    await prisma.orderConfirmationItem.deleteMany()
+    await prisma.orderConfirmation.deleteMany()
+    await prisma.deliveryNoteItem.deleteMany()
+    await prisma.deliveryNote.deleteMany()
+    await prisma.estimateItem.deleteMany()
+    await prisma.estimate.deleteMany()
     await prisma.comment.deleteMany()
     await prisma.issue.deleteMany()
     await prisma.scheduleActual.deleteMany()
     await prisma.schedulePlan.deleteMany()
     await prisma.dailySchedule.deleteMany()
-    await prisma.invoiceItem.deleteMany()
-    await prisma.invoice.deleteMany()
-    await prisma.estimateItem.deleteMany()
-    await prisma.estimate.deleteMany()
     await prisma.purchaseOrderItem.deleteMany()
     await prisma.project.deleteMany()
     await prisma.purchaseOrder.deleteMany()
@@ -133,7 +137,7 @@ async function main() {
     const projectsData = JSON.parse(
       fs.readFileSync(path.join(dataDir, 'projects.json'), 'utf-8')
     )
-    const projectDateFields = [...dateFields, 'plannedStartDate', 'plannedEndDate', 'actualStartDate', 'actualEndDate']
+    const projectDateFields = [...dateFields, 'plannedStartDate', 'plannedEndDate', 'actualStartDate', 'actualEndDate', 'deliveryDate', 'invoiceableDate', 'lastCalculatedAt']
     for (const project of projectsData) {
       const converted = convertDates(project, projectDateFields)
       await prisma.project.create({ data: converted })
@@ -220,7 +224,53 @@ async function main() {
     }
     console.log(`見積明細: ${estimateItemsData.length}件`)
 
-    // 15. Invoices
+    // 15. Delivery Notes
+    console.log('\n納品書をインポート中...')
+    const deliveryNotesData = JSON.parse(
+      fs.readFileSync(path.join(dataDir, 'delivery_notes.json'), 'utf-8')
+    )
+    const deliveryNoteDateFields = [...dateFields, 'deliveryDate']
+    for (const deliveryNote of deliveryNotesData) {
+      const converted = convertDates(deliveryNote, deliveryNoteDateFields)
+      await prisma.deliveryNote.create({ data: converted })
+    }
+    console.log(`納品書: ${deliveryNotesData.length}件`)
+
+    // 16. Delivery Note Items
+    console.log('\n納品明細をインポート中...')
+    const deliveryNoteItemsData = JSON.parse(
+      fs.readFileSync(path.join(dataDir, 'delivery_note_items.json'), 'utf-8')
+    )
+    for (const item of deliveryNoteItemsData) {
+      const converted = convertDates(item, dateFields)
+      await prisma.deliveryNoteItem.create({ data: converted })
+    }
+    console.log(`納品明細: ${deliveryNoteItemsData.length}件`)
+
+    // 17. Order Confirmations
+    console.log('\n発注請書をインポート中...')
+    const orderConfirmationsData = JSON.parse(
+      fs.readFileSync(path.join(dataDir, 'order_confirmations.json'), 'utf-8')
+    )
+    const orderConfirmationDateFields = [...dateFields, 'issueDate', 'deliveryDate']
+    for (const orderConfirmation of orderConfirmationsData) {
+      const converted = convertDates(orderConfirmation, orderConfirmationDateFields)
+      await prisma.orderConfirmation.create({ data: converted })
+    }
+    console.log(`発注請書: ${orderConfirmationsData.length}件`)
+
+    // 18. Order Confirmation Items
+    console.log('\n発注請書明細をインポート中...')
+    const orderConfirmationItemsData = JSON.parse(
+      fs.readFileSync(path.join(dataDir, 'order_confirmation_items.json'), 'utf-8')
+    )
+    for (const item of orderConfirmationItemsData) {
+      const converted = convertDates(item, dateFields)
+      await prisma.orderConfirmationItem.create({ data: converted })
+    }
+    console.log(`発注請書明細: ${orderConfirmationItemsData.length}件`)
+
+    // 19. Invoices
     console.log('\n請求書をインポート中...')
     const invoicesData = JSON.parse(
       fs.readFileSync(path.join(dataDir, 'invoices.json'), 'utf-8')
@@ -232,7 +282,7 @@ async function main() {
     }
     console.log(`請求書: ${invoicesData.length}件`)
 
-    // 16. Invoice Items
+    // 20. Invoice Items
     console.log('\n請求明細をインポート中...')
     const invoiceItemsData = JSON.parse(
       fs.readFileSync(path.join(dataDir, 'invoice_items.json'), 'utf-8')

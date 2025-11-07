@@ -477,14 +477,14 @@ export default function SchedulesPage() {
                         </TableCell>
                         <TableCell className="max-w-xs">
                           <div className="flex flex-wrap gap-1 max-w-xs">
-                            {schedule.actuals.slice(0, 2).map((actual, index) => (
+                            {schedule.plans.slice(0, 2).map((plan, index) => (
                               <Badge key={index} variant="outline" className="text-xs max-w-[150px] truncate text-left justify-start">
-                                {actual.project?.projectName || '案件未設定'}
+                                {plan.project?.projectName || '案件未設定'}
                               </Badge>
                             ))}
-                            {schedule.actuals.length > 2 && (
+                            {schedule.plans.length > 2 && (
                               <Badge variant="outline" className="text-xs">
-                                +{schedule.actuals.length - 2}
+                                +{schedule.plans.length - 2}
                               </Badge>
                             )}
                           </div>
