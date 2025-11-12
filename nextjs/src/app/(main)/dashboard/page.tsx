@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
@@ -131,7 +132,7 @@ export default function DashboardPage() {
 
   const renderSharedNotes = (notes: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g
-    const parts: (string | JSX.Element)[] = []
+    const parts: (string | React.ReactElement)[] = []
     let lastIndex = 0
     let match: RegExpExecArray | null
 
@@ -195,7 +196,7 @@ export default function DashboardPage() {
       {departmentSharedNotes && (
         <Alert className="bg-blue-50 border-blue-200">
           <AlertTitle className="text-base font-semibold">
-            {departmentData?.department?.name}からのお知らせ
+            {departmentData?.department?.name}共有事項
           </AlertTitle>
           <AlertDescription>
             <div className="whitespace-pre-wrap break-words text-sm mt-2">
