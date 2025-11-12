@@ -7,6 +7,7 @@ import { z } from "zod"
 // バリデーションスキーマ
 const createDepartmentSchema = z.object({
   name: z.string().min(1, "部署・チーム名は必須です"),
+  sharedNotes: z.string().max(500, "共有事項は500文字以内で入力してください").optional(),
 })
 
 // 管理者権限チェック
@@ -47,9 +48,11 @@ export async function GET(request: NextRequest) {
     const selectFields = basic ? {
       id: true,
       name: true,
+      sharedNotes: true,
     } : {
       id: true,
       name: true,
+      sharedNotes: true,
       createdAt: true,
       updatedAt: true,
       _count: {
@@ -96,6 +99,12 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const validatedData = createDepartmentSchema.parse(body)
+    const sharedNotesInput =
+      typeof validatedData.sharedNotes === "string"
+        ? validatedData.sharedNotes.trim()
+        : ""
+    const sharedNotes =
+      sharedNotesInput.length > 0 ? sharedNotesInput : null
 
     // 重複チェック
     const existingDepartment = await prisma.department.findFirst({
@@ -109,10 +118,14 @@ export async function POST(request: NextRequest) {
     }
 
     const department = await prisma.department.create({
-      data: validatedData,
+      data: {
+        name: validatedData.name,
+        sharedNotes,
+      },
       select: {
         id: true,
         name: true,
+        sharedNotes: true,
         createdAt: true,
         updatedAt: true,
       },

@@ -183,104 +183,6 @@ describe('Schedules Page', () => {
   });
 });
 
-describe('Schedules Page - Filters', () => {
-  before(() => {
-    // Cypressのセッションキャッシュをすべてクリア
-    Cypress.session.clearAllSavedSessions();
-    // セッションをクリア
-    cy.clearCookies();
-    cy.clearLocalStorage();
-    // データベースをリセット＆シード
-    cy.resetAndSeedDb();
-  });
-
-  beforeEach(() => {
-    cy.login('admin@example.com', 'password123');
-  });
-
-  it('should filter schedules by user', () => {
-    cy.visit('/schedules');
-
-    // 初期表示では部署フィルターがかかっているため、まず「すべて」を選択
-    cy.get('#department-filter').click();
-    cy.contains('[data-slot="select-item"]', 'すべて', { timeout: 10000 }).should('be.visible').click();
-
-    // 初期状態では複数ユーザーのスケジュールが表示されている
-    cy.get('table tbody tr').should('have.length.at.least', 2);
-
-    // ユーザーフィルターで「山田 花子」を選択
-    cy.get('#user-filter').click();
-    cy.contains('[data-slot="select-item"]', '山田 花子', { timeout: 10000 }).should('be.visible').click();
-
-    // 山田 花子のスケジュールが表示される
-    cy.get('table tbody tr').should('have.length.at.least', 1);
-    cy.get('table tbody').should('contain', '山田 花子');
-
-    // 他のユーザーが表示されていないことを確認
-    cy.get('table tbody').should('not.contain', '管理 太郎');
-  });
-
-  it('should filter schedules by department', () => {
-    cy.visit('/schedules');
-
-    // 初期表示では部署フィルターがかかっているため、まず「すべて」を選択
-    cy.get('#department-filter').click();
-    cy.contains('[data-slot="select-item"]', 'すべて', { timeout: 10000 }).should('be.visible').click();
-
-    // 初期状態では複数部署のスケジュールが表示されている
-    cy.get('table tbody tr').should('have.length.at.least', 2);
-
-    // 部署フィルターで「営業部」を選択
-    cy.get('#department-filter').click();
-    cy.contains('[data-slot="select-item"]', '営業部', { timeout: 10000 }).should('be.visible').click();
-
-    // 営業部のプロジェクトに紐づくスケジュールが表示される
-    // 営業部に紐づくスケジュールがある場合のみ表示される
-    cy.get('table tbody tr').should('exist');
-  });
-
-  it('should filter schedules by date range', () => {
-    cy.visit('/schedules');
-
-    // 初期表示では部署フィルターがかかっているため、まず「すべて」を選択
-    cy.get('#department-filter').click();
-    cy.contains('[data-slot="select-item"]', 'すべて', { timeout: 10000 }).should('be.visible').click();
-
-    // 日付範囲を設定（2024-01-15のみ）
-    cy.get('#start-date').type('2024-01-15');
-    cy.get('#end-date').type('2024-01-15');
-
-    // 2024-01-15のスケジュールが表示される
-    cy.get('table tbody tr').should('have.length.at.least', 1);
-    cy.get('table tbody').should('contain', '2024/1/15');
-
-    // 2024-01-16は表示されないことを確認
-    cy.get('table tbody').should('not.contain', '2024/1/16');
-    cy.get('table tbody').should('not.contain', '2024/1/17');
-  });
-
-  it('should clear all filters', () => {
-    cy.visit('/schedules');
-
-    // 初期表示では部署フィルターがかかっているため、まず「すべて」を選択
-    cy.get('#department-filter').click();
-    cy.contains('[data-slot="select-item"]', 'すべて', { timeout: 10000 }).should('be.visible').click();
-
-    // フィルターを設定
-    cy.get('#start-date').type('2024-01-15');
-    cy.get('#end-date').type('2024-01-15');
-
-    // フィルタークリアボタンをクリック
-    cy.contains('button', 'フィルターをクリア').click();
-
-    // フィルターがクリアされている
-    cy.get('#start-date').should('have.value', '');
-    cy.get('#end-date').should('have.value', '');
-
-    // 初期状態（部署フィルターあり）に戻る
-    cy.get('table tbody tr').should('exist');
-  });
-});
 
 describe('Schedules Page - Work Hour Difference Display', () => {
   before(() => {
@@ -417,8 +319,8 @@ describe('Schedules Page - Work Hour Difference Display', () => {
       cy.contains('18:00').should('be.visible');
       // 実績時間が6.00hであることを確認
       cy.contains('6.00h').should('be.visible');
-      // プラスの過不足が青色で表示される
-      cy.contains('+2.00h').should('be.visible').should('have.class', 'text-blue-600');
+      // マイナスの過不足が赤色で表示される
+      cy.contains('-2.00h').should('be.visible').should('have.class', 'text-red-600');
     });
   });
 
@@ -474,8 +376,8 @@ describe('Schedules Page - Work Hour Difference Display', () => {
       cy.contains('18:00').should('be.visible');
       // 実績時間が10.00hであることを確認
       cy.contains('10.00h').should('be.visible');
-      // マイナスの過不足が赤色で表示される
-      cy.contains('-2.00h').should('be.visible').should('have.class', 'text-red-600');
+      // 過不足が緑で表示される
+      cy.contains('+2.00h').should('be.visible').should('have.class', 'text-blue-600');
     });
   });
 

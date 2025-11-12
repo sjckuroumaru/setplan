@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, use } from "react"
+import { useState, useEffect, useCallback, use, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -36,6 +36,8 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [error, setError] = useState("")
 
   const isAdmin = session?.user?.isAdmin ?? false
+  const hasFetchedProject = useRef(false)
+  const previousProjectId = useRef<string | null>(null)
 
   // 管理者権限チェック
   useEffect(() => {
@@ -77,8 +79,19 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     if (status !== "authenticated" || !isAdmin) {
       return
     }
+
+    if (previousProjectId.current !== id) {
+      hasFetchedProject.current = false
+      previousProjectId.current = id
+    }
+
+    if (hasFetchedProject.current) {
+      return
+    }
+
+    hasFetchedProject.current = true
     fetchProject()
-  }, [status, isAdmin, fetchProject])
+  }, [status, isAdmin, id, fetchProject])
 
   const handleSubmit = async (data: ProjectFormValues) => {
     try {

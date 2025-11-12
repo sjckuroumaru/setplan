@@ -1,3 +1,5 @@
+const getActionPanel = () => cy.get('.fixed.bottom-6.right-6');
+
 describe('Schedules New Page', () => {
   before(() => {
     // Cypressのセッションキャッシュをすべてクリア
@@ -88,11 +90,10 @@ describe('Schedules New Page', () => {
   it('should have submit and cancel buttons', () => {
     cy.visit('/schedules/new');
 
-    // 登録ボタンが表示されている
-    cy.contains('button', '登録').scrollIntoView().should('be.visible');
-
-    // キャンセルボタンが表示されている
-    cy.contains('button', 'キャンセル').should('be.visible');
+    getActionPanel().within(() => {
+      cy.contains('button', '登録').should('be.visible');
+      cy.contains('button', 'キャンセル').should('be.visible');
+    });
   });
 
   it('should create new schedule with minimum required data', () => {
@@ -110,7 +111,9 @@ describe('Schedules New Page', () => {
     // 実績は入力しない（任意）
 
     // 登録ボタンをクリック
-    cy.contains('button', '登録').scrollIntoView().click();
+    getActionPanel().within(() => {
+      cy.contains('button', '登録').should('be.visible').click();
+    });
 
     // 成功メッセージが表示される
     cy.contains('予定実績を登録しました').should('be.visible');
@@ -152,7 +155,9 @@ describe('Schedules New Page', () => {
     cy.get('input[name="actuals.0.details"]').type('実績の詳細内容');
 
     // 登録ボタンをクリック
-    cy.contains('button', '登録').scrollIntoView().click();
+    getActionPanel().within(() => {
+      cy.contains('button', '登録').should('be.visible').click();
+    });
 
     // 成功メッセージが表示される
     cy.contains('予定実績を登録しました').should('be.visible');
@@ -239,7 +244,9 @@ describe('Schedules New Page', () => {
     cy.get('textarea[name="plans.0.content"]').should('be.visible').type('キャンセルテスト');
 
     // キャンセルボタンをクリック
-    cy.contains('button', 'キャンセル').scrollIntoView().click();
+    getActionPanel().within(() => {
+      cy.contains('button', 'キャンセル').should('be.visible').click();
+    });
 
     // 一覧ページにリダイレクトされる
     cy.url().should('include', '/schedules');
@@ -360,7 +367,9 @@ describe('Schedules New Page - Project Selection', () => {
     cy.contains('label', '実績時間').first().parent().find('input[type="text"]').clear().type('5');
 
     // 登録ボタンをクリック
-    cy.contains('button', '登録').scrollIntoView().click();
+    getActionPanel().within(() => {
+      cy.contains('button', '登録').should('be.visible').click();
+    });
 
     // 成功メッセージが表示される
     cy.contains('予定実績を登録しました').should('be.visible');
@@ -424,7 +433,9 @@ describe('Schedules New Page - Break Time Input', () => {
     cy.get('textarea[name="plans.0.content"]').should('be.visible').type('休憩時間カスタムテスト');
 
     // 登録ボタンをクリック
-    cy.contains('button', '登録').scrollIntoView().click();
+    getActionPanel().within(() => {
+      cy.contains('button', '登録').should('be.visible').click();
+    });
 
     // 成功メッセージが表示される
     cy.contains('予定実績を登録しました').should('be.visible');

@@ -15,9 +15,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { Textarea } from "@/components/ui/textarea"
 
 const departmentFormSchema = z.object({
   name: z.string().min(1, "部署・チーム名は必須です"),
+  sharedNotes: z
+    .string()
+    .max(500, "共有事項は500文字以内で入力してください")
+    .optional(),
 })
 
 type DepartmentFormValues = z.infer<typeof departmentFormSchema>
@@ -25,6 +30,7 @@ type DepartmentFormValues = z.infer<typeof departmentFormSchema>
 interface Department {
   id: string
   name: string
+  sharedNotes?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -46,6 +52,7 @@ export function DepartmentForm({ department, onSubmit, onCancel, isLoading, isEd
     resolver: zodResolver(departmentFormSchema),
     defaultValues: {
       name: department?.name || "",
+      sharedNotes: department?.sharedNotes || "",
     },
   })
 
@@ -65,6 +72,7 @@ export function DepartmentForm({ department, onSubmit, onCancel, isLoading, isEd
 
     form.reset({
       name: department.name,
+      sharedNotes: department.sharedNotes || "",
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [department?.id])
@@ -88,6 +96,28 @@ export function DepartmentForm({ department, onSubmit, onCancel, isLoading, isEd
                   <FormControl>
                     <Input placeholder="例: システム開発部" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sharedNotes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>共有事項（500文字まで）</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="部署で共有したい情報を記入してください"
+                      className="min-h-[120px]"
+                      maxLength={500}
+                      {...field}
+                    />
+                  </FormControl>
+                  <div className="text-xs text-muted-foreground text-right">
+                    {(field.value?.length || 0)}/500
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

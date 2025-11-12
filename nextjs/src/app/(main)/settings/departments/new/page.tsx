@@ -13,6 +13,7 @@ import { toast } from "sonner"
 
 type DepartmentFormValues = {
   name: string
+  sharedNotes?: string
 }
 
 export default function NewDepartmentPage() {

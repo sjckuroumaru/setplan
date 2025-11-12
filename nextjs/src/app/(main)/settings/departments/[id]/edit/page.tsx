@@ -14,12 +14,14 @@ import { toast } from "sonner"
 interface Department {
   id: string
   name: string
+  sharedNotes: string | null
   createdAt: string
   updatedAt: string
 }
 
 type DepartmentFormValues = {
   name: string
+  sharedNotes?: string
 }
 
 export default function EditDepartmentPage() {

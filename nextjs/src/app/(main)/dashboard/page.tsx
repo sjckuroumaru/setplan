@@ -2,13 +2,16 @@
 
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
+import useSWR from "swr"
 import { useIssues } from "@/hooks/use-issues"
 import { AttendanceButtons } from "@/components/features/schedules/attendance-buttons"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { fetcher } from "@/lib/fetcher"
 import { 
   AlertCircle,
   ArrowRight,
@@ -24,6 +27,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { data: session } = useSession()
 
   // SWRフックで対応中の課題を取得
   const { issues: inProgressIssues, isLoading, isError } = useIssues({
@@ -100,6 +104,73 @@ export default function DashboardPage() {
     return `${year}-${month}-${day}`
   }
 
+  const departmentId = session?.user?.departmentId || null
+  const shouldFetchDepartmentNotes = Boolean(departmentId)
+
+  type DepartmentResponse = {
+    department: {
+      id: string
+      name: string
+      sharedNotes: string | null
+    }
+  }
+
+  const {
+    data: departmentData,
+  } = useSWR<DepartmentResponse>(
+    shouldFetchDepartmentNotes
+      ? `/api/departments/${departmentId}?basic=true`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  )
+
+  const departmentSharedNotes = departmentData?.department?.sharedNotes || null
+
+  const renderSharedNotes = (notes: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const parts: (string | JSX.Element)[] = []
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+
+    while ((match = urlRegex.exec(notes)) !== null) {
+      const [url] = match
+      const start = match.index
+
+      if (start > lastIndex) {
+        parts.push(notes.slice(lastIndex, start))
+      }
+
+      parts.push(
+        <a
+          key={`shared-note-link-${start}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline break-all"
+        >
+          {url}
+        </a>
+      )
+
+      lastIndex = start + url.length
+    }
+
+    if (lastIndex < notes.length) {
+      parts.push(notes.slice(lastIndex))
+    }
+
+    return parts.map((part, index) =>
+      typeof part === "string" ? (
+        <span key={`shared-note-text-${index}`}>{part}</span>
+      ) : (
+        part
+      )
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -119,6 +190,20 @@ export default function DashboardPage() {
 
       {/* 出勤・退勤ボタン */}
       <AttendanceButtons />
+
+      {/* 部署共有事項 */}
+      {departmentSharedNotes && (
+        <Alert className="bg-blue-50 border-blue-200">
+          <AlertTitle className="text-base font-semibold">
+            {departmentData?.department?.name}からのお知らせ
+          </AlertTitle>
+          <AlertDescription>
+            <div className="whitespace-pre-wrap break-words text-sm mt-2">
+              {renderSharedNotes(departmentSharedNotes)}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* クイックアクション */}
       <div className="grid gap-4 md:grid-cols-3">

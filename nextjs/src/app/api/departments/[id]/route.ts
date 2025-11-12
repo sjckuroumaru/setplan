@@ -7,6 +7,7 @@ import { z } from "zod"
 // バリデーションスキーマ
 const updateDepartmentSchema = z.object({
   name: z.string().min(1, "部署・チーム名は必須です"),
+  sharedNotes: z.string().max(500, "共有事項は500文字以内で入力してください").optional(),
 })
 
 // 管理者権限チェック
@@ -33,20 +34,31 @@ export async function GET(
 
     const { id } = await params
 
+    const basic = request.nextUrl.searchParams.get("basic") === "true"
+
+    const selectFields = basic
+      ? {
+          id: true,
+          name: true,
+          sharedNotes: true,
+        }
+      : {
+          id: true,
+          name: true,
+          sharedNotes: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: {
+              users: true,
+              projects: true,
+            },
+          },
+        }
+
     const department = await prisma.department.findUnique({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            users: true,
-            projects: true,
-          },
-        },
-      },
+      select: selectFields,
     })
 
     if (!department) {
@@ -74,6 +86,14 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
     const validatedData = updateDepartmentSchema.parse(body)
+    const sharedNotesInput =
+      typeof validatedData.sharedNotes === "string"
+        ? validatedData.sharedNotes.trim()
+        : undefined
+    const sharedNotes =
+      sharedNotesInput !== undefined
+        ? (sharedNotesInput.length > 0 ? sharedNotesInput : null)
+        : undefined
 
     // 部署の存在確認
     const existingDepartment = await prisma.department.findUnique({
@@ -96,12 +116,24 @@ export async function PUT(
       return NextResponse.json({ error: "既に同じ名前の部署が登録されています" }, { status: 400 })
     }
 
+    const updateData: {
+      name: string
+      sharedNotes?: string | null
+    } = {
+      name: validatedData.name,
+    }
+
+    if (sharedNotes !== undefined) {
+      updateData.sharedNotes = sharedNotes
+    }
+
     const department = await prisma.department.update({
       where: { id },
-      data: validatedData,
+      data: updateData,
       select: {
         id: true,
         name: true,
+        sharedNotes: true,
         createdAt: true,
         updatedAt: true,
       },

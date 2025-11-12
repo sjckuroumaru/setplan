@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, use } from "react"
+import { useState, useEffect, useCallback, use, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -49,6 +49,9 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const [isLoading, setIsLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const isAdmin = session?.user?.isAdmin ?? false
+  const hasFetchedUser = useRef(false)
+  const previousUserId = useRef<string | null>(null)
 
   // 管理者権限チェック
   useEffect(() => {
@@ -88,10 +91,22 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   }, [id])
 
   useEffect(() => {
-    if (session?.user?.isAdmin) {
-      fetchUser()
+    if (status !== "authenticated" || !isAdmin) {
+      return
     }
-  }, [session, id, fetchUser])
+
+    if (previousUserId.current !== id) {
+      hasFetchedUser.current = false
+      previousUserId.current = id
+    }
+
+    if (hasFetchedUser.current) {
+      return
+    }
+
+    hasFetchedUser.current = true
+    fetchUser()
+  }, [status, isAdmin, id, fetchUser])
 
   const handleSubmit = async (data: UserFormValues) => {
     try {
