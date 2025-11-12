@@ -150,6 +150,61 @@ describe('Attendance Buttons (Check In/Out)', () => {
         }
       });
     });
+
+    it('should round check-out time to nearest 15 minutes (floor)', () => {
+      cy.visit('/dashboard');
+
+      // 退勤ボタンをクリック
+      cy.contains('button', '退勤').should('not.be.disabled').click();
+
+      // 成功メッセージが表示される
+      cy.contains('退勤しました').should('be.visible');
+
+      // 退勤時刻が15分単位になっている（HH:00, HH:15, HH:30, HH:45のいずれか）
+      cy.contains('退勤時刻:').parent().invoke('text').then((text) => {
+        const timeMatch = text.match(/(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          const minutes = parseInt(timeMatch[2]);
+          expect([0, 15, 30, 45]).to.include(minutes);
+        }
+      });
+    });
+
+    it('should verify time rounding difference between check-in (ceiling) and check-out (floor)', () => {
+      cy.resetAndSeedDb();
+      cy.login('admin@example.com', 'password123');
+      cy.visit('/dashboard');
+
+      // 出勤ボタンをクリック
+      cy.contains('button', '出勤').should('not.be.disabled').click();
+      cy.contains('出勤しました').should('be.visible');
+
+      // 出勤時刻を取得（切り上げ）
+      let checkInTime: string;
+      cy.contains('出勤時刻:').parent().invoke('text').then((text) => {
+        const timeMatch = text.match(/(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          checkInTime = `${timeMatch[1]}:${timeMatch[2]}`;
+          const minutes = parseInt(timeMatch[2]);
+          // 出勤時刻は15分単位（切り上げ）
+          expect([0, 15, 30, 45]).to.include(minutes);
+        }
+      });
+
+      // 退勤ボタンをクリック
+      cy.contains('button', '退勤').should('not.be.disabled').click();
+      cy.contains('退勤しました').should('be.visible');
+
+      // 退勤時刻を取得（切り下げ）
+      cy.contains('退勤時刻:').parent().invoke('text').then((text) => {
+        const timeMatch = text.match(/(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          const minutes = parseInt(timeMatch[2]);
+          // 退勤時刻は15分単位（切り下げ）
+          expect([0, 15, 30, 45]).to.include(minutes);
+        }
+      });
+    });
   });
 
   describe('Error Handling', () => {

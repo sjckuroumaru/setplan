@@ -35,20 +35,21 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
+  const isAdmin = session?.user?.isAdmin ?? false
+
   // 管理者権限チェック
   useEffect(() => {
     if (status === "loading") return
     
-    if (!session) {
+    if (status === "unauthenticated") {
       router.push("/login")
       return
     }
     
-    if (!session.user?.isAdmin) {
+    if (status === "authenticated" && !isAdmin) {
       router.push("/dashboard")
-      return
     }
-  }, [session, status, router])
+  }, [status, isAdmin, router])
 
   // 案件情報取得
   const fetchProject = useCallback(async () => {
@@ -73,10 +74,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
   }, [id])
 
   useEffect(() => {
-    if (session?.user?.isAdmin) {
-      fetchProject()
+    if (status !== "authenticated" || !isAdmin) {
+      return
     }
-  }, [session, id, fetchProject])
+    fetchProject()
+  }, [status, isAdmin, fetchProject])
 
   const handleSubmit = async (data: ProjectFormValues) => {
     try {

@@ -27,24 +27,18 @@ import { Plus, Trash2, Clock, FileText } from "lucide-react"
 // バリデーションスキーマ
 const planSchema = z.object({
   projectId: z.string().optional(),
-  content: z.string().min(1, "予定内容は必須です"),
+  content: z.string().max(500, "予定内容は500文字以内で入力してください").optional(),
   details: z.string().optional(),
 })
 
 const actualSchema = z.object({
   projectId: z.string().optional(),
-  content: z.string(),
+  content: z.string()
+    .max(500, "実績内容は500文字以内で入力してください")
+    .trim()
+    .optional(),
   hours: z.number().min(0, "実績時間は0以上で入力してください"),
   details: z.string().optional(),
-}).refine((data) => {
-  // 案件が「案件なし」以外の場合は実績内容が必須
-  if (data.projectId && data.projectId !== "none") {
-    return data.content.trim().length > 0
-  }
-  return true
-}, {
-  message: "案件を選択した場合は実績内容が必須です",
-  path: ["content"]
 }).refine((data) => {
   // 案件が「案件なし」以外の場合は実績時間が必須（0より大きい）
   if (data.projectId && data.projectId !== "none") {
@@ -61,6 +55,7 @@ const scheduleFormSchema = z.object({
   checkInTime: z.string().optional(),
   checkOutTime: z.string().optional(),
   breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください"),
+  workLocation: z.enum(["office", "remote"]).nullable().optional(),
   reflection: z.string().optional(),
   plans: z.array(planSchema),
   actuals: z.array(actualSchema),
@@ -76,6 +71,7 @@ interface Schedule {
   checkInTime: string | null
   checkOutTime: string | null
   breakTime: number | null
+  workLocation: "office" | "remote" | null
   reflection: string | null
   plans: Array<{
     id: string
@@ -114,6 +110,12 @@ interface ScheduleFormProps {
   setShowAllProjects?: (value: boolean) => void
 }
 
+const workLocationOptions = [
+  { value: "none", label: "選択なし" },
+  { value: "office", label: "出社" },
+  { value: "remote", label: "在宅" },
+]
+
 // 日付をYYYY-MM-DD形式に変換
 const formatDateForInput = (dateString: string | null) => {
   if (!dateString) return ""
@@ -143,6 +145,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   // データ設定済みフラグと前回のスケジュールID
   const hasInitializedData = useRef(false)
   const previousScheduleKey = useRef<string | null>(null)
+  const formId = useMemo(() => `schedule-form-${schedule?.id ?? "new"}`, [schedule?.id])
 
   // 新規作成時の初期値を計算
   const defaultFormValues = useMemo(() => {
@@ -153,6 +156,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
         checkInTime: schedule.checkInTime || "none",
         checkOutTime: schedule.checkOutTime || "none",
         breakTime: schedule.breakTime ?? 1.0,
+        workLocation: schedule.workLocation ?? null,
         reflection: schedule.reflection || "",
         userId: schedule.userId || undefined,
         plans: schedule.plans && schedule.plans.length > 0
@@ -190,6 +194,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       checkInTime: time,
       checkOutTime: "none",
       breakTime: 1.0,
+      workLocation: null,
       reflection: "",
       userId: undefined,
       plans: [{ projectId: "none", content: "", details: "" }],
@@ -248,6 +253,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       checkInTime: schedule.checkInTime || "none",
       checkOutTime: schedule.checkOutTime || "none",
       breakTime: schedule.breakTime ?? 1.0,
+      workLocation: schedule.workLocation ?? null,
       reflection: schedule.reflection || "",
       userId: schedule.userId || undefined,
       plans: schedule.plans && schedule.plans.length > 0
@@ -272,21 +278,29 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   }, [schedule])
 
   const handleSubmit = async (data: ScheduleFormValues) => {
-    // 空の項目を除外し、"none"を空文字列に変換
+    // 空の項目を除外し、未選択の値はnull/undefinedに整形
     const filteredData = {
       ...data,
       checkInTime: data.checkInTime === "none" ? undefined : data.checkInTime,
       checkOutTime: data.checkOutTime === "none" ? undefined : data.checkOutTime,
+      workLocation: data.workLocation ?? null,
       plans: data.plans
-        .filter(plan => plan.content.trim() !== "")
+        .filter(plan => (plan.content ?? "").trim() !== "")
         .map(plan => ({
           ...plan,
+          content: plan.content?.trim() ?? "",
           projectId: plan.projectId === "none" ? undefined : plan.projectId
         })),
       actuals: data.actuals
-        .filter(actual => actual.content.trim() !== "")
+        .filter(actual => {
+          const hasContent = (actual.content ?? "").trim().length > 0
+          const hasProject = actual.projectId && actual.projectId !== "none"
+          const hasHours = Number(actual.hours) > 0
+          return hasContent || hasProject || hasHours
+        })
         .map(actual => ({
           ...actual,
+          content: (actual.content ?? "").trim(),
           projectId: actual.projectId === "none" ? undefined : actual.projectId
         })),
     }
@@ -294,6 +308,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   }
 
   return (
+    <>
     <Card className="max-w-6xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -303,7 +318,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+          <form id={formId} onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
             {/* 基本情報 */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">基本情報</h3>
@@ -465,6 +480,36 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="workLocation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>出社・在宅</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === "none" ? null : value)}
+                        value={field.value || "none"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="ステータスを選択" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {workLocationOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        任意
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 
@@ -515,7 +560,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                         name={`plans.${index}.content`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>予定内容 *</FormLabel>
+                            <FormLabel>予定内容</FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder="例: 定例会議"
@@ -572,10 +617,12 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <h3 className="text-lg font-medium">実績情報</h3>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    合計時間: {totalHours.toFixed(2)}h
-                  </div>
+                  {readOnly && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      合計時間: {totalHours.toFixed(2)}h
+                    </div>
+                  )}
                 </div>
                 {!readOnly && (
                   <Button
@@ -674,24 +721,21 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                       <FormField
                         control={form.control}
                         name={`actuals.${index}.content`}
-                        render={({ field }) => {
-                          const currentProjectId = form.watch(`actuals.${index}.projectId`)
-                          const isRequired = currentProjectId && currentProjectId !== "none"
-                          return (
-                            <FormItem>
-                              <FormLabel>実績内容{isRequired ? " *" : ""}</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="例: 資料作成"
-                                  className="min-h-[120px]"
-                                  {...field}
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )
-                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>実績内容</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="例: 資料作成"
+                                className="min-h-[120px]"
+                                {...field}
+                                value={field.value || ""}
+                                disabled={readOnly}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
 
                       <FormField
@@ -758,7 +802,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
             </div>
 
             {/* アクションボタン */}
-            <div className="flex justify-end gap-4">
+            <div className={`flex justify-end gap-4 ${readOnly ? "" : "hidden"}`}>
               <Button
                 type="button"
                 variant="outline"
@@ -767,18 +811,37 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
               >
                 {readOnly ? "戻る" : "キャンセル"}
               </Button>
-              {!readOnly && (
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading 
-                    ? (isEdit ? "更新中..." : "登録中...")
-                    : (isEdit ? "更新" : "登録")
-                  }
-                </Button>
-              )}
             </div>
           </form>
         </Form>
       </CardContent>
     </Card>
+    {!readOnly && (
+      <div className="fixed bottom-6 right-6 z-40 max-sm:bottom-4 max-sm:right-4">
+        <div className="bg-background border rounded-lg shadow-lg p-4 flex flex-col gap-4 items-end min-w-[220px]">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground whitespace-nowrap">
+            <Clock className="h-4 w-4" />
+            実績合計時間: {totalHours.toFixed(2)}h
+          </div>
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
+              キャンセル
+            </Button>
+            <Button type="submit" form={formId} disabled={isLoading}>
+              {isLoading 
+                ? (isEdit ? "更新中..." : "登録中...")
+                : (isEdit ? "更新" : "登録")
+              }
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

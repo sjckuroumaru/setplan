@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+const projectTypeValues = ["development", "ses", "maintenance", "other", "internal", "product"] as const
+
 // バリデーションスキーマ
 const createProjectSchema = z.object({
   projectNumber: z.string().min(1, "案件番号は必須です").max(50, "案件番号は50文字以内で入力してください"),
@@ -19,7 +21,7 @@ const createProjectSchema = z.object({
   budget: z.number().optional(),
   hourlyRate: z.number().optional(),
   // 実績台帳用の新規フィールド
-  projectType: z.enum(["development", "ses", "maintenance", "other"]).default("development"),
+  projectType: z.enum(projectTypeValues).default("development"),
   deliveryDate: z.string().optional(),
   invoiceableDate: z.string().optional(),
   memo: z.string().max(10000, "メモは10000文字以内で入力してください").optional(),
@@ -54,6 +56,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || ""
     const activeOnly = searchParams.get("activeOnly") === "true"
     const departmentId = searchParams.get("departmentId") || ""
+    const sortBy = searchParams.get("sortBy") || "updatedAt"
+    const sortOrderParam = searchParams.get("sortOrder") === "asc" ? "asc" : "desc"
 
     const skip = limit ? (page - 1) * limit : undefined
 
@@ -82,6 +86,20 @@ export async function GET(request: NextRequest) {
     if (departmentId && departmentId !== "all") {
       where.departmentId = departmentId
     }
+
+    const sortOptions: Record<string, any> = {
+      projectNumber: { projectNumber: sortOrderParam },
+      projectType: { projectType: sortOrderParam },
+      projectName: { projectName: sortOrderParam },
+      departmentName: { department: { name: sortOrderParam } },
+      status: { status: sortOrderParam },
+      plannedStartDate: { plannedStartDate: sortOrderParam },
+      plannedEndDate: { plannedEndDate: sortOrderParam },
+      budget: { budget: sortOrderParam },
+      updatedAt: { updatedAt: sortOrderParam },
+    }
+
+    const primaryOrderBy = sortOptions[sortBy] ?? { updatedAt: sortOrderParam }
 
     const [projects, total] = await Promise.all([
       prisma.project.findMany({
@@ -113,10 +131,11 @@ export async function GET(request: NextRequest) {
           actualEndDate: true,
           budget: true,
           hourlyRate: true,
+          projectType: true,
           createdAt: true,
           updatedAt: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [primaryOrderBy, { createdAt: "desc" }],
         skip,
         take: limit,
       }),

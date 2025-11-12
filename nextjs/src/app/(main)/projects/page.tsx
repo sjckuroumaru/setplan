@@ -4,11 +4,13 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useProjects } from "@/hooks/use-projects"
+import { useDepartments } from "@/hooks/use-departments"
 import { usePagination } from "@/hooks/use-pagination"
 import { config } from "@/lib/config"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -39,7 +41,12 @@ import {
   Search, 
   Edit, 
   Trash2,
-  AlertCircle
+  AlertCircle,
+  SlidersHorizontal,
+  RotateCcw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 
 const statusLabels = {
@@ -58,6 +65,26 @@ const statusVariants = {
   completed: "outline" as const,
 }
 
+const projectTypeLabels = {
+  development: "開発",
+  ses: "SES",
+  maintenance: "保守",
+  internal: "社内業務",
+  product: "自社サービス",
+  other: "その他",
+}
+
+type SortColumn =
+  | "projectNumber"
+  | "projectType"
+  | "projectName"
+  | "departmentName"
+  | "status"
+  | "plannedStartDate"
+  | "plannedEndDate"
+  | "budget"
+  | "updatedAt"
+
 export default function ProjectsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -73,16 +100,26 @@ export default function ProjectsPage() {
   } = usePagination({ defaultLimit: config.pagination.defaultLimit })
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [departmentFilter, setDepartmentFilter] = useState("all")
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("")
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("all")
+  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState("all")
+  const [sortBy, setSortBy] = useState<SortColumn>("updatedAt")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
   // SWRフックでデータ取得
   const { projects, pagination: swrPagination, isLoading, isError, mutate } = useProjects({
     page: currentPage,
     limit: pagination.limit,
-    status: statusFilter !== "all" ? statusFilter : undefined,
-    searchQuery: searchQuery || undefined,
+    status: appliedStatusFilter !== "all" ? appliedStatusFilter : undefined,
+    departmentId: appliedDepartmentFilter !== "all" ? appliedDepartmentFilter : undefined,
+    searchQuery: appliedSearchQuery || undefined,
+    sortBy,
+    sortOrder,
   })
+  const { departments } = useDepartments()
 
   // 認証チェック
   useEffect(() => {
@@ -106,12 +143,80 @@ export default function ProjectsPage() {
     }
   }, [swrPagination, setPagination, pagination.limit])
 
-  // フィルター変更時にページを1に戻す
+  // フィルター適用時にページを1に戻す
   useEffect(() => {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, resetToFirstPage, session])
+  }, [appliedSearchQuery, appliedStatusFilter, appliedDepartmentFilter, sortBy, sortOrder, resetToFirstPage, session])
+
+  const hasPendingFilterChanges =
+    searchQuery !== appliedSearchQuery ||
+    statusFilter !== appliedStatusFilter ||
+    departmentFilter !== appliedDepartmentFilter
+
+  // 初期フィルター適用（部署）
+  useEffect(() => {
+    if (!session || departments.length === 0) {
+      return
+    }
+    // 既にユーザー操作で変更済みならスキップ
+    if (appliedDepartmentFilter !== "all" || departmentFilter !== "all") {
+      return
+    }
+
+    const departmentExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+
+    if (departmentExists) {
+      const defaultDept = session.user.departmentId!
+      setDepartmentFilter(defaultDept)
+      setAppliedDepartmentFilter(defaultDept)
+    }
+  }, [session, departments, departmentFilter, appliedDepartmentFilter])
+
+  const handleApplyFilters = () => {
+    const normalizedSearch = searchQuery.trim()
+    setSearchQuery(normalizedSearch)
+    setAppliedSearchQuery(normalizedSearch)
+    setAppliedStatusFilter(statusFilter)
+    setAppliedDepartmentFilter(departmentFilter)
+  }
+
+  const handleClearFilters = () => {
+    const departmentExists = session?.user?.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+    const defaultDepartment = departmentExists ? session?.user?.departmentId ?? "all" : "all"
+
+    setSearchQuery("")
+    setStatusFilter("all")
+    setDepartmentFilter(defaultDepartment || "all")
+    setAppliedSearchQuery("")
+    setAppliedStatusFilter("all")
+    setAppliedDepartmentFilter(defaultDepartment || "all")
+  }
+
+  const handleSort = (column: SortColumn) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(column)
+      setSortOrder(column === "projectNumber" ? "asc" : "desc")
+    }
+  }
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-50" />
+    }
+    return sortOrder === "asc" ? (
+      <ArrowUp className="ml-1 inline h-3 w-3" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3 w-3" />
+    )
+  }
 
   // 案件削除
   const handleDelete = async () => {
@@ -150,6 +255,15 @@ export default function ProjectsPage() {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-"
     return new Date(dateString).toLocaleDateString("ja-JP")
+  }
+
+  const formatCurrency = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined || value === "") return "-"
+    const numeric = typeof value === "string" ? parseFloat(value) : value
+    if (Number.isNaN(numeric) || numeric === undefined || numeric === null) {
+      return "-"
+    }
+    return `¥${numeric.toLocaleString()}`
   }
 
   if (status === "loading" || !session) {
@@ -193,31 +307,76 @@ export default function ProjectsPage() {
           <CardTitle>フィルター</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="案件番号、案件名で検索..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="project-search">検索</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="project-search"
+                    placeholder="案件番号、案件名で検索..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status-filter">ステータス</Label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger id="status-filter">
+                    <SelectValue placeholder="ステータス" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    <SelectItem value="planning">計画中</SelectItem>
+                    <SelectItem value="developing">開発中</SelectItem>
+                    <SelectItem value="active">稼働中</SelectItem>
+                    <SelectItem value="suspended">停止中</SelectItem>
+                    <SelectItem value="completed">完了</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="department-filter">担当部署</Label>
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger id="department-filter">
+                    <SelectValue placeholder="担当部署を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="ステータス" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">すべて</SelectItem>
-                <SelectItem value="planning">計画中</SelectItem>
-                <SelectItem value="developing">開発中</SelectItem>
-                <SelectItem value="active">稼働中</SelectItem>
-                <SelectItem value="suspended">停止中</SelectItem>
-                <SelectItem value="completed">完了</SelectItem>
-              </SelectContent>
-            </Select>
+
+            <div className="flex flex-col gap-3 border-t pt-4 mt-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <SlidersHorizontal className="h-4 w-4" />
+                条件を変更したら「適用」で一覧を更新します
+              </div>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  クリア
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  disabled={!hasPendingFilterChanges}
+                >
+                  適用
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -225,105 +384,147 @@ export default function ProjectsPage() {
       {/* 案件一覧テーブル */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>案件番号</TableHead>
-                <TableHead>案件名</TableHead>
-                <TableHead>担当部署</TableHead>
-                <TableHead>関連発注書</TableHead>
-                <TableHead>ステータス</TableHead>
-                <TableHead>開始予定日</TableHead>
-                <TableHead>終了予定日</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
-                      <TableCell key={j}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : projects.length === 0 ? (
+          <div className="overflow-x-auto">
+            <Table className="text-xs [&_th]:px-2 [&_td]:px-2">
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    案件が見つかりません
-                  </TableCell>
+                  <TableHead
+                    className="min-w-[120px] cursor-pointer select-none"
+                    onClick={() => handleSort("projectNumber")}
+                  >
+                    案件番号<SortIcon column="projectNumber" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[110px] cursor-pointer select-none"
+                    onClick={() => handleSort("projectType")}
+                  >
+                    案件種別<SortIcon column="projectType" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[180px] cursor-pointer select-none"
+                    onClick={() => handleSort("projectName")}
+                  >
+                    案件名<SortIcon column="projectName" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[150px] cursor-pointer select-none"
+                    onClick={() => handleSort("departmentName")}
+                  >
+                    担当部署<SortIcon column="departmentName" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    onClick={() => handleSort("status")}
+                  >
+                    ステータス<SortIcon column="status" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    onClick={() => handleSort("plannedStartDate")}
+                  >
+                    開始予定<SortIcon column="plannedStartDate" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    onClick={() => handleSort("plannedEndDate")}
+                  >
+                    終了予定<SortIcon column="plannedEndDate" />
+                  </TableHead>
+                  <TableHead
+                    className="min-w-[110px] cursor-pointer select-none text-right"
+                    onClick={() => handleSort("budget")}
+                  >
+                    予算<SortIcon column="budget" />
+                  </TableHead>
+                  <TableHead className="min-w-[180px]">関連発注書</TableHead>
+                  <TableHead
+                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    onClick={() => handleSort("updatedAt")}
+                  >
+                    最終更新<SortIcon column="updatedAt" />
+                  </TableHead>
+                  <TableHead className="min-w-[120px] text-center">操作</TableHead>
                 </TableRow>
-              ) : (
-                projects.map((project) => (
-                  <TableRow key={project.id}>
-                    <TableCell>
-                      <Link 
-                        href={`/projects/${project.id}/edit`}
-                        className="text-blue-600 hover:underline cursor-pointer"
-                      >
-                        {project.projectNumber}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{project.projectName}</div>
-                        {project.description && (
-                          <div className="text-sm text-muted-foreground line-clamp-2">
-                            {project.description}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {project.department?.name || "-"}
-                    </TableCell>
-                    <TableCell>
-                      {project.purchaseOrder ? (
-                        <div className="text-sm">
-                          <div className="font-medium">{project.purchaseOrder.orderNumber}</div>
-                          <div className="text-muted-foreground truncate max-w-[150px]">
-                            {project.purchaseOrder.subject}
-                          </div>
-                        </div>
-                      ) : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariants[project.status as keyof typeof statusVariants]}>
-                        {statusLabels[project.status as keyof typeof statusLabels]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(project.plannedStartDate)}</TableCell>
-                    <TableCell>{formatDate(project.plannedEndDate)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <Link href={`/projects/${project.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        {session.user.isAdmin && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteProjectId(project.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 11 }).map((_, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : projects.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="text-center py-8">
+                      案件が見つかりません
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  projects.map((project) => (
+                    <TableRow key={project.id} className="hover:bg-muted/40">
+                      <TableCell className="font-semibold">
+                        <Link href={`/projects/${project.id}/edit`} className="hover:underline">
+                          {project.projectNumber}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {project.projectType
+                          ? projectTypeLabels[project.projectType as keyof typeof projectTypeLabels] ||
+                            project.projectType
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="font-medium">{project.projectName}</TableCell>
+                      <TableCell>{project.department?.name || "-"}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={statusVariants[project.status as keyof typeof statusVariants] || "secondary"}>
+                          {statusLabels[project.status as keyof typeof statusLabels] || project.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{formatDate(project.plannedStartDate)}</TableCell>
+                      <TableCell className="text-center">{formatDate(project.plannedEndDate)}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(project.budget)}</TableCell>
+                      <TableCell>
+                        {project.purchaseOrder ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{project.purchaseOrder.orderNumber}</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">
+                              {project.purchaseOrder.subject}
+                            </span>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">{formatDate(project.updatedAt)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button variant="outline" size="icon" asChild>
+                            <Link href={`/projects/${project.id}/edit`}>
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          {session.user.isAdmin && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => setDeleteProjectId(project.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

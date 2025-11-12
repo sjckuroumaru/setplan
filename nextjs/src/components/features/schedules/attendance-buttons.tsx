@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { LogIn, LogOut, Clock } from "lucide-react"
-import { getTodayDateString, getCurrentTimeRounded } from "@/lib/attendance-utils"
+import { getTodayDateString, getCurrentTimeRounded, getCurrentTimeRoundedDown } from "@/lib/attendance-utils"
 
 interface Schedule {
   id: string
@@ -16,6 +16,7 @@ interface Schedule {
   checkInTime: string | null
   checkOutTime: string | null
   breakTime: number | null
+  workLocation: string | null
   reflection?: string | null
   plans: any[]
   actuals: any[]
@@ -102,7 +103,7 @@ export function AttendanceButtons({ onAttendanceChange }: AttendanceButtonsProps
     try {
       setIsCheckingOut(true)
 
-      const currentTime = getCurrentTimeRounded()
+      const currentTime = getCurrentTimeRoundedDown()
 
       // 既存のplansとactualsを保持する
       const response = await fetch(`/api/schedules/${todaySchedule.id}`, {
@@ -114,6 +115,7 @@ export function AttendanceButtons({ onAttendanceChange }: AttendanceButtonsProps
           checkInTime: todaySchedule.checkInTime,
           checkOutTime: currentTime,
           breakTime: todaySchedule.breakTime,
+          workLocation: todaySchedule.workLocation,
           reflection: todaySchedule.reflection || undefined,
           plans: todaySchedule.plans.map((plan) => ({
             projectId: plan.projectId || undefined,

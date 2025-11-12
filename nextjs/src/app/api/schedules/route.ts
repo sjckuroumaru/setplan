@@ -9,13 +9,16 @@ import { recalculateProjectLaborCost } from "@/lib/project-utils"
 // バリデーションスキーマ
 const planSchema = z.object({
   projectId: z.string().optional(),
-  content: z.string().min(1, "予定内容は必須です").max(500, "予定内容は500文字以内で入力してください"),
+  content: z.string().max(500, "予定内容は500文字以内で入力してください").optional(),
   details: z.string().max(2000, "詳細は2000文字以内で入力してください").optional(),
 })
 
 const actualSchema = z.object({
   projectId: z.string().optional(),
-  content: z.string().min(1, "実績内容は必須です").max(500, "実績内容は500文字以内で入力してください"),
+  content: z.string()
+    .max(500, "実績内容は500文字以内で入力してください")
+    .trim()
+    .optional(),
   hours: z.number().min(0, "実績時間は0以上で入力してください").max(24, "実績時間は24時間以内で入力してください"),
   details: z.string().max(2000, "詳細は2000文字以内で入力してください").optional(),
 })
@@ -25,6 +28,7 @@ const createScheduleSchema = z.object({
   checkInTime: z.string().optional(),
   checkOutTime: z.string().optional(),
   breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional().default(1.0),
+  workLocation: z.enum(["office", "remote"]).nullable().optional(),
   reflection: z.string().max(2000, "所感は2000文字以内で入力してください").optional(),
   plans: z.array(planSchema).optional().default([]),
   actuals: z.array(actualSchema).optional().default([]),
@@ -287,6 +291,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "指定日の予定実績は既に存在します" }, { status: 400 })
     }
 
+    const sanitizedPlans = validatedData.plans.filter(
+      (plan) => plan.content && plan.content.trim().length > 0
+    )
+
     // トランザクション内で予定実績を作成
     const result = await prisma.$transaction(async (tx) => {
       // 日別基本情報を作成
@@ -297,17 +305,18 @@ export async function POST(request: NextRequest) {
           checkInTime: validatedData.checkInTime,
           checkOutTime: validatedData.checkOutTime,
           breakTime: validatedData.breakTime,
+          workLocation: validatedData.workLocation,
           reflection: validatedData.reflection,
         },
       })
 
       // 予定項目を作成
-      if (validatedData.plans.length > 0) {
+      if (sanitizedPlans.length > 0) {
         await tx.schedulePlan.createMany({
-          data: validatedData.plans.map((plan, index) => ({
+          data: sanitizedPlans.map((plan, index) => ({
             scheduleId: schedule.id,
             projectId: plan.projectId,
-            content: plan.content,
+            content: plan.content?.trim() ?? "",
             details: plan.details,
             displayOrder: index,
           })),
@@ -320,7 +329,7 @@ export async function POST(request: NextRequest) {
           data: validatedData.actuals.map((actual, index) => ({
             scheduleId: schedule.id,
             projectId: actual.projectId,
-            content: actual.content,
+            content: actual.content?.trim() ?? "",
             hours: actual.hours,
             details: actual.details,
             displayOrder: index,

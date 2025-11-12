@@ -91,6 +91,7 @@ model DailySchedule {
   checkInTime  String?   // "09:00" 形式
   checkOutTime String?   // "18:00" 形式
   breakTime    Float     @default(1.0) // 休憩時間（時間単位）
+  workLocation String?   // 勤務場所: "office"(出社), "remote"(在宅)、空欄許可
   reflection   String?   @db.Text  // 所感
   status       String    @default("planned") // planned, in_progress, completed
   createdAt    DateTime  @default(now())

@@ -17,15 +17,16 @@ type ScheduleFormValues = {
   checkInTime?: string
   checkOutTime?: string
   breakTime?: number
+  workLocation?: "office" | "remote" | null
   reflection?: string
   plans: Array<{
     projectId?: string
-    content: string
+    content?: string
     details?: string
   }>
   actuals: Array<{
     projectId?: string
-    content: string
+    content?: string
     hours: number
     details?: string
   }>
@@ -80,6 +81,7 @@ function NewSchedulePageContent() {
             checkInTime: data.schedule.checkInTime,
             checkOutTime: null, // 退社時間は空欄
             breakTime: data.schedule.breakTime ?? 1.0, // 休憩時間をコピー、nullの場合は1.0
+            workLocation: null, // 退社時間は空欄
             reflection: null, // 所感も空欄
             plans: data.schedule.plans || [],
             actuals: data.schedule.actuals || [],

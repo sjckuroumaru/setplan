@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+
+const projectTypeValues = ["development", "ses", "maintenance", "other", "internal", "product"] as const
 import { recalculateProjectLaborCost } from "@/lib/project-utils"
 
 // 更新用スキーマ
@@ -20,7 +22,7 @@ const updateProjectSchema = z.object({
   budget: z.number().optional(),
   hourlyRate: z.number().optional(),
   // 実績台帳用の新規フィールド
-  projectType: z.enum(["development", "ses", "maintenance", "other"]).optional(),
+  projectType: z.enum(projectTypeValues).optional(),
   deliveryDate: z.string().optional(),
   invoiceableDate: z.string().optional(),
   memo: z.string().max(10000, "メモは10000文字以内で入力してください").optional(),

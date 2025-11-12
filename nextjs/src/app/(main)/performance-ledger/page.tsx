@@ -33,7 +33,9 @@ import {
   ChevronRight,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react"
 import { OverallSummaryCard } from "@/components/performance-ledger/overall-summary"
 import { TeamSummaryTable } from "@/components/performance-ledger/team-summary-table"
@@ -42,6 +44,8 @@ const projectTypeLabels = {
   development: "開発",
   ses: "SES",
   maintenance: "保守",
+  internal: "社内業務",
+  product: "自社サービス",
   other: "その他",
 }
 
@@ -52,6 +56,8 @@ const statusLabels = {
   suspended: "停止中",
   completed: "完了",
 }
+
+const DEFAULT_STATUS_FILTERS = ["planning", "developing", "active"] as const
 
 export default function PerformanceLedgerPage() {
   const { data: session, status } = useSession()
@@ -68,22 +74,27 @@ export default function PerformanceLedgerPage() {
   } = usePagination({ defaultLimit: config.pagination.defaultLimit })
 
   const [projectTypeFilter, setProjectTypeFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState<string[]>(["planning", "developing", "active"])
+  const [statusFilter, setStatusFilter] = useState<string[]>([...DEFAULT_STATUS_FILTERS])
   const [departmentFilter, setDepartmentFilter] = useState("all")
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [sortBy, setSortBy] = useState("issueDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [appliedProjectType, setAppliedProjectType] = useState("all")
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([...DEFAULT_STATUS_FILTERS])
+  const [appliedDepartment, setAppliedDepartment] = useState("all")
+  const [appliedStartDate, setAppliedStartDate] = useState("")
+  const [appliedEndDate, setAppliedEndDate] = useState("")
 
   // SWRフックでデータ取得
   const { data, pagination: swrPagination, isLoading, isError } = usePerformanceLedger({
     page: currentPage,
     limit: pagination.limit,
-    projectType: projectTypeFilter !== "all" ? projectTypeFilter : undefined,
-    statuses: statusFilter.length > 0 ? statusFilter : undefined,
-    departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    projectType: appliedProjectType !== "all" ? appliedProjectType : undefined,
+    statuses: appliedStatuses.length > 0 ? appliedStatuses : undefined,
+    departmentId: appliedDepartment !== "all" ? appliedDepartment : undefined,
+    startDate: appliedStartDate || undefined,
+    endDate: appliedEndDate || undefined,
     sortBy,
     sortOrder,
   })
@@ -94,11 +105,11 @@ export default function PerformanceLedgerPage() {
     byTeam,
     isLoading: isSummaryLoading,
   } = useLedgerSummary({
-    projectType: projectTypeFilter !== "all" ? projectTypeFilter : undefined,
-    statuses: statusFilter.length > 0 ? statusFilter : undefined,
-    departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    projectType: appliedProjectType !== "all" ? appliedProjectType : undefined,
+    statuses: appliedStatuses.length > 0 ? appliedStatuses : undefined,
+    departmentId: appliedDepartment !== "all" ? appliedDepartment : undefined,
+    startDate: appliedStartDate || undefined,
+    endDate: appliedEndDate || undefined,
   })
 
   // 部門データ取得
@@ -132,7 +143,7 @@ export default function PerformanceLedgerPage() {
       resetToFirstPage()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectTypeFilter, statusFilter, departmentFilter, startDate, endDate, sortBy, sortOrder])
+  }, [appliedProjectType, appliedStatuses, appliedDepartment, appliedStartDate, appliedEndDate, sortBy, sortOrder])
 
   // 日付フォーマット
   const formatDate = (dateString: string | null) => {
@@ -153,6 +164,16 @@ export default function PerformanceLedgerPage() {
     return "text-green-600" // 30%以上: 緑色
   }
 
+  const statusesMatch = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((status) => b.includes(status))
+
+  const hasPendingFilterChanges =
+    projectTypeFilter !== appliedProjectType ||
+    !statusesMatch(statusFilter, appliedStatuses) ||
+    departmentFilter !== appliedDepartment ||
+    startDate !== appliedStartDate ||
+    endDate !== appliedEndDate
+
   // ステータスフィルターの切り替え
   const handleStatusToggle = (status: string) => {
     setStatusFilter((prev) => {
@@ -162,6 +183,28 @@ export default function PerformanceLedgerPage() {
         return [...prev, status]
       }
     })
+  }
+
+  const handleApplyFilters = () => {
+    setAppliedProjectType(projectTypeFilter)
+    setAppliedStatuses([...statusFilter])
+    setAppliedDepartment(departmentFilter)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
+  }
+
+  const handleClearFilters = () => {
+    setProjectTypeFilter("all")
+    setStatusFilter([...DEFAULT_STATUS_FILTERS])
+    setDepartmentFilter("all")
+    setStartDate("")
+    setEndDate("")
+
+    setAppliedProjectType("all")
+    setAppliedStatuses([...DEFAULT_STATUS_FILTERS])
+    setAppliedDepartment("all")
+    setAppliedStartDate("")
+    setAppliedEndDate("")
   }
 
   // ソート切り替え
@@ -229,6 +272,8 @@ export default function PerformanceLedgerPage() {
                   <SelectItem value="development">開発</SelectItem>
                   <SelectItem value="ses">SES</SelectItem>
                   <SelectItem value="maintenance">保守</SelectItem>
+                  <SelectItem value="internal">社内業務</SelectItem>
+                  <SelectItem value="product">自社サービス</SelectItem>
                   <SelectItem value="other">その他</SelectItem>
                 </SelectContent>
               </Select>
@@ -251,24 +296,6 @@ export default function PerformanceLedgerPage() {
               </Select>
             </div>
 
-            <div className="space-y-2 md:col-span-1 lg:col-span-2">
-              <Label>発行日期間</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  placeholder="開始日"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-                <Input
-                  type="date"
-                  placeholder="終了日"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-            </div>
-
             <div className="space-y-2 md:col-span-2 lg:col-span-3">
               <Label>ステータス</Label>
               <div className="flex flex-wrap gap-4">
@@ -287,6 +314,44 @@ export default function PerformanceLedgerPage() {
                     </Label>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 md:col-span-1 lg:col-span-2">
+              <Label>発行日期間</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  placeholder="開始日"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                <Input
+                  type="date"
+                  placeholder="終了日"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t md:col-span-3 pt-4 mt-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <SlidersHorizontal className="h-4 w-4" />
+                条件を変更したら「適用」で台帳を更新します
+              </div>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  クリア
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  disabled={!hasPendingFilterChanges}
+                >
+                  適用
+                </Button>
               </div>
             </div>
           </div>

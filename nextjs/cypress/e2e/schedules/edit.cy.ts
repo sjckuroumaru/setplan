@@ -157,6 +157,42 @@ describe('Schedules Edit Page', () => {
     cy.url().should('not.include', '/edit');
   });
 
+  it('should allow selecting and saving work location', () => {
+    const selectWorkLocation = (label: string) => {
+      cy.contains('label', '出社・在宅')
+        .parent()
+        .find('[role="combobox"]')
+        .as('workLocationSelect');
+
+      cy.get('@workLocationSelect').scrollIntoView().click();
+      cy.get('[role="option"]').contains(label).click();
+      cy.get('@workLocationSelect').should('contain', label);
+    };
+
+    // 在宅を選択して更新
+    selectWorkLocation('在宅');
+    cy.contains('button', '更新').scrollIntoView().click();
+    cy.contains('予定実績を更新しました').should('be.visible');
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+
+    // 再度同じ予定を開いて反映を確認
+    cy.visitSchedulesAndWaitForData(true);
+    cy.intercept('GET', '/api/schedules/*').as('getScheduleAfterUpdate');
+    cy.get('table tbody tr').first().find('a[href*="/schedules/"][href*="/edit"]').should('be.visible').click();
+    cy.wait('@getScheduleAfterUpdate').its('response.statusCode').should('eq', 200);
+    cy.contains('label', '出社・在宅')
+      .parent()
+      .find('[role="combobox"]')
+      .should('contain', '在宅');
+
+    // 出社に戻しておく
+    cy.contains('label', '出社・在宅').parent().find('[role="combobox"]').scrollIntoView().click();
+    cy.get('[role="option"]').contains('出社').click();
+    cy.contains('button', '更新').scrollIntoView().click();
+    cy.contains('予定実績を更新しました').should('be.visible');
+    cy.url().should('include', '/schedules', { timeout: 10000 });
+  });
+
   it('should add new plan item', () => {
     // beforeEachで編集ページに遷移済み
     // 予定セクションまでスクロール

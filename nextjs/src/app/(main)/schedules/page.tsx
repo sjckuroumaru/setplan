@@ -51,8 +51,15 @@ import {
   FileText,
   Clock,
   AlertCircle,
-  Copy
+  Copy,
+  SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react"
+
+const workLocationLabels = {
+  office: "出社",
+  remote: "在宅",
+}
 
 export default function SchedulesPage() {
   const { data: session, status } = useSession()
@@ -75,17 +82,22 @@ export default function SchedulesPage() {
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("")
+  const [appliedUserFilter, setAppliedUserFilter] = useState("all")
+  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState("all")
+  const [appliedStartDate, setAppliedStartDate] = useState("")
+  const [appliedEndDate, setAppliedEndDate] = useState("")
 
   // SWRフックでデータ取得
   // フィルターの初期化が完了するまでAPIリクエストをスキップ
   const { schedules, pagination: swrPagination, isLoading, isError, mutate } = useSchedules({
     page: currentPage,
     limit: pagination.limit,
-    userId: userFilter !== "all" ? userFilter : undefined,
-    departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
-    searchQuery: searchQuery || undefined,
+    userId: appliedUserFilter !== "all" ? appliedUserFilter : undefined,
+    departmentId: appliedDepartmentFilter !== "all" ? appliedDepartmentFilter : undefined,
+    startDate: appliedStartDate || undefined,
+    endDate: appliedEndDate || undefined,
+    searchQuery: appliedSearchQuery || undefined,
     enabled: departmentFilterInitialized,
   })
 
@@ -116,29 +128,21 @@ export default function SchedulesPage() {
     }
 
     // 部署フィルターの設定
-    if (session.user.departmentId) {
-      // ユーザーの部署が部署リストに存在するか確認
-      const departmentExists = departments.some(dept => dept.id === session.user.departmentId)
+    const departmentExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+    const resolvedDepartment = departmentExists ? session.user.departmentId! : "all"
+    const resolvedUser = session.user.isAdmin ? "all" : session.user.id
 
-      if (departmentExists) {
-        setDepartmentFilter(session.user.departmentId)
-      } else {
-        // 部署が見つからない場合は"all"を設定
-        console.warn(`ユーザーの部署ID ${session.user.departmentId} が部署リストに見つかりません`)
-        setDepartmentFilter("all")
-      }
-    } else {
-      // departmentIdが設定されていない場合は"all"を設定
-      setDepartmentFilter("all")
-    }
-
-    // 一般ユーザーは自身のユーザーIDもデフォルト設定
-    if (!session.user.isAdmin) {
-      setUserFilter(session.user.id)
-    }
-
+    setDepartmentFilter(resolvedDepartment)
+    setAppliedDepartmentFilter(resolvedDepartment)
+    setUserFilter(resolvedUser)
+    setAppliedUserFilter(resolvedUser)
+    setAppliedSearchQuery(searchQuery)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
     setDepartmentFilterInitialized(true)
-  }, [session, departmentFilterInitialized, departments])
+  }, [session, departmentFilterInitialized, departments, searchQuery, startDate, endDate])
 
   // SWRのpaginationで更新
   useEffect(() => {
@@ -157,7 +161,54 @@ export default function SchedulesPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, userFilter, departmentFilter, startDate, endDate, resetToFirstPage, session])
+  }, [
+    appliedSearchQuery,
+    appliedUserFilter,
+    appliedDepartmentFilter,
+    appliedStartDate,
+    appliedEndDate,
+    resetToFirstPage,
+    session,
+  ])
+
+  const hasPendingFilterChanges =
+    searchQuery !== appliedSearchQuery ||
+    userFilter !== appliedUserFilter ||
+    departmentFilter !== appliedDepartmentFilter ||
+    startDate !== appliedStartDate ||
+    endDate !== appliedEndDate
+
+  const handleApplyFilters = () => {
+    const normalizedSearch = searchQuery.trim()
+    setSearchQuery(normalizedSearch)
+    setAppliedSearchQuery(normalizedSearch)
+    setAppliedUserFilter(userFilter)
+    setAppliedDepartmentFilter(departmentFilter)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
+  }
+
+  const handleClearFilters = () => {
+    if (!session) return
+
+    const departmentExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+    const defaultDepartment = departmentExists ? session.user.departmentId! : "all"
+    const defaultUser = session.user.isAdmin ? "all" : session.user.id
+
+    setSearchQuery("")
+    setStartDate("")
+    setEndDate("")
+    setUserFilter(defaultUser)
+    setDepartmentFilter(defaultDepartment)
+
+    setAppliedSearchQuery("")
+    setAppliedStartDate("")
+    setAppliedEndDate("")
+    setAppliedUserFilter(defaultUser)
+    setAppliedDepartmentFilter(defaultDepartment)
+  }
 
   // 予定実績削除
   const handleDelete = async () => {
@@ -228,7 +279,7 @@ export default function SchedulesPage() {
     const breakTime = schedule.breakTime ?? 1.0 // デフォルト値1.0
 
     // 実績過不足 = 勤務時間 - 休憩時間 - 実績時間
-    return workHours - breakTime - totalActualHours
+    return (workHours - breakTime - totalActualHours) * -1
   }
 
   // 編集・削除権限チェック
@@ -356,7 +407,7 @@ export default function SchedulesPage() {
                 </div>
 
                 {/* 2行目 */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 items-end">
                   <div className="space-y-2">
                     <Label htmlFor="start-date">開始日</Label>
                     <Input
@@ -376,28 +427,28 @@ export default function SchedulesPage() {
                       onChange={(e) => setEndDate(e.target.value)}
                     />
                   </div>
+                </div>
 
-                  <div className="md:col-span-2">
+                <div className="flex flex-col gap-3 border-t pt-4 mt-2 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    条件を変更したら「適用」で一覧を更新します
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-end">
                     <Button
+                      type="button"
                       variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        setSearchQuery("")
-                        setStartDate("")
-                        setEndDate("")
-                        // 初期フィルター状態に戻す
-                        if (session?.user.isAdmin) {
-                          // 管理者: 自身の部署のみ
-                          setDepartmentFilter(session.user.departmentId || "all")
-                          setUserFilter("all")
-                        } else {
-                          // 一般ユーザー: 自身の部署 + 自身のユーザーID
-                          setDepartmentFilter(session?.user.departmentId || "all")
-                          setUserFilter(session?.user.id || "all")
-                        }
-                      }}
+                      onClick={handleClearFilters}
                     >
+                      <RotateCcw className="mr-2 h-4 w-4" />
                       クリア
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleApplyFilters}
+                      disabled={!departmentFilterInitialized || !hasPendingFilterChanges}
+                    >
+                      適用
                     </Button>
                   </div>
                 </div>
@@ -420,6 +471,7 @@ export default function SchedulesPage() {
                       <TableHead className="w-24">実績過不足</TableHead>
                       <TableHead className="min-w-[200px]">予定</TableHead>
                       <TableHead className="min-w-[200px]">実績</TableHead>
+                      <TableHead className="w-24">場所</TableHead>
                       <TableHead className="w-24">操作</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -502,6 +554,11 @@ export default function SchedulesPage() {
                               </Badge>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          {/* <Badge variant=""> */}
+                            {workLocationLabels[schedule.workLocation as keyof typeof workLocationLabels]}
+                          {/* </Badge> */}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">

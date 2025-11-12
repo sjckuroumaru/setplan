@@ -18,6 +18,7 @@ interface Schedule {
   scheduleDate: Date
   checkInTime: string | null
   checkOutTime: string | null
+  workLocation: string | null
   reflection: string | null
   user: {
     id: string

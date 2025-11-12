@@ -8,6 +8,8 @@ interface UseProjectsParams {
   departmentId?: string
   customerId?: string
   searchQuery?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
   enabled?: boolean
 }
 
@@ -32,6 +34,8 @@ interface Project {
   plannedEndDate: string | null
   actualStartDate: string | null
   actualEndDate: string | null
+  budget: number | null
+  projectType: string | null
   createdAt: string
   updatedAt: string
 }
@@ -59,6 +63,8 @@ export function useProjects(params: UseProjectsParams) {
   if (fetchParams.departmentId) queryParams.append('departmentId', fetchParams.departmentId)
   if (fetchParams.customerId) queryParams.append('customerId', fetchParams.customerId)
   if (fetchParams.searchQuery) queryParams.append('search', fetchParams.searchQuery)
+  if (fetchParams.sortBy) queryParams.append('sortBy', fetchParams.sortBy)
+  if (fetchParams.sortOrder) queryParams.append('sortOrder', fetchParams.sortOrder)
 
   const { data, error, isLoading, mutate } = useSWR<ProjectsResponse>(
     enabled ? `/api/projects?${queryParams}` : null,

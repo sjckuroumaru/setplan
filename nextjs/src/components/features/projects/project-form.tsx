@@ -19,6 +19,9 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 
+const projectTypeValues = ["development", "ses", "maintenance", "other", "internal", "product"] as const
+type ProjectType = typeof projectTypeValues[number]
+
 // フォーム内部で使用する型（すべてstring）
 const formSchema = z.object({
   projectNumber: z.string().min(1, "案件番号は必須です"),
@@ -34,7 +37,7 @@ const formSchema = z.object({
   budget: z.string().optional(),
   hourlyRate: z.string().optional(),
   // 実績台帳用の新規フィールド
-  projectType: z.enum(["development", "ses", "maintenance", "other"]),
+  projectType: z.enum(projectTypeValues),
   deliveryDate: z.string().optional(),
   invoiceableDate: z.string().optional(),
   memo: z.string().optional(),
@@ -60,7 +63,7 @@ type ProjectFormValues = {
   budget?: number
   hourlyRate?: number
   // 実績台帳用の新規フィールド
-  projectType: "development" | "ses" | "maintenance" | "other"
+  projectType: ProjectType
   deliveryDate?: string
   invoiceableDate?: string
   memo?: string
@@ -133,6 +136,8 @@ const projectTypeOptions = [
   { value: "development", label: "開発" },
   { value: "ses", label: "SES" },
   { value: "maintenance", label: "保守" },
+  { value: "internal", label: "社内業務" },
+  { value: "product", label: "自社サービス" },
   { value: "other", label: "その他" },
 ]
 
@@ -169,7 +174,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       budget: project?.budget || "",
       hourlyRate: project?.hourlyRate || "",
       // 実績台帳用の新規フィールド
-      projectType: (project?.projectType as "development" | "ses" | "maintenance" | "other") || "development",
+      projectType: (project?.projectType as ProjectType | undefined) || "development",
       deliveryDate: formatDateForInput(project?.deliveryDate || null),
       invoiceableDate: formatDateForInput(project?.invoiceableDate || null),
       memo: project?.memo || "",
@@ -244,7 +249,7 @@ export function ProjectForm({ project, onSubmit, onCancel, isLoading, isEdit = f
       budget: project.budget || "",
       hourlyRate: project.hourlyRate || "",
       // 実績台帳用の新規フィールド
-      projectType: (project.projectType as "development" | "ses" | "maintenance" | "other") || "development",
+      projectType: (project.projectType as ProjectType | undefined) || "development",
       deliveryDate: formatDateForInput(project.deliveryDate),
       invoiceableDate: formatDateForInput(project.invoiceableDate),
       memo: project.memo || "",

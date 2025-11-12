@@ -36,6 +36,7 @@ interface Schedule {
   checkInTime: string | null
   checkOutTime: string | null
   breakTime: number | null
+  workLocation: "office" | "remote" | null
   reflection: string | null
   plans: Array<{
     id: string
@@ -60,15 +61,16 @@ type ScheduleFormValues = {
   checkInTime?: string
   checkOutTime?: string
   breakTime?: number
+  workLocation?: "office" | "remote" | null
   reflection?: string
   plans: Array<{
     projectId?: string
-    content: string
+    content?: string
     details?: string
   }>
   actuals: Array<{
     projectId?: string
-    content: string
+    content?: string
     hours: number
     details?: string
   }>
@@ -89,11 +91,10 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     if (status === "loading") return
     
-    if (!session) {
+    if (status === "unauthenticated") {
       router.push("/login")
-      return
     }
-  }, [session, status, router])
+  }, [status, router])
 
 
   // ユーザー一覧取得（管理者のみ）
@@ -131,15 +132,18 @@ export default function EditSchedulePage({ params }: { params: Promise<{ id: str
     }
   }, [resolvedParams.id])
 
+  const isAdmin = session?.user?.isAdmin ?? false
+
   useEffect(() => {
-    if (session) {
-      fetchSchedule()
-      // 管理者の場合はユーザー一覧も取得
-      if (session.user.isAdmin) {
-        fetchUsers()
-      }
+    if (status !== "authenticated") return
+
+    fetchSchedule()
+    if (isAdmin) {
+      fetchUsers()
+    } else {
+      setUsers([])
     }
-  }, [session, resolvedParams.id, fetchSchedule])
+  }, [status, isAdmin, fetchSchedule])
 
   // 編集権限チェック
   const canEdit = () => {

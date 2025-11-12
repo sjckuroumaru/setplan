@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Label } from "@/components/ui/label"
 import {
   Card,
   CardContent,
@@ -39,6 +40,8 @@ import {
   User,
   FolderOpen,
   CalendarDays,
+  SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react"
 
 // APIから取得するタスクデータの型定義
@@ -68,12 +71,15 @@ export default function GanttChartPage() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all")
   const [assigneeFilterInitialized, setAssigneeFilterInitialized] = useState(false)
   const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
+  const [appliedProject, setAppliedProject] = useState<string>("all")
+  const [appliedAssignee, setAppliedAssignee] = useState<string>("all")
+  const [appliedDepartment, setAppliedDepartment] = useState<string>("all")
 
   // SWRフックでデータ取得
   const { tasks: rawTasks, isLoading: tasksLoading, isError: tasksError } = useGantt({
-    departmentId: selectedDepartment !== "all" ? selectedDepartment : undefined,
-    projectId: selectedProject !== "all" ? selectedProject : undefined,
-    assigneeId: selectedAssignee !== "all" ? selectedAssignee : undefined,
+    departmentId: appliedDepartment !== "all" ? appliedDepartment : undefined,
+    projectId: appliedProject !== "all" ? appliedProject : undefined,
+    assigneeId: appliedAssignee !== "all" ? appliedAssignee : undefined,
   })
 
   const { projects } = useProjects({
@@ -127,20 +133,54 @@ export default function GanttChartPage() {
 
   // 初期フィルター適用（セッション情報のみで即座に初期化）
   useEffect(() => {
-    if (session && !departmentFilterInitialized && !assigneeFilterInitialized) {
-      // 部署フィルター初期化
-      if (session.user.departmentId) {
-        setSelectedDepartment(session.user.departmentId)
-      }
-      setDepartmentFilterInitialized(true)
+    if (!session) return
 
-      // 担当者フィルター初期化
-      if (!session.user.isAdmin) {
-        setSelectedAssignee(session.user.id)
-      }
+    if (!departmentFilterInitialized && departments.length > 0) {
+      const deptExists = session.user.departmentId
+        ? departments.some((dept) => dept.id === session.user.departmentId)
+        : false
+      const resolvedDept = deptExists ? session.user.departmentId! : "all"
+      setSelectedDepartment(resolvedDept)
+      setAppliedDepartment(resolvedDept)
+      setDepartmentFilterInitialized(true)
+    }
+
+    if (!assigneeFilterInitialized) {
+      const resolvedAssignee = session.user.isAdmin ? "all" : session.user.id
+      setSelectedAssignee(resolvedAssignee)
+      setAppliedAssignee(resolvedAssignee)
       setAssigneeFilterInitialized(true)
     }
-  }, [session, departmentFilterInitialized, assigneeFilterInitialized])
+  }, [session, departments, departmentFilterInitialized, assigneeFilterInitialized])
+
+  const hasPendingFilterChanges =
+    selectedProject !== appliedProject ||
+    selectedAssignee !== appliedAssignee ||
+    selectedDepartment !== appliedDepartment
+
+  const handleApplyFilters = () => {
+    setAppliedProject(selectedProject)
+    setAppliedAssignee(selectedAssignee)
+    setAppliedDepartment(selectedDepartment)
+  }
+
+  const handleClearFilters = () => {
+    if (!session) return
+
+    const deptExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+    const defaultDept = deptExists ? session.user.departmentId! : "all"
+    const defaultAssignee = session.user.isAdmin ? "all" : session.user.id
+
+    setSelectedProject("all")
+    setSelectedAssignee(defaultAssignee)
+    setSelectedDepartment(defaultDept)
+
+    setAppliedProject("all")
+    setAppliedAssignee(defaultAssignee)
+    setAppliedDepartment(defaultDept)
+  }
 
   const handleTaskClick = (task: Task) => {
     // 課題詳細ページへ遷移
@@ -199,51 +239,98 @@ export default function GanttChartPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>タスク一覧</CardTitle>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-4">
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger className="w-full">
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="全案件" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全案件</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.projectName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select key={`assignee-${selectedAssignee}`} value={selectedAssignee} onValueChange={setSelectedAssignee}>
-                <SelectTrigger className="w-full">
-                  <User className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="全担当者" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全担当者</SelectItem>
-                  {assignees.map((assignee) => (
-                    <SelectItem key={assignee.id} value={assignee.id}>
-                      {assignee.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select key={`dept-${selectedDepartment}`} value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="全部署" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部署</SelectItem>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <CardTitle>フィルター</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="project-filter">案件</Label>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger id="project-filter">
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="全案件" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全案件</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.projectName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assignee-filter">担当者</Label>
+                <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+                  <SelectTrigger id="assignee-filter">
+                    <User className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="全担当者" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全担当者</SelectItem>
+                    {assignees.map((assignee) => (
+                      <SelectItem key={assignee.id} value={assignee.id}>
+                        {assignee.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="department-filter">部署</Label>
+                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                  <SelectTrigger id="department-filter">
+                    <SelectValue placeholder="全部署" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部署</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t pt-4 mt-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <SlidersHorizontal className="h-4 w-4" />
+                条件を変更したら「適用」でガントチャートを更新します
+              </div>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  クリア
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  disabled={!departmentFilterInitialized || !assigneeFilterInitialized || !hasPendingFilterChanges}
+                >
+                  適用
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <CardTitle>タスク一覧</CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="view-mode" className="text-sm text-muted-foreground">
+                表示期間
+              </Label>
               <Select value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="view-mode" className="w-[140px]">
                   <CalendarDays className="mr-2 h-4 w-4" />
                   <SelectValue />
                 </SelectTrigger>
@@ -254,6 +341,7 @@ export default function GanttChartPage() {
                   <SelectItem value={ViewMode.Year}>年</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

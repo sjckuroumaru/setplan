@@ -9,14 +9,17 @@ import { recalculateProjectLaborCost } from "@/lib/project-utils"
 const planSchema = z.object({
   id: z.string().optional(), // 既存項目の場合
   projectId: z.string().optional(),
-  content: z.string().min(1, "予定内容は必須です").max(500, "予定内容は500文字以内で入力してください"),
+  content: z.string().max(500, "予定内容は500文字以内で入力してください").optional(),
   details: z.string().max(2000, "詳細は2000文字以内で入力してください").optional(),
 })
 
 const actualSchema = z.object({
   id: z.string().optional(), // 既存項目の場合
   projectId: z.string().optional(),
-  content: z.string().min(1, "実績内容は必須です").max(500, "実績内容は500文字以内で入力してください"),
+  content: z.string()
+    .max(500, "実績内容は500文字以内で入力してください")
+    .trim()
+    .optional(),
   hours: z.number().min(0, "実績時間は0以上で入力してください").max(24, "実績時間は24時間以内で入力してください"),
   details: z.string().max(2000, "詳細は2000文字以内で入力してください").optional(),
 })
@@ -26,6 +29,7 @@ const updateScheduleSchema = z.object({
   checkInTime: z.string().optional(),
   checkOutTime: z.string().optional(),
   breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional(),
+  workLocation: z.enum(["office", "remote"]).nullable().optional(),
   reflection: z.string().max(2000, "所感は2000文字以内で入力してください").optional(),
   plans: z.array(planSchema).optional().default([]),
   actuals: z.array(actualSchema).optional().default([]),
@@ -162,11 +166,16 @@ export async function PUT(
         .filter((id): id is string => id !== null)
 
       // 日別基本情報を更新
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         checkInTime: validatedData.checkInTime,
         checkOutTime: validatedData.checkOutTime,
         breakTime: validatedData.breakTime,
         reflection: validatedData.reflection,
+      }
+
+      // 出社・在宅の選択値を更新（送信されている場合のみ上書き）
+      if (validatedData.workLocation !== undefined) {
+        updateData.workLocation = validatedData.workLocation
       }
 
       // 管理者の場合のみuserIdを更新
@@ -184,13 +193,17 @@ export async function PUT(
         where: { scheduleId: id },
       })
 
+      const sanitizedPlans = validatedData.plans.filter(
+        (plan) => plan.content && plan.content.trim().length > 0
+      )
+
       // 新しい予定項目を作成
-      if (validatedData.plans.length > 0) {
+      if (sanitizedPlans.length > 0) {
         await tx.schedulePlan.createMany({
-          data: validatedData.plans.map((plan, index) => ({
+          data: sanitizedPlans.map((plan, index) => ({
             scheduleId: id,
             projectId: plan.projectId,
-            content: plan.content,
+            content: plan.content?.trim() ?? "",
             details: plan.details,
             displayOrder: index,
           })),
@@ -207,10 +220,15 @@ export async function PUT(
         .map(actual => actual.projectId)
         .filter((id): id is string => id !== undefined)
 
+      const sanitizedActuals = validatedData.actuals.map((actual) => ({
+        ...actual,
+        content: actual.content?.trim() ?? "",
+      }))
+
       // 新しい実績項目を作成
-      if (validatedData.actuals.length > 0) {
+      if (sanitizedActuals.length > 0) {
         await tx.scheduleActual.createMany({
-          data: validatedData.actuals.map((actual, index) => ({
+          data: sanitizedActuals.map((actual, index) => ({
             scheduleId: id,
             projectId: actual.projectId,
             content: actual.content,

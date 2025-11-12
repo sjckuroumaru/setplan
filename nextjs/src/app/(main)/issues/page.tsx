@@ -72,7 +72,9 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   MinusCircle,
-  Flag
+  Flag,
+  SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react"
 
 // ステータスの定義
@@ -113,17 +115,23 @@ export default function IssuesPage() {
   const [deleteIssueId, setDeleteIssueId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [filtersInitialized, setFiltersInitialized] = useState(false)
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("")
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState("all")
+  const [appliedPriorityFilter, setAppliedPriorityFilter] = useState("all")
+  const [appliedProjectFilter, setAppliedProjectFilter] = useState("all")
+  const [appliedAssigneeFilter, setAppliedAssigneeFilter] = useState("all")
+  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState("all")
 
   // SWRフックでデータ取得
   const { issues, pagination: swrPagination, isLoading, isError, mutate } = useIssues({
     page: currentPage,
     limit: pagination.limit,
-    status: statusFilter !== "all" ? statusFilter : undefined,
-    priority: priorityFilter !== "all" ? priorityFilter : undefined,
-    projectId: projectFilter !== "all" ? projectFilter : undefined,
-    assigneeId: assigneeFilter !== "all" ? assigneeFilter : undefined,
-    departmentId: departmentFilter !== "all" ? departmentFilter : undefined,
-    searchQuery: searchQuery || undefined,
+    status: appliedStatusFilter !== "all" ? appliedStatusFilter : undefined,
+    priority: appliedPriorityFilter !== "all" ? appliedPriorityFilter : undefined,
+    projectId: appliedProjectFilter !== "all" ? appliedProjectFilter : undefined,
+    assigneeId: appliedAssigneeFilter !== "all" ? appliedAssigneeFilter : undefined,
+    departmentId: appliedDepartmentFilter !== "all" ? appliedDepartmentFilter : undefined,
+    searchQuery: appliedSearchQuery || undefined,
   })
 
   const { projects } = useProjects({ page: 1, limit: 1000, enabled: filtersInitialized })
@@ -156,28 +164,21 @@ export default function IssuesPage() {
 
     // 部署フィルターの設定
     const userDeptId = session.user.departmentId
-    if (userDeptId) {
-      // ユーザーの所属部署が実際に存在するか確認
-      const deptExists = departments.some(dept => dept.id === userDeptId)
-      if (deptExists) {
-        setDepartmentFilter(userDeptId)
-      } else {
-        // 部署が見つからない場合は"all"を設定
-        console.warn(`ユーザーの部署ID ${userDeptId} が部署リストに見つかりません`)
-        setDepartmentFilter("all")
-      }
-    } else {
-      // departmentIdが設定されていない場合は"all"を設定
-      setDepartmentFilter("all")
-    }
+    const deptExists = userDeptId ? departments.some((dept) => dept.id === userDeptId) : false
+    const resolvedDept = deptExists ? userDeptId! : "all"
+    const resolvedAssignee = session.user.isAdmin ? "all" : session.user.id
 
-    // 担当者フィルターの設定（管理者以外は自身のIDをデフォルト設定）
-    if (!session.user.isAdmin) {
-      setAssigneeFilter(session.user.id)
-    }
+    setDepartmentFilter(resolvedDept)
+    setAppliedDepartmentFilter(resolvedDept)
+    setAssigneeFilter(resolvedAssignee)
+    setAppliedAssigneeFilter(resolvedAssignee)
+    setAppliedSearchQuery(searchQuery)
+    setAppliedStatusFilter(statusFilter)
+    setAppliedPriorityFilter(priorityFilter)
+    setAppliedProjectFilter(projectFilter)
 
     setFiltersInitialized(true)
-  }, [session, filtersInitialized, departments])
+  }, [session, filtersInitialized, departments, searchQuery, statusFilter, priorityFilter, projectFilter])
 
   // SWRのpaginationで更新
   useEffect(() => {
@@ -196,7 +197,59 @@ export default function IssuesPage() {
     if (session) {
       resetToFirstPage()
     }
-  }, [searchQuery, statusFilter, priorityFilter, projectFilter, assigneeFilter, departmentFilter, resetToFirstPage, session])
+  }, [
+    appliedSearchQuery,
+    appliedStatusFilter,
+    appliedPriorityFilter,
+    appliedProjectFilter,
+    appliedAssigneeFilter,
+    appliedDepartmentFilter,
+    resetToFirstPage,
+    session,
+  ])
+
+  const hasPendingFilterChanges =
+    searchQuery !== appliedSearchQuery ||
+    statusFilter !== appliedStatusFilter ||
+    priorityFilter !== appliedPriorityFilter ||
+    projectFilter !== appliedProjectFilter ||
+    assigneeFilter !== appliedAssigneeFilter ||
+    departmentFilter !== appliedDepartmentFilter
+
+  const handleApplyFilters = () => {
+    const normalizedSearch = searchQuery.trim()
+    setSearchQuery(normalizedSearch)
+    setAppliedSearchQuery(normalizedSearch)
+    setAppliedStatusFilter(statusFilter)
+    setAppliedPriorityFilter(priorityFilter)
+    setAppliedProjectFilter(projectFilter)
+    setAppliedAssigneeFilter(assigneeFilter)
+    setAppliedDepartmentFilter(departmentFilter)
+  }
+
+  const handleClearFilters = () => {
+    if (!session) return
+
+    const deptExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+    const defaultDept = deptExists ? session.user.departmentId! : "all"
+    const defaultAssignee = session.user.isAdmin ? "all" : session.user.id
+
+    setSearchQuery("")
+    setStatusFilter("all")
+    setPriorityFilter("all")
+    setProjectFilter("all")
+    setAssigneeFilter(defaultAssignee)
+    setDepartmentFilter(defaultDept)
+
+    setAppliedSearchQuery("")
+    setAppliedStatusFilter("all")
+    setAppliedPriorityFilter("all")
+    setAppliedProjectFilter("all")
+    setAppliedAssigneeFilter(defaultAssignee)
+    setAppliedDepartmentFilter(defaultDept)
+  }
 
   // 課題削除
   const handleDelete = async () => {
@@ -259,9 +312,9 @@ export default function IssuesPage() {
 
       {/* 統計カード */}
       <IssueStats
-        departmentId={departmentFilter}
-        projectId={projectFilter}
-        assigneeId={assigneeFilter}
+        departmentId={appliedDepartmentFilter}
+        projectId={appliedProjectFilter}
+        assigneeId={appliedAssigneeFilter}
       />
 
       {/* フィルター */}
@@ -370,6 +423,26 @@ export default function IssuesPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t pt-4 mt-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <SlidersHorizontal className="h-4 w-4" />
+                条件を変更したら「適用」で一覧を更新します
+              </div>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={handleClearFilters}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  クリア
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyFilters}
+                  disabled={!filtersInitialized || !hasPendingFilterChanges}
+                >
+                  適用
+                </Button>
               </div>
             </div>
           </div>
