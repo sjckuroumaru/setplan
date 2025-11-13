@@ -35,12 +35,21 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAdmin = await checkAdminPermission()
-    if (!isAdmin) {
-      return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 })
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
     }
 
     const { id } = await params
+
+    // 管理者または自分自身の情報のみ取得可能
+    const isAdmin = session.user?.isAdmin ?? false
+    const isOwnProfile = session.user?.id === id
+
+    if (!isAdmin && !isOwnProfile) {
+      return NextResponse.json({ error: "アクセス権限がありません" }, { status: 403 })
+    }
 
     const user = await prisma.user.findUnique({
       where: { id },
@@ -84,14 +93,23 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAdmin = await checkAdminPermission()
-    if (!isAdmin) {
-      return NextResponse.json({ error: "管理者権限が必要です" }, { status: 403 })
+    const session = await getServerSession(authOptions)
+
+    if (!session) {
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 })
     }
 
     const { id } = await params
     const body = await request.json()
     const validatedData = updateUserSchema.parse(body)
+
+    // 管理者または自分自身の情報のみ更新可能
+    const isAdmin = session.user?.isAdmin ?? false
+    const isOwnProfile = session.user?.id === id
+
+    if (!isAdmin && !isOwnProfile) {
+      return NextResponse.json({ error: "アクセス権限がありません" }, { status: 403 })
+    }
 
     // 存在チェック
     const existingUser = await prisma.user.findUnique({
@@ -138,7 +156,7 @@ export async function PUT(
       } else if (duplicateUser.email === validatedData.email) {
         errorMessage += "メールアドレス"
       }
-      
+
       return NextResponse.json({ error: errorMessage }, { status: 400 })
     }
 
@@ -151,8 +169,12 @@ export async function PUT(
       firstName: validatedData.firstName,
       department: validatedData.department,
       departmentId: validatedData.departmentId === null ? null : validatedData.departmentId,
-      isAdmin: validatedData.isAdmin,
-      status: validatedData.status,
+    }
+
+    // 管理者のみがisAdminとstatusを更新可能
+    if (isAdmin) {
+      updateData.isAdmin = validatedData.isAdmin
+      updateData.status = validatedData.status
     }
 
     // パスワードが提供された場合のみ更新
@@ -190,7 +212,7 @@ export async function PUT(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues }, { status: 400 })
     }
-    
+
     console.warn("User update error:", error)
     return NextResponse.json({ error: "ユーザーの更新に失敗しました" }, { status: 500 })
   }

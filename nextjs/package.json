@@ -17,7 +17,6 @@
     "test:e2e:open": "cypress open",
     "studio:test": "DATABASE_URL=\"postgresql://setplan_user:setplan_password@localhost:5433/setplan_test_db?schema=public\" npx prisma studio",
     "dev:test": "DATABASE_URL=\"postgresql://setplan_user:setplan_password@localhost:5433/setplan_test_db?schema=public\" next dev --turbopack"
-
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
@@ -61,6 +60,7 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
     "recharts": "^3.2.1",
+    "resend": "^6.4.2",
     "sonner": "^2.0.7",
     "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",

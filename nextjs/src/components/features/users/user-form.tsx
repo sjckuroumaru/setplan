@@ -79,9 +79,10 @@ interface UserFormProps {
   onCancel: () => void
   isLoading: boolean
   isEdit?: boolean
+  isAdmin?: boolean
 }
 
-export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }: UserFormProps) {
+export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false, isAdmin = true }: UserFormProps) {
   // 編集モードかどうかに応じて適切なスキーマを選択
   const formSchema = isEdit ? editUserFormSchema : createUserFormSchema
   const [sealImageUrl, setSealImageUrl] = useState<string | null>(user?.sealImagePath || null)
@@ -375,48 +376,52 @@ export function UserForm({ user, onSubmit, onCancel, isLoading, isEdit = false }
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ステータス</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="active">有効</SelectItem>
-                          <SelectItem value="inactive">無効</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {isAdmin && (
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ステータス</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="active">有効</SelectItem>
+                            <SelectItem value="inactive">無効</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
-                <FormField
-                  control={form.control}
-                  name="isAdmin"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">管理者権限</FormLabel>
-                        <FormDescription>
-                          管理者権限を持つユーザーは、すべてのユーザー管理機能にアクセスできます
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                {isAdmin && (
+                  <FormField
+                    control={form.control}
+                    name="isAdmin"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">管理者権限</FormLabel>
+                          <FormDescription>
+                            管理者権限を持つユーザーは、すべてのユーザー管理機能にアクセスできます
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
             </div>
 

@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LogOut, Settings, User, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSession, signOut } from "next-auth/react"
+import Link from "next/link"
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -71,9 +72,11 @@ export function Header({ onMenuClick, className }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>プロフィール</span>
+              <DropdownMenuItem asChild>
+                <Link href={`/users/${session?.user?.id}/edit`}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>プロフィール</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />

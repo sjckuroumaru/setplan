@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { signIn } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -97,8 +98,11 @@ function LoginForm() {
                 variant="link"
                 className="px-0 text-sm text-muted-foreground"
                 disabled={isLoading}
+                asChild
               >
-                パスワードをお忘れですか？
+                <Link href="/forgot-password">
+                  パスワードをお忘れですか？
+                </Link>
               </Button>
             </div>
           </CardContent>

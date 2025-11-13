@@ -536,3 +536,15 @@ model Department {
 
   @@map("departments")
 }
+
+// パスワードリセットトークンテーブル
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}

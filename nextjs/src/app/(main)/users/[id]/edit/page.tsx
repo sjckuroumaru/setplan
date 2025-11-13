@@ -53,20 +53,21 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   const hasFetchedUser = useRef(false)
   const previousUserId = useRef<string | null>(null)
 
-  // 管理者権限チェック
+  // 権限チェック（管理者または自分自身のプロフィールのみアクセス可能）
   useEffect(() => {
     if (status === "loading") return
-    
+
     if (!session) {
       router.push("/login")
       return
     }
-    
-    if (!session.user?.isAdmin) {
+
+    const isOwnProfile = session.user?.id === id
+    if (!session.user?.isAdmin && !isOwnProfile) {
       router.push("/dashboard")
       return
     }
-  }, [session, status, router])
+  }, [session, status, router, id])
 
   // ユーザー情報取得
   const fetchUser = useCallback(async () => {
@@ -91,7 +92,12 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
   }, [id])
 
   useEffect(() => {
-    if (status !== "authenticated" || !isAdmin) {
+    if (status !== "authenticated") {
+      return
+    }
+
+    const isOwnProfile = session?.user?.id === id
+    if (!isAdmin && !isOwnProfile) {
       return
     }
 
@@ -106,7 +112,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
 
     hasFetchedUser.current = true
     fetchUser()
-  }, [status, isAdmin, id, fetchUser])
+  }, [status, isAdmin, id, fetchUser, session?.user?.id])
 
   const handleSubmit = async (data: UserFormValues) => {
     try {
@@ -150,7 +156,10 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
     router.push("/users")
   }
 
-  if (status === "loading" || !session?.user?.isAdmin || loading) {
+  const isOwnProfile = session?.user?.id === id
+  const hasAccess = isAdmin || isOwnProfile
+
+  if (status === "loading" || !hasAccess || loading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -211,6 +220,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
           onCancel={handleCancel}
           isLoading={isLoading}
           isEdit={true}
+          isAdmin={isAdmin}
         />
       )}
     </div>
