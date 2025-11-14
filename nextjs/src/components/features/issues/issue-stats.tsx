@@ -12,9 +12,9 @@ import {
 } from "lucide-react"
 
 interface IssueStatsProps {
-  departmentId?: string
+  departmentId?: string[]
   projectId?: string
-  assigneeId?: string
+  assigneeId?: string[]
 }
 
 interface Stats {
@@ -42,14 +42,14 @@ export function IssueStats({ departmentId, projectId, assigneeId }: IssueStatsPr
           limit: "10000", // すべての課題を取得
         })
 
-        if (departmentId && departmentId !== "all") {
-          params.append("departmentId", departmentId)
+        if (departmentId && departmentId.length > 0) {
+          departmentId.forEach(id => params.append("departmentId", id))
         }
         if (projectId && projectId !== "all") {
           params.append("projectId", projectId)
         }
-        if (assigneeId && assigneeId !== "all") {
-          params.append("assigneeId", assigneeId)
+        if (assigneeId && assigneeId.length > 0) {
+          assigneeId.forEach(id => params.append("assigneeId", id))
         }
 
         const response = await fetch(`/api/issues?${params.toString()}`)

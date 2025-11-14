@@ -67,7 +67,11 @@ export function useActiveProjects({ showAllProjects = false, enabled = true }: U
         setError(null)
 
         // URLパラメータを構築
-        const params = new URLSearchParams({ activeOnly: 'true' })
+        const params = new URLSearchParams({
+          activeOnly: 'true',
+          sortBy: 'projectNumber',
+          sortOrder: 'asc'
+        })
 
         // showAllProjectsがfalseで、かつユーザーにdepartmentIdがある場合、部署フィルタを適用
         if (!showAllProjects && departmentId) {
@@ -103,7 +107,11 @@ export function useActiveProjects({ showAllProjects = false, enabled = true }: U
           setIsLoading(true)
           setError(null)
 
-          const params = new URLSearchParams({ activeOnly: 'true' })
+          const params = new URLSearchParams({
+            activeOnly: 'true',
+            sortBy: 'projectNumber',
+            sortOrder: 'asc'
+          })
 
           if (!showAllProjects && departmentId) {
             params.append('departmentId', departmentId)

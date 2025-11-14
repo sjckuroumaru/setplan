@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { MultiSelect } from "@/components/ui/multi-select"
 import {
   Card,
   CardContent,
@@ -110,8 +111,8 @@ export default function IssuesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [projectFilter, setProjectFilter] = useState("all")
-  const [assigneeFilter, setAssigneeFilter] = useState("all")
-  const [departmentFilter, setDepartmentFilter] = useState("all")
+  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([])
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([])
   const [deleteIssueId, setDeleteIssueId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [filtersInitialized, setFiltersInitialized] = useState(false)
@@ -119,8 +120,8 @@ export default function IssuesPage() {
   const [appliedStatusFilter, setAppliedStatusFilter] = useState("all")
   const [appliedPriorityFilter, setAppliedPriorityFilter] = useState("all")
   const [appliedProjectFilter, setAppliedProjectFilter] = useState("all")
-  const [appliedAssigneeFilter, setAppliedAssigneeFilter] = useState("all")
-  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState("all")
+  const [appliedAssigneeFilter, setAppliedAssigneeFilter] = useState<string[]>([])
+  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState<string[]>([])
 
   // SWRフックでデータ取得
   const { issues, pagination: swrPagination, isLoading, isError, mutate } = useIssues({
@@ -129,8 +130,8 @@ export default function IssuesPage() {
     status: appliedStatusFilter !== "all" ? appliedStatusFilter : undefined,
     priority: appliedPriorityFilter !== "all" ? appliedPriorityFilter : undefined,
     projectId: appliedProjectFilter !== "all" ? appliedProjectFilter : undefined,
-    assigneeId: appliedAssigneeFilter !== "all" ? appliedAssigneeFilter : undefined,
-    departmentId: appliedDepartmentFilter !== "all" ? appliedDepartmentFilter : undefined,
+    assigneeIds: appliedAssigneeFilter.length > 0 ? appliedAssigneeFilter : undefined,
+    departmentIds: appliedDepartmentFilter.length > 0 ? appliedDepartmentFilter : undefined,
     searchQuery: appliedSearchQuery || undefined,
   })
 
@@ -165,8 +166,8 @@ export default function IssuesPage() {
     // 部署フィルターの設定
     const userDeptId = session.user.departmentId
     const deptExists = userDeptId ? departments.some((dept) => dept.id === userDeptId) : false
-    const resolvedDept = deptExists ? userDeptId! : "all"
-    const resolvedAssignee = session.user.isAdmin ? "all" : session.user.id
+    const resolvedDept = deptExists ? [userDeptId!] : []
+    const resolvedAssignee = session.user.isAdmin ? [] : [session.user.id]
 
     setDepartmentFilter(resolvedDept)
     setAppliedDepartmentFilter(resolvedDept)
@@ -194,9 +195,7 @@ export default function IssuesPage() {
 
   // フィルター変更時にページを1に戻す
   useEffect(() => {
-    if (session) {
-      resetToFirstPage()
-    }
+    resetToFirstPage()
   }, [
     appliedSearchQuery,
     appliedStatusFilter,
@@ -205,7 +204,6 @@ export default function IssuesPage() {
     appliedAssigneeFilter,
     appliedDepartmentFilter,
     resetToFirstPage,
-    session,
   ])
 
   const hasPendingFilterChanges =
@@ -213,8 +211,8 @@ export default function IssuesPage() {
     statusFilter !== appliedStatusFilter ||
     priorityFilter !== appliedPriorityFilter ||
     projectFilter !== appliedProjectFilter ||
-    assigneeFilter !== appliedAssigneeFilter ||
-    departmentFilter !== appliedDepartmentFilter
+    JSON.stringify(assigneeFilter) !== JSON.stringify(appliedAssigneeFilter) ||
+    JSON.stringify(departmentFilter) !== JSON.stringify(appliedDepartmentFilter)
 
   const handleApplyFilters = () => {
     const normalizedSearch = searchQuery.trim()
@@ -233,8 +231,8 @@ export default function IssuesPage() {
     const deptExists = session.user.departmentId
       ? departments.some((dept) => dept.id === session.user.departmentId)
       : false
-    const defaultDept = deptExists ? session.user.departmentId! : "all"
-    const defaultAssignee = session.user.isAdmin ? "all" : session.user.id
+    const defaultDept = deptExists ? [session.user.departmentId!] : []
+    const defaultAssignee = session.user.isAdmin ? [] : [session.user.id]
 
     setSearchQuery("")
     setStatusFilter("all")
@@ -392,37 +390,31 @@ export default function IssuesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="assignee-filter">担当者</Label>
-                <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                  <SelectTrigger id="assignee-filter">
-                    <SelectValue placeholder="担当者を選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">すべて</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="assignee-filter">担当者（複数選択可）</Label>
+                <MultiSelect
+                  options={users.map((user) => ({
+                    label: user.name,
+                    value: user.id,
+                  }))}
+                  selected={assigneeFilter}
+                  onChange={setAssigneeFilter}
+                  placeholder="担当者を選択"
+                  emptyMessage="担当者が見つかりません"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="department-filter">部署</Label>
-                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                  <SelectTrigger id="department-filter">
-                    <SelectValue placeholder="部署を選択" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">すべて</SelectItem>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="department-filter">部署（複数選択可）</Label>
+                <MultiSelect
+                  options={departments.map((dept) => ({
+                    label: dept.name,
+                    value: dept.id,
+                  }))}
+                  selected={departmentFilter}
+                  onChange={setDepartmentFilter}
+                  placeholder="部署を選択"
+                  emptyMessage="部署が見つかりません"
+                />
               </div>
             </div>
 

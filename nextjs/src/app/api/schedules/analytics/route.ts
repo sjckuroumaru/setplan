@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
                 id: true,
                 projectNumber: true,
                 projectName: true,
+                projectType: true,
                 departmentId: true,
                 department: {
                   select: {
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
     // ユーザー別案件別実績時間の集計
     const userProjectHours: any = {}
     const projectTotals: any = {}
+    const projectNumbers: any = {} // 案件番号を保存
     const departmentTotals: any = {}
     const tableData: any[] = []
     const filteredUserIds = new Set<string>() // フィルター適用後のユーザーID
@@ -125,6 +127,8 @@ export async function GET(request: NextRequest) {
         }
 
         const projectName = actual.project?.projectName || "その他"
+        const projectNumber = actual.project?.projectNumber || "ZZZ" // ソート用に大きな値を設定
+        const projectType = actual.project?.projectType || "other"
 
         // フィルター適用後のユーザーIDを記録
         filteredUserIds.add(schedule.userId)
@@ -135,10 +139,11 @@ export async function GET(request: NextRequest) {
         }
         userProjectHours[userName][projectName] += actual.hours
         userProjectHours[userName].total += actual.hours
-        
-        // 案件別総計
+
+        // 案件別総計と案件番号を保存
         if (!projectTotals[projectName]) {
           projectTotals[projectName] = 0
+          projectNumbers[projectName] = projectNumber
         }
         projectTotals[projectName] += actual.hours
 
@@ -150,12 +155,12 @@ export async function GET(request: NextRequest) {
         departmentTotals[departmentName] += actual.hours
 
         // 表分析用データ
-        const existingEntry = tableData.find(entry => 
-          entry.yearMonth === yearMonth && 
-          entry.userName === userName && 
+        const existingEntry = tableData.find(entry =>
+          entry.yearMonth === yearMonth &&
+          entry.userName === userName &&
           entry.projectName === projectName
         )
-        
+
         if (existingEntry) {
           existingEntry.totalHours += actual.hours
         } else {
@@ -163,6 +168,8 @@ export async function GET(request: NextRequest) {
             yearMonth,
             userName,
             projectName,
+            projectNumber, // 案件番号を追加
+            projectType, // 案件種別を追加
             totalHours: actual.hours
           })
         }
@@ -172,13 +179,16 @@ export async function GET(request: NextRequest) {
     // レスポンスデータの整形
     const userProjectData = Object.values(userProjectHours)
     
-    // 案件別配分データ
+    // 案件別配分データ（案件番号順にソート）
     const totalHours = Object.values(projectTotals).reduce((sum: number, hours: any) => sum + hours, 0)
-    const projectDistribution = Object.entries(projectTotals).map(([name, value]: [string, any]) => ({
-      name,
-      value,
-      percentage: Math.round((value / totalHours) * 100)
-    }))
+    const projectDistribution = Object.entries(projectTotals)
+      .map(([name, value]: [string, any]) => ({
+        name,
+        value,
+        percentage: Math.round((value / totalHours) * 100),
+        projectNumber: projectNumbers[name] || "ZZZ" // ソート用
+      }))
+      .sort((a, b) => a.projectNumber.localeCompare(b.projectNumber)) // 案件番号順にソート
 
     // 部署別配分データ
     const departmentDistribution = Object.entries(departmentTotals).map(([name, value]: [string, any]) => ({
@@ -187,7 +197,7 @@ export async function GET(request: NextRequest) {
       percentage: totalHours > 0 ? Math.round((value / totalHours) * 100) : 0
     }))
 
-    // 表分析データのソート（年月→名前→合計時間の降順）
+    // 表分析データのソート（年月→名前→案件番号の順）
     const sortedTableData = tableData.sort((a, b) => {
       if (a.yearMonth !== b.yearMonth) {
         return b.yearMonth.localeCompare(a.yearMonth) // 年月降順
@@ -195,7 +205,7 @@ export async function GET(request: NextRequest) {
       if (a.userName !== b.userName) {
         return a.userName.localeCompare(b.userName) // 名前昇順
       }
-      return b.totalHours - a.totalHours // 合計時間降順
+      return a.projectNumber.localeCompare(b.projectNumber) // 案件番号昇順
     })
 
     // 統計データ（フィルター適用後のデータで計算）

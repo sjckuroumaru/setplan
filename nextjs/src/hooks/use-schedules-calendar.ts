@@ -5,6 +5,8 @@ interface UseSchedulesCalendarParams {
   startDate: string
   endDate: string
   userId?: string
+  departmentIds?: string[]
+  enabled?: boolean
 }
 
 interface CalendarSchedule {
@@ -61,8 +63,12 @@ export function useSchedulesCalendar(params: UseSchedulesCalendarParams) {
     queryParams.append('userId', params.userId)
   }
 
+  if (params.departmentIds && params.departmentIds.length > 0) {
+    queryParams.append('departmentIds', params.departmentIds.join(','))
+  }
+
   const { data, error, isLoading, mutate } = useSWR<SchedulesCalendarResponse>(
-    `/api/schedules/calendar?${queryParams}`,
+    params.enabled !== false ? `/api/schedules/calendar?${queryParams}` : null,
     fetcher,
     {
       revalidateOnFocus: false,

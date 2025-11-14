@@ -7,8 +7,8 @@ interface UseIssuesParams {
   status?: string
   priority?: string
   projectId?: string
-  assigneeId?: string
-  departmentId?: string
+  assigneeIds?: string[]
+  departmentIds?: string[]
   searchQuery?: string
 }
 
@@ -58,8 +58,14 @@ export function useIssues(params: UseIssuesParams) {
   if (params.status) queryParams.append('status', params.status)
   if (params.priority) queryParams.append('priority', params.priority)
   if (params.projectId) queryParams.append('projectId', params.projectId)
-  if (params.assigneeId) queryParams.append('assigneeId', params.assigneeId)
-  if (params.departmentId) queryParams.append('departmentId', params.departmentId)
+
+  if (params.assigneeIds && params.assigneeIds.length > 0) {
+    params.assigneeIds.forEach(id => queryParams.append('assigneeId', id))
+  }
+  if (params.departmentIds && params.departmentIds.length > 0) {
+    params.departmentIds.forEach(id => queryParams.append('departmentId', id))
+  }
+
   if (params.searchQuery) queryParams.append('search', params.searchQuery)
 
   const { data, error, isLoading, mutate } = useSWR<IssuesResponse>(

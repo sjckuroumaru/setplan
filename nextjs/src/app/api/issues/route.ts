@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const priority = searchParams.get("priority")
     const projectId = searchParams.get("projectId")
-    const assigneeId = searchParams.get("assigneeId")
-    const departmentId = searchParams.get("departmentId")
+    const assigneeIds = searchParams.getAll("assigneeId")
+    const departmentIds = searchParams.getAll("departmentId")
     const search = searchParams.get("search")
 
     const offset = (page - 1) * limit
@@ -68,13 +68,13 @@ export async function GET(request: NextRequest) {
       where.projectId = projectId
     }
 
-    if (assigneeId && assigneeId !== "all") {
-      where.assigneeId = assigneeId
+    if (assigneeIds.length > 0) {
+      where.assigneeId = { in: assigneeIds }
     }
 
-    if (departmentId && departmentId !== "all") {
+    if (departmentIds.length > 0) {
       where.project = {
-        departmentId: departmentId
+        departmentId: { in: departmentIds }
       }
     }
 

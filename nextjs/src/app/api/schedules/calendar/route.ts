@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const userId = searchParams.get("userId")
+    const departmentIdsParam = searchParams.get("departmentIds")
 
     if (!startDate || !endDate) {
       return NextResponse.json({ error: "開始日と終了日は必須です" }, { status: 400 })
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     // フィルター条件（日本時間対応）
     const startDateTime = new Date(startDate + 'T00:00:00.000+09:00')
     const endDateTime = new Date(endDate + 'T23:59:59.999+09:00')
-    
+
     const where: any = {
       scheduleDate: {
         gte: startDateTime,
@@ -44,6 +45,18 @@ export async function GET(request: NextRequest) {
     // ユーザーフィルター
     if (userId && userId !== "all") {
       where.userId = userId
+    }
+
+    // 部署フィルター
+    if (departmentIdsParam) {
+      const departmentIds = departmentIdsParam.split(',').filter(Boolean)
+      if (departmentIds.length > 0) {
+        where.user = {
+          departmentId: {
+            in: departmentIds
+          }
+        }
+      }
     }
 
     const schedules = await prisma.dailySchedule.findMany({

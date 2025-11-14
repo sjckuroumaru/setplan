@@ -19,16 +19,16 @@ const actualSchema = z.object({
     .max(500, "実績内容は500文字以内で入力してください")
     .trim()
     .optional(),
-  hours: z.number().min(0, "実績時間は0以上で入力してください").max(24, "実績時間は24時間以内で入力してください"),
+  hours: z.number().min(0, "実績時間は0以上で入力してください").max(24, "実績時間は24時間以内で入力してください").default(0),
   details: z.string().max(2000, "詳細は2000文字以内で入力してください").optional(),
 })
 
 const createScheduleSchema = z.object({
   scheduleDate: z.string().min(1, "日付は必須です"),
-  checkInTime: z.string().optional(),
-  checkOutTime: z.string().optional(),
-  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional().default(1.0),
-  workLocation: z.enum(["office", "remote"]).nullable().optional(),
+  checkInTime: z.string().nullable().optional(),
+  checkOutTime: z.string().nullable().optional(),
+  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").nullable().optional(),
+  workLocation: z.enum(["office", "remote", "client_site", "business_trip", "paid_leave"]),
   reflection: z.string().max(2000, "所感は2000文字以内で入力してください").optional(),
   plans: z.array(planSchema).optional().default([]),
   actuals: z.array(actualSchema).optional().default([]),
@@ -59,9 +59,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || config.pagination.defaultLimit.toString())
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
-    const userId = searchParams.get("userId")
-    const departmentId = searchParams.get("departmentId")
+    const userIds = searchParams.getAll("userId")
+    const departmentIds = searchParams.getAll("departmentId")
     const search = searchParams.get("search")
+    const sortBy = searchParams.get("sortBy") || "scheduleDate"
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc"
 
     const skip = (page - 1) * limit
 
@@ -69,19 +71,19 @@ export async function GET(request: NextRequest) {
     const where: any = {}
     const andConditions: any[] = []
 
-    // ユーザーフィルター
-    if (userId) {
-      where.userId = userId
+    // ユーザーフィルター（複数対応）
+    if (userIds.length > 0) {
+      where.userId = { in: userIds }
     }
 
-    // 部署フィルター（ユーザーの部署 または プロジェクトの部署）
-    if (departmentId && departmentId !== "all") {
+    // 部署フィルター（複数対応）
+    if (departmentIds.length > 0) {
       andConditions.push({
         OR: [
           // その部署に所属するユーザーのスケジュール
           {
             user: {
-              departmentId: departmentId,
+              departmentId: { in: departmentIds },
             },
           },
           // その部署のプロジェクトが割り当てられているスケジュール
@@ -89,7 +91,7 @@ export async function GET(request: NextRequest) {
             plans: {
               some: {
                 project: {
-                  departmentId: departmentId,
+                  departmentId: { in: departmentIds },
                 },
               },
             },
@@ -98,7 +100,7 @@ export async function GET(request: NextRequest) {
             actuals: {
               some: {
                 project: {
-                  departmentId: departmentId,
+                  departmentId: { in: departmentIds },
                 },
               },
             },
@@ -156,6 +158,18 @@ export async function GET(request: NextRequest) {
       where.AND = andConditions
     }
 
+    // ソート条件の構築
+    let orderBy: any = { scheduleDate: sortOrder }
+    if (sortBy === "userName") {
+      orderBy = [
+        { user: { lastName: sortOrder } },
+        { user: { firstName: sortOrder } },
+        { scheduleDate: "desc" as const }, // 第2ソートキー
+      ]
+    } else if (sortBy === "scheduleDate") {
+      orderBy = { scheduleDate: sortOrder }
+    }
+
     const [schedules, total] = await Promise.all([
       prisma.dailySchedule.findMany({
         where,
@@ -207,7 +221,7 @@ export async function GET(request: NextRequest) {
             orderBy: { displayOrder: "asc" },
           },
         },
-        orderBy: { scheduleDate: "desc" },
+        orderBy,
         skip,
         take: limit,
       }),
@@ -304,7 +318,7 @@ export async function POST(request: NextRequest) {
           scheduleDate: new Date(validatedData.scheduleDate),
           checkInTime: validatedData.checkInTime,
           checkOutTime: validatedData.checkOutTime,
-          breakTime: validatedData.breakTime,
+          breakTime: validatedData.breakTime ?? 0.0,
           workLocation: validatedData.workLocation,
           reflection: validatedData.reflection,
         },

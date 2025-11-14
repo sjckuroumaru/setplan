@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { MultiSelect } from "@/components/ui/multi-select"
 import {
   Table,
   TableBody,
@@ -39,7 +40,6 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import {
   Plus,
@@ -54,12 +54,20 @@ import {
   Copy,
   SlidersHorizontal,
   RotateCcw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react"
 
 const workLocationLabels = {
   office: "出社",
   remote: "在宅",
+  client_site: "客先常駐",
+  business_trip: "外出",
+  paid_leave: "有給休暇",
 }
+
+type SortColumn = "scheduleDate" | "userName"
 
 export default function SchedulesPage() {
   const { data: session, status } = useSession()
@@ -75,29 +83,34 @@ export default function SchedulesPage() {
     hasNextPage,
   } = usePagination({ defaultLimit: config.pagination.defaultLimit })
   const [searchQuery, setSearchQuery] = useState("")
-  const [userFilter, setUserFilter] = useState("all")
-  const [departmentFilter, setDepartmentFilter] = useState("all")
+  const [userFilter, setUserFilter] = useState<string[]>([])
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([])
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [deleteScheduleId, setDeleteScheduleId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [duplicateScheduleId, setDuplicateScheduleId] = useState<string | null>(null)
   const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
   const [appliedSearchQuery, setAppliedSearchQuery] = useState("")
-  const [appliedUserFilter, setAppliedUserFilter] = useState("all")
-  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState("all")
+  const [appliedUserFilter, setAppliedUserFilter] = useState<string[]>([])
+  const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState<string[]>([])
   const [appliedStartDate, setAppliedStartDate] = useState("")
   const [appliedEndDate, setAppliedEndDate] = useState("")
+  const [sortBy, setSortBy] = useState<SortColumn>("scheduleDate")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
   // SWRフックでデータ取得
   // フィルターの初期化が完了するまでAPIリクエストをスキップ
   const { schedules, pagination: swrPagination, isLoading, isError, mutate } = useSchedules({
     page: currentPage,
     limit: pagination.limit,
-    userId: appliedUserFilter !== "all" ? appliedUserFilter : undefined,
-    departmentId: appliedDepartmentFilter !== "all" ? appliedDepartmentFilter : undefined,
+    userIds: appliedUserFilter.length > 0 ? appliedUserFilter : undefined,
+    departmentIds: appliedDepartmentFilter.length > 0 ? appliedDepartmentFilter : undefined,
     startDate: appliedStartDate || undefined,
     endDate: appliedEndDate || undefined,
     searchQuery: appliedSearchQuery || undefined,
+    sortBy,
+    sortOrder,
     enabled: departmentFilterInitialized,
   })
 
@@ -131,13 +144,13 @@ export default function SchedulesPage() {
     const departmentExists = session.user.departmentId
       ? departments.some((dept) => dept.id === session.user.departmentId)
       : false
-    const resolvedDepartment = departmentExists ? session.user.departmentId! : "all"
-    const resolvedUser = session.user.isAdmin ? "all" : session.user.id
+    const resolvedDepartments = departmentExists ? [session.user.departmentId!] : []
+    const resolvedUsers = session.user.isAdmin ? [] : [session.user.id]
 
-    setDepartmentFilter(resolvedDepartment)
-    setAppliedDepartmentFilter(resolvedDepartment)
-    setUserFilter(resolvedUser)
-    setAppliedUserFilter(resolvedUser)
+    setDepartmentFilter(resolvedDepartments)
+    setAppliedDepartmentFilter(resolvedDepartments)
+    setUserFilter(resolvedUsers)
+    setAppliedUserFilter(resolvedUsers)
     setAppliedSearchQuery(searchQuery)
     setAppliedStartDate(startDate)
     setAppliedEndDate(endDate)
@@ -158,9 +171,7 @@ export default function SchedulesPage() {
 
   // フィルター変更時はページを1に戻す
   useEffect(() => {
-    if (session) {
-      resetToFirstPage()
-    }
+    resetToFirstPage()
   }, [
     appliedSearchQuery,
     appliedUserFilter,
@@ -168,13 +179,12 @@ export default function SchedulesPage() {
     appliedStartDate,
     appliedEndDate,
     resetToFirstPage,
-    session,
   ])
 
   const hasPendingFilterChanges =
     searchQuery !== appliedSearchQuery ||
-    userFilter !== appliedUserFilter ||
-    departmentFilter !== appliedDepartmentFilter ||
+    JSON.stringify(userFilter) !== JSON.stringify(appliedUserFilter) ||
+    JSON.stringify(departmentFilter) !== JSON.stringify(appliedDepartmentFilter) ||
     startDate !== appliedStartDate ||
     endDate !== appliedEndDate
 
@@ -194,20 +204,40 @@ export default function SchedulesPage() {
     const departmentExists = session.user.departmentId
       ? departments.some((dept) => dept.id === session.user.departmentId)
       : false
-    const defaultDepartment = departmentExists ? session.user.departmentId! : "all"
-    const defaultUser = session.user.isAdmin ? "all" : session.user.id
+    const defaultDepartments = departmentExists ? [session.user.departmentId!] : []
+    const defaultUsers = session.user.isAdmin ? [] : [session.user.id]
 
     setSearchQuery("")
     setStartDate("")
     setEndDate("")
-    setUserFilter(defaultUser)
-    setDepartmentFilter(defaultDepartment)
+    setUserFilter(defaultUsers)
+    setDepartmentFilter(defaultDepartments)
 
     setAppliedSearchQuery("")
     setAppliedStartDate("")
     setAppliedEndDate("")
-    setAppliedUserFilter(defaultUser)
-    setAppliedDepartmentFilter(defaultDepartment)
+    setAppliedUserFilter(defaultUsers)
+    setAppliedDepartmentFilter(defaultDepartments)
+  }
+
+  const handleSort = (column: SortColumn) => {
+    if (sortBy === column) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(column)
+      setSortOrder(column === "scheduleDate" ? "desc" : "asc")
+    }
+  }
+
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-50" />
+    }
+    return sortOrder === "asc" ? (
+      <ArrowUp className="ml-1 inline h-3 w-3" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3 w-3" />
+    )
   }
 
   // 予定実績削除
@@ -239,9 +269,12 @@ export default function SchedulesPage() {
   }
 
   // 予定実績複製
-  const handleDuplicate = (schedule: any) => {
+  const handleDuplicate = () => {
+    if (!duplicateScheduleId) return
+
     // URLパラメータでスケジュールIDを渡して新規作成ページへ遷移
-    router.push(`/schedules/new?duplicate=true&duplicateId=${schedule.id}`)
+    router.push(`/schedules/new?duplicate=true&duplicateId=${duplicateScheduleId}`)
+    setDuplicateScheduleId(null)
   }
 
   // 日付フォーマット
@@ -276,7 +309,7 @@ export default function SchedulesPage() {
     const checkOutHours = parseTime(schedule.checkOutTime)
     const workHours = checkOutHours - checkInHours
     const totalActualHours = getTotalHours(schedule.actuals)
-    const breakTime = schedule.breakTime ?? 1.0 // デフォルト値1.0
+    const breakTime = schedule.breakTime ?? 0
 
     // 実績過不足 = 勤務時間 - 休憩時間 - 実績時間
     return (workHours - breakTime - totalActualHours) * -1
@@ -372,37 +405,31 @@ export default function SchedulesPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="user-filter">ユーザー</Label>
-                    <Select value={userFilter} onValueChange={setUserFilter}>
-                      <SelectTrigger id="user-filter">
-                        <SelectValue placeholder="ユーザーを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">すべて</SelectItem>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="user-filter">ユーザー（複数選択可）</Label>
+                    <MultiSelect
+                      options={users.map((user) => ({
+                        label: user.name,
+                        value: user.id,
+                      }))}
+                      selected={userFilter}
+                      onChange={setUserFilter}
+                      placeholder="ユーザーを選択"
+                      emptyMessage="ユーザーが見つかりません"
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="department-filter">部署・チーム</Label>
-                    <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                      <SelectTrigger id="department-filter">
-                        <SelectValue placeholder="部署・チームを選択" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">すべて</SelectItem>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="department-filter">部署・チーム（複数選択可）</Label>
+                    <MultiSelect
+                      options={departments.map((dept) => ({
+                        label: dept.name,
+                        value: dept.id,
+                      }))}
+                      selected={departmentFilter}
+                      onChange={setDepartmentFilter}
+                      placeholder="部署・チームを選択"
+                      emptyMessage="部署・チームが見つかりません"
+                    />
                   </div>
                 </div>
 
@@ -459,18 +486,29 @@ export default function SchedulesPage() {
           {/* 予定実績一覧テーブル */}
           <Card>
             <CardContent className="p-0">
-              <ScrollArea className="w-full">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-24">日付</TableHead>
-                      <TableHead className="w-32">ユーザー</TableHead>
+                      <TableHead
+                        className="w-24 cursor-pointer select-none"
+                        onClick={() => handleSort("scheduleDate")}
+                      >
+                        日付<SortIcon column="scheduleDate" />
+                      </TableHead>
+                      <TableHead
+                        className="w-32 cursor-pointer select-none"
+                        onClick={() => handleSort("userName")}
+                      >
+                        ユーザー<SortIcon column="userName" />
+                      </TableHead>
                       <TableHead className="w-20">出社</TableHead>
                       <TableHead className="w-20">退社</TableHead>
                       <TableHead className="w-24">実績時間</TableHead>
                       <TableHead className="w-24">実績過不足</TableHead>
                       <TableHead className="min-w-[200px]">予定</TableHead>
                       <TableHead className="min-w-[200px]">実績</TableHead>
+                      <TableHead className="min-w-[200px]">実績詳細</TableHead>
                       <TableHead className="w-24">場所</TableHead>
                       <TableHead className="w-24">操作</TableHead>
                     </TableRow>
@@ -479,7 +517,7 @@ export default function SchedulesPage() {
                   {isLoading ? (
                     Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 9 }).map((_, j) => (
+                        {Array.from({ length: 11 }).map((_, j) => (
                           <TableCell key={j}>
                             <Skeleton className="h-4 w-full" />
                           </TableCell>
@@ -488,7 +526,7 @@ export default function SchedulesPage() {
                     ))
                   ) : schedules.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8">
+                      <TableCell colSpan={11} className="text-center py-8">
                         予定実績が見つかりません
                       </TableCell>
                     </TableRow>
@@ -545,6 +583,20 @@ export default function SchedulesPage() {
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {schedule.actuals.slice(0, 2).map((actual, index) => (
                               <Badge key={index} variant="secondary" className="text-xs max-w-[150px] truncate text-left justify-start">
+                                {actual.project?.projectName || '案件未設定'}
+                              </Badge>
+                            ))}
+                            {schedule.actuals.length > 2 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{schedule.actuals.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {schedule.actuals.slice(0, 2).map((actual, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs max-w-[150px] truncate text-left justify-start">
                                 {actual.content || '-'}
                               </Badge>
                             ))}
@@ -574,7 +626,7 @@ export default function SchedulesPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDuplicate(schedule)}
+                              onClick={() => setDuplicateScheduleId(schedule.id)}
                               title="複製"
                             >
                               <Copy className="h-4 w-4" />
@@ -596,8 +648,7 @@ export default function SchedulesPage() {
                   )}
                 </TableBody>
               </Table>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+              </div>
             </CardContent>
           </Card>
 
@@ -638,6 +689,31 @@ export default function SchedulesPage() {
               disabled={deleteLoading}
             >
               {deleteLoading ? "削除中..." : "削除"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 複製確認ダイアログ */}
+      <Dialog open={!!duplicateScheduleId} onOpenChange={() => setDuplicateScheduleId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>予定実績の複製</DialogTitle>
+            <DialogDescription>
+              この予定実績を複製しますか？新規作成画面に遷移します。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDuplicateScheduleId(null)}
+            >
+              キャンセル
+            </Button>
+            <Button
+              onClick={handleDuplicate}
+            >
+              複製
             </Button>
           </DialogFooter>
         </DialogContent>

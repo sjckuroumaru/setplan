@@ -20,16 +20,16 @@ const actualSchema = z.object({
     .max(500, "実績内容は500文字以内で入力してください")
     .trim()
     .optional(),
-  hours: z.number().min(0, "実績時間は0以上で入力してください").max(24, "実績時間は24時間以内で入力してください"),
+  hours: z.number().min(0, "実績時間は0以上で入力してください").max(24, "実績時間は24時間以内で入力してください").default(0),
   details: z.string().max(2000, "詳細は2000文字以内で入力してください").optional(),
 })
 
 const updateScheduleSchema = z.object({
   userId: z.string().optional(), // 管理者のみ変更可能
-  checkInTime: z.string().optional(),
-  checkOutTime: z.string().optional(),
-  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional(),
-  workLocation: z.enum(["office", "remote"]).nullable().optional(),
+  checkInTime: z.string().nullable().optional(),
+  checkOutTime: z.string().nullable().optional(),
+  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").nullable().optional(),
+  workLocation: z.enum(["office", "remote", "client_site", "business_trip", "paid_leave"]),
   reflection: z.string().max(2000, "所感は2000文字以内で入力してください").optional(),
   plans: z.array(planSchema).optional().default([]),
   actuals: z.array(actualSchema).optional().default([]),
@@ -169,13 +169,9 @@ export async function PUT(
       const updateData: Record<string, unknown> = {
         checkInTime: validatedData.checkInTime,
         checkOutTime: validatedData.checkOutTime,
-        breakTime: validatedData.breakTime,
+        breakTime: validatedData.breakTime ?? 0.0,
+        workLocation: validatedData.workLocation,
         reflection: validatedData.reflection,
-      }
-
-      // 出社・在宅の選択値を更新（送信されている場合のみ上書き）
-      if (validatedData.workLocation !== undefined) {
-        updateData.workLocation = validatedData.workLocation
       }
 
       // 管理者の場合のみuserIdを更新

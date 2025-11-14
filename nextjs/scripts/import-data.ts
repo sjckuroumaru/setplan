@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
 
+const DATA_FOLDER = '20251114';
+
 const prisma = new PrismaClient()
 
 // 日付文字列をISO-8601形式に変換する関数
@@ -37,7 +39,7 @@ function convertDates(obj: any, dateFields: string[]): any {
 async function main() {
   console.log('データインポートを開始します...')
 
-  const dataDir = path.join(process.cwd(), '..', 'data', '20251107')
+  const dataDir = path.join(process.cwd(), '..', 'data', DATA_FOLDER)
 
   try {
     // 既存データの削除（依存関係の逆順）

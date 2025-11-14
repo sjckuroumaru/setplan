@@ -14,10 +14,10 @@ import { mutate } from "swr"
 
 type ScheduleFormValues = {
   scheduleDate: string
-  checkInTime?: string
-  checkOutTime?: string
+  checkInTime?: string | null
+  checkOutTime?: string | null
   breakTime?: number
-  workLocation?: "office" | "remote" | null
+  workLocation?: "office" | "remote" | "client_site" | "business_trip" | "paid_leave" | null
   reflection?: string
   plans: Array<{
     projectId?: string
@@ -80,7 +80,7 @@ function NewSchedulePageContent() {
             scheduleDate: todayStr,
             checkInTime: data.schedule.checkInTime,
             checkOutTime: null, // 退社時間は空欄
-            breakTime: data.schedule.breakTime ?? 1.0, // 休憩時間をコピー、nullの場合は1.0
+            breakTime: data.schedule.breakTime ?? undefined, // 休憩時間をコピー、nullの場合はundefined
             workLocation: null, // 退社時間は空欄
             reflection: null, // 所感も空欄
             plans: data.schedule.plans || [],

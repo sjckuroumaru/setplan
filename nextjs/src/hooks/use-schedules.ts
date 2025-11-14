@@ -6,9 +6,13 @@ interface UseSchedulesParams {
   limit: number
   userId?: string
   departmentId?: string
+  userIds?: string[]
+  departmentIds?: string[]
   startDate?: string
   endDate?: string
   searchQuery?: string
+  sortBy?: string
+  sortOrder?: "asc" | "desc"
   enabled?: boolean
 }
 
@@ -72,11 +76,23 @@ export function useSchedules(params: UseSchedulesParams) {
     limit: fetchParams.limit.toString(),
   })
 
+  // 後方互換性のため単一値もサポート
   if (fetchParams.userId) queryParams.append('userId', fetchParams.userId)
   if (fetchParams.departmentId) queryParams.append('departmentId', fetchParams.departmentId)
+
+  // 複数選択対応
+  if (fetchParams.userIds && fetchParams.userIds.length > 0) {
+    fetchParams.userIds.forEach(id => queryParams.append('userId', id))
+  }
+  if (fetchParams.departmentIds && fetchParams.departmentIds.length > 0) {
+    fetchParams.departmentIds.forEach(id => queryParams.append('departmentId', id))
+  }
+
   if (fetchParams.startDate) queryParams.append('startDate', fetchParams.startDate)
   if (fetchParams.endDate) queryParams.append('endDate', fetchParams.endDate)
   if (fetchParams.searchQuery) queryParams.append('search', fetchParams.searchQuery)
+  if (fetchParams.sortBy) queryParams.append('sortBy', fetchParams.sortBy)
+  if (fetchParams.sortOrder) queryParams.append('sortOrder', fetchParams.sortOrder)
 
   const { data, error, isLoading, mutate } = useSWR<SchedulesResponse>(
     enabled ? `/api/schedules?${queryParams}` : null,

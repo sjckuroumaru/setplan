@@ -64,6 +64,16 @@ import {
 // カラーパレット
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
 
+// 案件種別ラベル
+const projectTypeLabels: Record<string, string> = {
+  development: "開発",
+  ses: "SES",
+  maintenance: "保守",
+  internal: "社内業務",
+  product: "自社サービス",
+  other: "その他",
+}
+
 // カスタムツールチップ
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ color: string; name: string; value: number }>; label?: string }) => {
   if (active && payload && payload.length) {
@@ -91,6 +101,7 @@ export default function ChartPage() {
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
   const [isCustomDateRange, setIsCustomDateRange] = useState(false)
+  const [isDepartmentInitialized, setIsDepartmentInitialized] = useState(false)
 
   // SWRフックでデータ取得
   const {
@@ -135,6 +146,28 @@ export default function ChartPage() {
       return
     }
   }, [session, status, router])
+
+  // 初期フィルター適用（部署）
+  useEffect(() => {
+    if (!session || departments.length === 0) {
+      return
+    }
+    // 既に初期化済みならスキップ
+    if (isDepartmentInitialized) {
+      return
+    }
+
+    const departmentExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+
+    if (departmentExists) {
+      setSelectedDepartment(session.user.departmentId!)
+    }
+
+    // 初期化完了をマーク
+    setIsDepartmentInitialized(true)
+  }, [session, departments, isDepartmentInitialized])
 
   // プリセット期間選択時の日付設定
   useEffect(() => {
@@ -399,102 +432,12 @@ export default function ChartPage() {
       </div>
 
       {/* メインチャート */}
-      <Tabs defaultValue="stacked" className="space-y-4">
+      <Tabs defaultValue="table" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="table">表分析</TabsTrigger>
           <TabsTrigger value="stacked">積み上げ棒グラフ</TabsTrigger>
           <TabsTrigger value="pie">円グラフ</TabsTrigger>
-          <TabsTrigger value="table">表分析</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="stacked" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>ユーザー別案件実績時間</CardTitle>
-              <CardDescription>
-                各ユーザーの案件別作業時間の内訳
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={500}>
-                <BarChart data={userProjectData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis 
-                    label={{ value: "時間 (h)", angle: -90, position: "insideLeft" }} 
-                    domain={[0, 250]}
-                    ticks={[0, 50, 100, 150, 200, 250]}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  {/* 動的な案件別バーの生成 */}
-                  {projectDistribution.map((project, index) => (
-                    <Bar 
-                      key={project.name} 
-                      dataKey={project.name} 
-                      stackId="a" 
-                      fill={COLORS[index % COLORS.length]} 
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="pie" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>案件別時間配分</CardTitle>
-              <CardDescription>
-                全体の作業時間における案件の割合
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-8">
-                <ResponsiveContainer width="100%" height={450}>
-                  <PieChart>
-                    <Pie
-                      data={projectDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ percentage }) => `${percentage}%`}
-                      outerRadius={140}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {projectDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">案件別詳細</h4>
-                  {projectDistribution.map((project, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded" 
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="text-sm">{project.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{project.value}h</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {project.percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="table" className="space-y-4">
           <Card>
@@ -581,21 +524,134 @@ export default function ChartPage() {
                   <div className="grid gap-2">
                     <h4 className="font-medium text-sm text-muted-foreground">案件別小計</h4>
                     {Object.entries(
-                      tableData.reduce((acc: Record<string, number>, row) => {
-                        acc[row.projectName] = (acc[row.projectName] || 0) + row.totalHours
+                      tableData.reduce((acc: Record<string, { total: number; projectNumber: string }>, row) => {
+                        if (!acc[row.projectName]) {
+                          acc[row.projectName] = { total: 0, projectNumber: row.projectNumber || "ZZZ" }
+                        }
+                        acc[row.projectName].total += row.totalHours
                         return acc
                       }, {})
                     )
-                    .sort(([, a], [, b]) => (b as number) - (a as number))
-                    .map(([projectName, total]) => (
+                    .sort(([, a], [, b]) => a.projectNumber.localeCompare(b.projectNumber))
+                    .map(([projectName, data]) => (
                       <div key={projectName} className="flex justify-between items-center py-1 px-2 text-sm">
                         <span>{projectName}</span>
+                        <span className="font-mono">{data.total}h</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 案件種別別小計 */}
+                  <div className="grid gap-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">案件種別別小計</h4>
+                    {Object.entries(
+                      tableData.reduce((acc: Record<string, number>, row) => {
+                        const projectType = row.projectType || "other"
+                        const label = projectTypeLabels[projectType] || projectType
+                        acc[label] = (acc[label] || 0) + row.totalHours
+                        return acc
+                      }, {})
+                    )
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([projectType, total]) => (
+                      <div key={projectType} className="flex justify-between items-center py-1 px-2 text-sm">
+                        <span>{projectType}</span>
                         <span className="font-mono">{total}h</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stacked" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>ユーザー別案件実績時間</CardTitle>
+              <CardDescription>
+                各ユーザーの案件別作業時間の内訳
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={500}>
+                <BarChart data={userProjectData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis
+                    label={{ value: "時間 (h)", angle: -90, position: "insideLeft" }}
+                    domain={[0, 250]}
+                    ticks={[0, 50, 100, 150, 200, 250]}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  {/* 動的な案件別バーの生成 */}
+                  {projectDistribution.map((project, index) => (
+                    <Bar
+                      key={project.name}
+                      dataKey={project.name}
+                      stackId="a"
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pie" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>案件別時間配分</CardTitle>
+              <CardDescription>
+                全体の作業時間における案件の割合
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-8">
+                <ResponsiveContainer width="100%" height={450}>
+                  <PieChart>
+                    <Pie
+                      data={projectDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ percentage }) => `${percentage}%`}
+                      outerRadius={140}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {projectDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">案件別詳細</h4>
+                  {projectDistribution.map((project, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        />
+                        <span className="text-sm">{project.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{project.value}h</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {project.percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -34,6 +34,8 @@ interface TableData {
   yearMonth: string
   userName: string
   projectName: string
+  projectNumber: string
+  projectType: string
   totalHours: number
 }
 

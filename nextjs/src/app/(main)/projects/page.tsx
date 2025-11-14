@@ -108,6 +108,7 @@ export default function ProjectsPage() {
   const [appliedDepartmentFilter, setAppliedDepartmentFilter] = useState("all")
   const [sortBy, setSortBy] = useState<SortColumn>("updatedAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [isDepartmentInitialized, setIsDepartmentInitialized] = useState(false)
 
   // SWRフックでデータ取得
   const { projects, pagination: swrPagination, isLoading, isError, mutate } = useProjects({
@@ -145,10 +146,8 @@ export default function ProjectsPage() {
 
   // フィルター適用時にページを1に戻す
   useEffect(() => {
-    if (session) {
-      resetToFirstPage()
-    }
-  }, [appliedSearchQuery, appliedStatusFilter, appliedDepartmentFilter, sortBy, sortOrder, resetToFirstPage, session])
+    resetToFirstPage()
+  }, [appliedSearchQuery, appliedStatusFilter, appliedDepartmentFilter, sortBy, sortOrder, resetToFirstPage])
 
   const hasPendingFilterChanges =
     searchQuery !== appliedSearchQuery ||
@@ -160,8 +159,8 @@ export default function ProjectsPage() {
     if (!session || departments.length === 0) {
       return
     }
-    // 既にユーザー操作で変更済みならスキップ
-    if (appliedDepartmentFilter !== "all" || departmentFilter !== "all") {
+    // 既に初期化済みならスキップ
+    if (isDepartmentInitialized) {
       return
     }
 
@@ -174,7 +173,10 @@ export default function ProjectsPage() {
       setDepartmentFilter(defaultDept)
       setAppliedDepartmentFilter(defaultDept)
     }
-  }, [session, departments, departmentFilter, appliedDepartmentFilter])
+
+    // 初期化完了をマーク
+    setIsDepartmentInitialized(true)
+  }, [session, departments, isDepartmentInitialized])
 
   const handleApplyFilters = () => {
     const normalizedSearch = searchQuery.trim()
@@ -465,11 +467,13 @@ export default function ProjectsPage() {
                   </TableRow>
                 ) : (
                   projects.map((project) => (
-                    <TableRow key={project.id} className="hover:bg-muted/40">
+                    <TableRow
+                      key={project.id}
+                      className="hover:bg-muted/40 cursor-pointer"
+                      onDoubleClick={() => router.push(`/projects/${project.id}/edit`)}
+                    >
                       <TableCell className="font-semibold">
-                        <Link href={`/projects/${project.id}/edit`} className="hover:underline">
-                          {project.projectNumber}
-                        </Link>
+                        {project.projectNumber}
                       </TableCell>
                       <TableCell>
                         {project.projectType

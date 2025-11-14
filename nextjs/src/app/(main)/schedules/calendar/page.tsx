@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useSchedulesCalendar } from "@/hooks/use-schedules-calendar"
 import { useUsers } from "@/hooks/use-users"
+import { useDepartments } from "@/hooks/use-departments"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -47,21 +48,49 @@ interface CalendarEvent {
   time?: string
 }
 
+interface ProjectGroup {
+  projectName: string
+  projectNumber: string | null
+  events: CalendarEvent[]
+}
+
+interface UserScheduleGroup {
+  userId: string
+  userName: string
+  employeeNumber: string
+  projectGroups: ProjectGroup[]
+}
+
 // 月の日付を生成する関数
 function generateMonthDays(year: number, month: number) {
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
   const startDate = new Date(firstDay)
   startDate.setDate(startDate.getDate() - firstDay.getDay())
-  
+
   const days = []
   const current = new Date(startDate)
-  
+
   while (current <= lastDay || current.getDay() !== 0) {
     days.push(new Date(current))
     current.setDate(current.getDate() + 1)
   }
-  
+
+  return days
+}
+
+// 週の日付を生成する関数（日曜日から土曜日まで）
+function generateWeekDays(date: Date) {
+  const days = []
+  const startOfWeek = new Date(date)
+  startOfWeek.setDate(date.getDate() - date.getDay())
+
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(startOfWeek)
+    day.setDate(startOfWeek.getDate() + i)
+    days.push(day)
+  }
+
   return days
 }
 
@@ -70,8 +99,10 @@ export default function CalendarPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<"month" | "day">("month")
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("week")
   const [selectedUser, setSelectedUser] = useState("all")
+  const [selectedDepartment, setSelectedDepartment] = useState("all")
+  const [departmentFilterInitialized, setDepartmentFilterInitialized] = useState(false)
 
   // 日付を文字列キーに変換（日本時間）
   const formatDateKey = (date: Date) => {
@@ -85,7 +116,7 @@ export default function CalendarPage() {
   }
 
   // 日付範囲を取得（日本時間）
-  const getDateRange = (date: Date, mode: "month" | "day") => {
+  const getDateRange = (date: Date, mode: "month" | "week" | "day") => {
     const jstOffset = 9 * 60 * 60 * 1000 // JST = UTC + 9時間
     const jstDate = new Date(date.getTime() + jstOffset)
 
@@ -94,6 +125,14 @@ export default function CalendarPage() {
     if (mode === "month") {
       startDate = new Date(jstDate.getUTCFullYear(), jstDate.getUTCMonth(), 1)
       endDate = new Date(jstDate.getUTCFullYear(), jstDate.getUTCMonth() + 1, 0)
+    } else if (mode === "week") {
+      // 週の開始日（日曜日）を計算
+      const dayOfWeek = jstDate.getUTCDay()
+      startDate = new Date(jstDate)
+      startDate.setUTCDate(jstDate.getUTCDate() - dayOfWeek)
+      // 週の終了日（土曜日）を計算
+      endDate = new Date(startDate)
+      endDate.setUTCDate(startDate.getUTCDate() + 6)
     } else {
       startDate = new Date(jstDate)
       endDate = new Date(jstDate)
@@ -115,9 +154,12 @@ export default function CalendarPage() {
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
     userId: selectedUser !== "all" ? selectedUser : undefined,
+    departmentIds: selectedDepartment !== "all" ? [selectedDepartment] : undefined,
+    enabled: departmentFilterInitialized,
   })
 
   const { users: usersData } = useUsers()
+  const { departments } = useDepartments()
 
   // ユーザーリストを整形
   const users = usersData.map((user) => ({
@@ -136,10 +178,29 @@ export default function CalendarPage() {
     }
   }, [session, status, router])
 
+  // 初期フィルター適用（部署）
+  useEffect(() => {
+    if (!session || departmentFilterInitialized || departments.length === 0) {
+      return
+    }
+
+    const departmentExists = session.user.departmentId
+      ? departments.some((dept) => dept.id === session.user.departmentId)
+      : false
+
+    if (departmentExists) {
+      setSelectedDepartment(session.user.departmentId!)
+    }
+
+    setDepartmentFilterInitialized(true)
+  }, [session, departmentFilterInitialized, departments])
+
   const navigatePrevious = () => {
     const newDate = new Date(currentDate)
     if (viewMode === "month") {
       newDate.setMonth(newDate.getMonth() - 1)
+    } else if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() - 7)
     } else {
       newDate.setDate(newDate.getDate() - 1)
     }
@@ -150,6 +211,8 @@ export default function CalendarPage() {
     const newDate = new Date(currentDate)
     if (viewMode === "month") {
       newDate.setMonth(newDate.getMonth() + 1)
+    } else if (viewMode === "week") {
+      newDate.setDate(newDate.getDate() + 7)
     } else {
       newDate.setDate(newDate.getDate() + 1)
     }
@@ -160,11 +223,20 @@ export default function CalendarPage() {
     setCurrentDate(new Date())
   }
 
+  // 社員番号順にソート
+  const sortedSchedules = useMemo(() => {
+    return [...schedules].sort((a, b) => {
+      const employeeNumberA = a.user.employeeNumber || ""
+      const employeeNumberB = b.user.employeeNumber || ""
+      return employeeNumberA.localeCompare(employeeNumberB)
+    })
+  }, [schedules])
+
   // スケジュールデータをカレンダーイベントに変換
   const getEventsForDate = (dateStr: string): CalendarEvent[] => {
-    const dateSchedules = schedules.filter(s => s.date === dateStr)
+    const dateSchedules = sortedSchedules.filter(s => s.date === dateStr)
     const events: CalendarEvent[] = []
-    
+
     dateSchedules.forEach(schedule => {
       // 予定を追加
       schedule.plans.forEach(plan => {
@@ -174,7 +246,7 @@ export default function CalendarPage() {
           project: plan.project?.name,
         })
       })
-      
+
       // 実績を追加
       schedule.actuals.forEach(actual => {
         events.push({
@@ -185,8 +257,89 @@ export default function CalendarPage() {
         })
       })
     })
-    
+
     return events
+  }
+
+  // ユーザーごと、案件ごとにグループ化してスケジュールデータを取得
+  const getEventsForDateByUser = (dateStr: string): UserScheduleGroup[] => {
+    const dateSchedules = sortedSchedules.filter(s => s.date === dateStr)
+    const userGroups: UserScheduleGroup[] = []
+
+    dateSchedules.forEach(schedule => {
+      // 案件ごとにイベントを分類（案件番号もキーに含める）
+      const projectEventsMap = new Map<string, { projectName: string, projectNumber: string | null, events: CalendarEvent[] }>()
+
+      // 予定を追加
+      schedule.plans.forEach(plan => {
+        const projectName = plan.project?.name || '-'
+        const projectNumber = plan.project?.number || null
+        const projectKey = `${projectNumber || 'zzz'}-${projectName}` // ソート用のキー
+
+        if (!projectEventsMap.has(projectKey)) {
+          projectEventsMap.set(projectKey, {
+            projectName: projectName,
+            projectNumber: projectNumber,
+            events: []
+          })
+        }
+        projectEventsMap.get(projectKey)!.events.push({
+          type: 'plan',
+          content: plan.content,
+          project: plan.project?.name,
+        })
+      })
+
+      // 実績を追加
+      schedule.actuals.forEach(actual => {
+        const projectName = actual.project?.name || '-'
+        const projectNumber = actual.project?.number || null
+        const projectKey = `${projectNumber || 'zzz'}-${projectName}` // ソート用のキー
+
+        if (!projectEventsMap.has(projectKey)) {
+          projectEventsMap.set(projectKey, {
+            projectName: projectName,
+            projectNumber: projectNumber,
+            events: []
+          })
+        }
+        projectEventsMap.get(projectKey)!.events.push({
+          type: 'actual',
+          content: actual.content,
+          project: actual.project?.name,
+          hours: actual.hours,
+        })
+      })
+
+      // 案件グループを作成し、案件番号順にソート
+      const projectGroups: ProjectGroup[] = []
+      projectEventsMap.forEach((projectData) => {
+        projectGroups.push({
+          projectName: projectData.projectName,
+          projectNumber: projectData.projectNumber,
+          events: projectData.events,
+        })
+      })
+
+      // 案件番号順にソート（案件番号がない場合は最後に）
+      projectGroups.sort((a, b) => {
+        const numberA = a.projectNumber || 'zzz'
+        const numberB = b.projectNumber || 'zzz'
+        return numberA.localeCompare(numberB)
+      })
+
+      // ユーザー情報と案件グループをグループに追加
+      if (projectGroups.length > 0) {
+        userGroups.push({
+          userId: schedule.user.id,
+          userName: schedule.user.name,
+          employeeNumber: schedule.user.employeeNumber || '',
+          projectGroups: projectGroups,
+        })
+      }
+    })
+
+    return userGroups
   }
 
   // 今日の日付取得（日本時間）
@@ -195,6 +348,7 @@ export default function CalendarPage() {
   }
 
   const monthDays = generateMonthDays(currentDate.getFullYear(), currentDate.getMonth())
+  const weekDays = generateWeekDays(currentDate)
   const todayString = getTodayString()
 
   if (status === "loading" || !session) {
@@ -270,16 +424,35 @@ export default function CalendarPage() {
                 今日
               </Button>
               <h3 className="text-lg font-semibold ml-4">
-                {viewMode === "month" && 
+                {viewMode === "month" &&
                   `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`
                 }
-                {viewMode === "day" && 
+                {viewMode === "week" && (() => {
+                  const weekStart = weekDays[0]
+                  const weekEnd = weekDays[6]
+                  return `${weekStart.getFullYear()}年${weekStart.getMonth() + 1}月${weekStart.getDate()}日 - ${weekEnd.getMonth() + 1}月${weekEnd.getDate()}日`
+                })()}
+                {viewMode === "day" &&
                   `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月${currentDate.getDate()}日`
                 }
               </h3>
             </div>
 
             <div className="flex items-center gap-2">
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="部署・チーム" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部署</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <Select value={selectedUser} onValueChange={setSelectedUser}>
                 <SelectTrigger className="w-[180px]">
                   <Users className="mr-2 h-4 w-4" />
@@ -295,9 +468,10 @@ export default function CalendarPage() {
                 </SelectContent>
               </Select>
 
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "month" | "day")}>
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "month" | "week" | "day")}>
                 <TabsList>
                   <TabsTrigger value="month">月</TabsTrigger>
+                  <TabsTrigger value="week">週</TabsTrigger>
                   <TabsTrigger value="day">日</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -307,6 +481,97 @@ export default function CalendarPage() {
       </Card>
 
       {/* カレンダービュー */}
+      {viewMode === "week" && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="grid grid-cols-7">
+              {["日", "月", "火", "水", "木", "金", "土"].map((day, index) => (
+                <div
+                  key={day}
+                  className={cn(
+                    "p-2 text-center text-sm font-medium border-b",
+                    index === 0 && "text-red-500",
+                    index === 6 && "text-blue-500"
+                  )}
+                >
+                  {day}
+                </div>
+              ))}
+              {isLoading ? (
+                Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} className="min-h-[100px] p-2 border-b border-r">
+                    <Skeleton className="h-4 w-8 mb-2" />
+                    <Skeleton className="h-3 w-full mb-1" />
+                    <Skeleton className="h-3 w-3/4" />
+                  </div>
+                ))
+              ) : (
+                weekDays.map((date, index) => {
+                  const dateKey = formatDateKey(date)
+                  const userGroups = getEventsForDateByUser(dateKey)
+                  const isToday = dateKey === todayString
+
+                  return (
+                    <div
+                      key={index}
+                      className={cn(
+                        "min-h-[100px] p-2 border-b border-r cursor-pointer hover:bg-muted/50",
+                        isToday && "bg-primary/5",
+                        index === 0 && "border-l"
+                      )}
+                      onClick={() => {
+                        setCurrentDate(date)
+                        setViewMode("day")
+                      }}
+                    >
+                      <div className={cn(
+                        "text-sm font-medium mb-2",
+                        isToday && "text-primary"
+                      )}>
+                        {date.getDate()}
+                      </div>
+                      <div className="space-y-3">
+                        {userGroups.map((userGroup, userIndex) => (
+                          <div key={userIndex} className="space-y-2">
+                            <div className="text-xs font-semibold text-muted-foreground border-b pb-1">
+                              {userGroup.userName}
+                            </div>
+                            {userGroup.projectGroups.map((projectGroup, projectIndex) => (
+                              <div key={projectIndex} className="space-y-1 pl-2">
+                                <div className="text-[10px] font-medium text-muted-foreground">
+                                  [{projectGroup.projectName}]
+                                </div>
+                                <div className="space-y-1">
+                                  {projectGroup.events.map((event, eventIndex) => (
+                                    <div
+                                      key={eventIndex}
+                                      className={cn(
+                                        "text-xs p-1 rounded truncate",
+                                        event.type === "plan"
+                                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                                          : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                      )}
+                                      title={`${event.content}${event.project ? ` (${event.project})` : ''}${event.hours ? ` - ${event.hours}h` : ''}`}
+                                    >
+                                      {event.type === "plan" ? "予" : "実"} {event.content}
+                                      {event.hours && ` (${event.hours}h)`}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {viewMode === "month" && (
         <Card>
           <CardContent className="p-0">
@@ -417,10 +682,10 @@ export default function CalendarPage() {
                     </div>
                   </div>
                 ))
-              ) : schedules.filter(s => s.date === formatDateKey(currentDate)).length === 0 ? (
+              ) : sortedSchedules.filter(s => s.date === formatDateKey(currentDate)).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">予定実績が登録されていません</p>
               ) : (
-                schedules.filter(s => s.date === formatDateKey(currentDate)).map((schedule) => (
+                sortedSchedules.filter(s => s.date === formatDateKey(currentDate)).map((schedule) => (
                   <div
                     key={schedule.id}
                     className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
@@ -517,27 +782,27 @@ export default function CalendarPage() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">登録数</p>
                     <p className="text-2xl font-bold">
-                      {schedules.filter(s => s.date === formatDateKey(currentDate)).length}
+                      {sortedSchedules.filter(s => s.date === formatDateKey(currentDate)).length}
                     </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">予定数</p>
                     <p className="text-2xl font-bold">
-                      {schedules.filter(s => s.date === formatDateKey(currentDate))
+                      {sortedSchedules.filter(s => s.date === formatDateKey(currentDate))
                         .reduce((sum, s) => sum + s.plans.length, 0)}
                     </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">実績数</p>
                     <p className="text-2xl font-bold">
-                      {schedules.filter(s => s.date === formatDateKey(currentDate))
+                      {sortedSchedules.filter(s => s.date === formatDateKey(currentDate))
                         .reduce((sum, s) => sum + s.actuals.length, 0)}
                     </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">総実績時間</p>
                     <p className="text-2xl font-bold">
-                      {schedules.filter(s => s.date === formatDateKey(currentDate))
+                      {sortedSchedules.filter(s => s.date === formatDateKey(currentDate))
                         .reduce((sum, s) => sum + s.totalHours, 0)}h
                     </p>
                   </div>

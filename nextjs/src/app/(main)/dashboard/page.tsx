@@ -128,6 +128,38 @@ export default function DashboardPage() {
     }
   )
 
+  // 今日の予定実績を取得
+  type TodayScheduleResponse = {
+    schedule: {
+      id: string
+      [key: string]: unknown
+    } | null
+  }
+
+  const {
+    data: todayScheduleData,
+  } = useSWR<TodayScheduleResponse>(
+    session?.user?.id
+      ? `/api/schedules/date/${getTodayDate()}`
+      : null,
+    fetcher,
+    {
+      revalidateOnFocus: true,
+    }
+  )
+
+  const todayScheduleId = todayScheduleData?.schedule?.id || null
+  const hasScheduleToday = Boolean(todayScheduleId)
+
+  // 予定実績の登録/編集の切り替え
+  const scheduleActionHref = hasScheduleToday
+    ? `/schedules/${todayScheduleId}/edit`
+    : `/schedules/new?date=${getTodayDate()}`
+  const scheduleActionLabel = hasScheduleToday ? '編集' : '登録'
+  const scheduleButtonText = hasScheduleToday ? '今日の予定実績を編集' : '今日の予定実績を登録'
+  const scheduleCardTitle = hasScheduleToday ? '予定実績編集' : '予定実績登録'
+  const scheduleCardDescription = hasScheduleToday ? '本日の予定・実績を編集' : '本日の予定・実績を登録'
+
   const departmentSharedNotes = departmentData?.department?.sharedNotes || null
 
   const renderSharedNotes = (notes: string) => {
@@ -182,9 +214,9 @@ export default function DashboardPage() {
           </p>
         </div>
         <Button size="lg" className="gap-2" asChild>
-          <Link href={`/schedules/new?date=${getTodayDate()}`}>
+          <Link href={scheduleActionHref}>
             <CalendarPlus className="h-5 w-5" />
-            今日の予定実績を登録
+            {scheduleButtonText}
           </Link>
         </Button>
       </div>
@@ -208,19 +240,19 @@ export default function DashboardPage() {
 
       {/* クイックアクション */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Link href={`/schedules/new?date=${getTodayDate()}`}>
+        <Link href={scheduleActionHref}>
           <Card className="cursor-pointer hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CalendarPlus className="h-4 w-4" />
-                  予定実績登録
+                  {scheduleCardTitle}
                 </CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                本日の予定・実績を登録
+                {scheduleCardDescription}
               </p>
             </CardContent>
           </Card>

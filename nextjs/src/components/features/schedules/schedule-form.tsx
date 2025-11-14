@@ -22,7 +22,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { Plus, Trash2, Clock, FileText } from "lucide-react"
+import { Plus, Trash2, Clock, FileText, Copy } from "lucide-react"
 
 // バリデーションスキーマ
 const planSchema = z.object({
@@ -32,30 +32,27 @@ const planSchema = z.object({
 })
 
 const actualSchema = z.object({
+  hours: z.number().min(0, "実績時間は0以上で入力してください"),
   projectId: z.string().optional(),
   content: z.string()
     .max(500, "実績内容は500文字以内で入力してください")
     .trim()
     .optional(),
-  hours: z.number().min(0, "実績時間は0以上で入力してください"),
   details: z.string().optional(),
-}).refine((data) => {
-  // 案件が「案件なし」以外の場合は実績時間が必須（0より大きい）
-  if (data.projectId && data.projectId !== "none") {
-    return data.hours > 0
-  }
-  return true
-}, {
-  message: "案件を選択した場合は実績時間が必須です",
-  path: ["hours"]
 })
 
 const scheduleFormSchema = z.object({
   scheduleDate: z.string().min(1, "日付は必須です"),
-  checkInTime: z.string().optional(),
-  checkOutTime: z.string().optional(),
-  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください"),
-  workLocation: z.enum(["office", "remote"]).nullable().optional(),
+  checkInTime: z.string().nullable().optional(),
+  checkOutTime: z.string().nullable().optional(),
+  breakTime: z.number().min(0, "休憩時間は0以上で入力してください").max(24, "休憩時間は24時間以内で入力してください").optional(),
+  workLocation: z.union([
+    z.enum(["office", "remote", "client_site", "business_trip", "paid_leave"]),
+    z.null(),
+    z.undefined()
+  ]).refine((val) => val !== null && val !== undefined, {
+    message: "勤務形態を選択してください"
+  }),
   reflection: z.string().optional(),
   plans: z.array(planSchema),
   actuals: z.array(actualSchema),
@@ -71,7 +68,7 @@ interface Schedule {
   checkInTime: string | null
   checkOutTime: string | null
   breakTime: number | null
-  workLocation: "office" | "remote" | null
+  workLocation: "office" | "remote" | "client_site" | "business_trip" | "paid_leave" | null
   reflection: string | null
   plans: Array<{
     id: string
@@ -111,9 +108,11 @@ interface ScheduleFormProps {
 }
 
 const workLocationOptions = [
-  { value: "none", label: "選択なし" },
   { value: "office", label: "出社" },
   { value: "remote", label: "在宅" },
+  { value: "client_site", label: "客先常駐" },
+  { value: "business_trip", label: "外出" },
+  { value: "paid_leave", label: "有給休暇" },
 ]
 
 // 日付をYYYY-MM-DD形式に変換
@@ -155,8 +154,8 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
         scheduleDate: formatDateForInput(schedule.scheduleDate),
         checkInTime: schedule.checkInTime || "none",
         checkOutTime: schedule.checkOutTime || "none",
-        breakTime: schedule.breakTime ?? 1.0,
-        workLocation: schedule.workLocation ?? null,
+        breakTime: schedule.breakTime ?? undefined,
+        workLocation: schedule.workLocation ?? undefined,
         reflection: schedule.reflection || "",
         userId: schedule.userId || undefined,
         plans: schedule.plans && schedule.plans.length > 0
@@ -194,7 +193,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       checkInTime: time,
       checkOutTime: "none",
       breakTime: 1.0,
-      workLocation: null,
+      workLocation: "office" as const,
       reflection: "",
       userId: undefined,
       plans: [{ projectId: "none", content: "", details: "" }],
@@ -221,6 +220,29 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
   // 実績時間の合計を計算（リアルタイム）
   const watchActuals = form.watch("actuals")
   const totalHours = watchActuals?.reduce((sum, actual) => sum + (Number(actual.hours) || 0), 0) || 0
+
+  // 予定情報を実績情報にコピーする関数
+  const copyPlansToActuals = () => {
+    const currentPlans = form.watch("plans")
+
+    // 予定情報が存在する場合のみコピー
+    if (currentPlans && currentPlans.length > 0) {
+      // 各予定を実績形式に変換して追加
+      currentPlans.forEach((plan) => {
+        // 内容が空の予定はスキップ
+        if (!plan.content || plan.content.trim() === "") {
+          return
+        }
+
+        appendActual({
+          projectId: plan.projectId || "none",
+          content: plan.content || "",
+          hours: 0,
+          details: plan.details || "",
+        })
+      })
+    }
+  }
 
   // scheduleプロパティが変更された時にフォームをリセット（編集モード・複製モード用）
   useEffect(() => {
@@ -252,8 +274,8 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       scheduleDate: formatDateForInput(schedule.scheduleDate),
       checkInTime: schedule.checkInTime || "none",
       checkOutTime: schedule.checkOutTime || "none",
-      breakTime: schedule.breakTime ?? 1.0,
-      workLocation: schedule.workLocation ?? null,
+      breakTime: schedule.breakTime ?? undefined,
+      workLocation: schedule.workLocation ?? undefined,
       reflection: schedule.reflection || "",
       userId: schedule.userId || undefined,
       plans: schedule.plans && schedule.plans.length > 0
@@ -281,9 +303,9 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
     // 空の項目を除外し、未選択の値はnull/undefinedに整形
     const filteredData = {
       ...data,
-      checkInTime: data.checkInTime === "none" ? undefined : data.checkInTime,
-      checkOutTime: data.checkOutTime === "none" ? undefined : data.checkOutTime,
-      workLocation: data.workLocation ?? null,
+      checkInTime: data.checkInTime === "none" ? null : data.checkInTime,
+      checkOutTime: data.checkOutTime === "none" ? null : data.checkOutTime,
+      workLocation: data.workLocation,
       plans: data.plans
         .filter(plan => (plan.content ?? "").trim() !== "")
         .map(plan => ({
@@ -442,13 +464,13 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                         <Input
                           type="text"
                           name={field.name}
-                          placeholder="1.0"
-                          value={field.value === 0 ? "" : field.value}
+                          placeholder="0"
+                          value={field.value !== undefined && field.value !== null ? field.value : 0}
                           onChange={(e) => {
                             const value = e.target.value
                             // 数値または小数点のみ許可（入力途中の「.」も許可）
                             if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                              // 空の場合は0、入力途中（例: "1."）の場合はそのまま、完全な数値の場合はparseFloat
+                              // 空の場合はundefined、入力途中（例: "1."）の場合はそのまま、完全な数値の場合はparseFloat
                               if (value === "") {
                                 field.onChange(0)
                               } else if (value.endsWith(".") || value === ".") {
@@ -456,7 +478,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                                 field.onChange(value)
                               } else {
                                 const numValue = parseFloat(value)
-                                field.onChange(isNaN(numValue) ? 0 : numValue)
+                                field.onChange(isNaN(numValue) ? undefined : numValue)
                               }
                             }
                           }}
@@ -464,10 +486,10 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                             // フォーカスが外れた時に数値に変換
                             const value = e.target.value
                             if (value === "" || value === ".") {
-                              field.onChange(1.0)
+                              field.onChange(undefined)
                             } else {
                               const numValue = parseFloat(value)
-                              field.onChange(isNaN(numValue) ? 1.0 : numValue)
+                              field.onChange(isNaN(numValue) ? undefined : numValue)
                             }
                           }}
                           disabled={readOnly}
@@ -486,13 +508,14 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                   name="workLocation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>出社・在宅</FormLabel>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === "none" ? null : value)}
-                        value={field.value || "none"}>
+                      <FormLabel>勤務形態 *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? undefined}
+                        disabled={readOnly}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="ステータスを選択" />
+                            <SelectValue placeholder="勤務形態を選択" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -504,7 +527,7 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        任意
+                        出社場所、勤務形態を入力してください。
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -612,6 +635,24 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
 
             <Separator />
 
+            {/* 予定情報をコピーするボタン */}
+            {!readOnly && (
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="default"
+                  onClick={copyPlansToActuals}
+                  className="gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  予定を実績にコピー
+                </Button>
+              </div>
+            )}
+
+            <Separator />
+
             {/* 実績情報 */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -667,11 +708,9 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
                           control={form.control}
                           name={`actuals.${index}.hours`}
                           render={({ field }) => {
-                            const currentProjectId = form.watch(`actuals.${index}.projectId`)
-                            const isRequired = currentProjectId && currentProjectId !== "none"
                             return (
                               <FormItem>
-                                <FormLabel>実績時間{isRequired ? " *" : ""}</FormLabel>
+                                <FormLabel>実績時間</FormLabel>
                                 <FormControl>
                                   <Input
                                     type="text"
