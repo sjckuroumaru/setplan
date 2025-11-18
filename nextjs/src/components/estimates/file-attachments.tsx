@@ -172,7 +172,7 @@ export function FileAttachments({ estimateId, isEditable = false }: FileAttachme
   }
 
   // ファイルダウンロード（認証が必要）
-  const handleDownload = async (attachmentId: string, fileName: string) => {
+  const handleDownload = async (attachmentId: string) => {
     try {
       const res = await fetch(`/api/estimates/${estimateId}/attachments/${attachmentId}/download`)
 
@@ -278,7 +278,7 @@ export function FileAttachments({ estimateId, isEditable = false }: FileAttachme
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDownload(attachment.id, attachment.fileName)}
+                    onClick={() => handleDownload(attachment.id)}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
