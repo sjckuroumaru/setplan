@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Table,
+  CompactTable,
+  CompactTableRow,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/compact-table"
+import { DeleteButton } from "@/components/ui/action-buttons"
 import {
   Alert,
   AlertDescription,
@@ -34,8 +35,6 @@ import { toast } from "sonner"
 import {
   Plus,
   Search,
-  Edit,
-  Trash2,
   AlertCircle,
   Users,
   Briefcase
@@ -185,36 +184,36 @@ export default function DepartmentsPage() {
       {/* 部署一覧テーブル */}
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <CompactTable>
             <TableHeader>
-              <TableRow>
-                <TableHead>部署・チーム名</TableHead>
+              <CompactTableRow>
+                <TableHead className="min-w-[150px]">部署・チーム名</TableHead>
                 <TableHead>所属ユーザー数</TableHead>
                 <TableHead>関連案件数</TableHead>
                 <TableHead>作成日時</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
+                <TableHead className="text-center">操作</TableHead>
+              </CompactTableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
+                  <CompactTableRow key={i}>
                     {Array.from({ length: 5 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
                     ))}
-                  </TableRow>
+                  </CompactTableRow>
                 ))
               ) : departments.length === 0 ? (
-                <TableRow>
+                <CompactTableRow>
                   <TableCell colSpan={5} className="text-center py-8">
                     部署・チームが見つかりません
                   </TableCell>
-                </TableRow>
+                </CompactTableRow>
               ) : (
                 departments.map((department) => (
-                  <TableRow key={department.id}>
+                  <CompactTableRow key={department.id}>
                     <TableCell className="font-medium">
                       <Link href={`/settings/departments/${department.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
                         {department.name}
@@ -236,22 +235,15 @@ export default function DepartmentsPage() {
                       {new Date(department.createdAt).toLocaleDateString("ja-JP")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteDepartmentId(department.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center justify-center gap-2">
+                        <DeleteButton onClick={() => setDeleteDepartmentId(department.id)} />
                       </div>
                     </TableCell>
-                  </TableRow>
+                  </CompactTableRow>
                 ))
               )}
             </TableBody>
-          </Table>
+          </CompactTable>
         </CardContent>
       </Card>
 

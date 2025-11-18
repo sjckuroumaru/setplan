@@ -13,33 +13,24 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
-  Table,
+  CompactTable,
+  CompactTableRow,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/compact-table"
+import { DeleteButton } from "@/components/ui/action-buttons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import {
   Plus,
   Search,
-  MoreHorizontal,
   Building2,
-  Edit,
-  Trash,
   Phone,
   MapPin,
 } from "lucide-react"
@@ -137,53 +128,64 @@ export default function CustomersPage() {
         </Button>
       </div>
 
+      {/* フィルター */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>顧客一覧</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <CardTitle>フィルター</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label htmlFor="search">検索</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="顧客名で検索"
+                id="search"
+                placeholder="顧客名で検索..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
+                className="pl-10"
               />
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          {customers.length === 0 ? (
+        </CardContent>
+      </Card>
+
+      {/* 顧客一覧 */}
+      <Card>
+        {customers.length === 0 ? (
+          <CardContent>
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold">顧客が登録されていません</h3>
               <p className="text-sm text-muted-foreground mt-2">
                 新規顧客を登録して管理を始めましょう
               </p>
-              <Button 
-                onClick={() => router.push("/customers/new")} 
-                variant="outline" 
+              <Button
+                onClick={() => router.push("/customers/new")}
+                variant="outline"
                 className="mt-4"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 最初の顧客を登録
               </Button>
             </div>
-          ) : (
-            <Table>
+          </CardContent>
+        ) : (
+          <CardContent className="p-0">
+            <CompactTable>
               <TableHeader>
-                <TableRow>
-                  <TableHead>会社名</TableHead>
+                <CompactTableRow>
+                  <TableHead className="min-w-[150px]">会社名</TableHead>
                   <TableHead>代表者</TableHead>
                   <TableHead>電話番号</TableHead>
                   <TableHead>住所</TableHead>
                   <TableHead>ステータス</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
-                </TableRow>
+                  <TableHead className="text-center">操作</TableHead>
+                </CompactTableRow>
               </TableHeader>
               <TableBody>
                 {customers.map((customer) => (
-                  <TableRow key={customer.id}>
+                  <CompactTableRow key={customer.id}>
                     <TableCell className="font-medium">
                       <Link href={`/customers/${customer.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
                         {customer.name}
@@ -213,61 +215,47 @@ export default function CustomersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={customer.status === "active" ? "default" : "secondary"}>
+                      <Badge variant={customer.status === "active" ? "default" : "secondary"} className="text-xs">
                         {customer.status === "active" ? "有効" : "無効"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>操作</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(customer.id)}
-                            className="text-destructive"
-                          >
-                            <Trash className="mr-2 h-4 w-4" />
-                            削除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <div className="flex items-center justify-center gap-2">
+                        <DeleteButton onClick={() => handleDelete(customer.id)} />
+                      </div>
                     </TableCell>
-                  </TableRow>
+                  </CompactTableRow>
                 ))}
               </TableBody>
-            </Table>
-          )}
-
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToPreviousPage}
-                disabled={!hasPreviousPage}
-              >
-                前へ
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                {currentPage} / {pagination.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToNextPage}
-                disabled={!hasNextPage}
-              >
-                次へ
-              </Button>
-            </div>
-          )}
-        </CardContent>
+            </CompactTable>
+          </CardContent>
+        )}
       </Card>
+
+      {/* ページネーション */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToPreviousPage}
+            disabled={!hasPreviousPage}
+          >
+            前へ
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {currentPage} / {pagination.totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToNextPage}
+            disabled={!hasNextPage}
+          >
+            次へ
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

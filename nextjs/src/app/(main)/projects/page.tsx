@@ -15,13 +15,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
-  Table,
+  CompactTable,
+  CompactTableRow,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/compact-table"
+import { TableRow } from "@/components/ui/table"
+import { DeleteButton } from "@/components/ui/action-buttons"
 import {
   Alert,
   AlertDescription,
@@ -387,65 +389,65 @@ export default function ProjectsPage() {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table className="text-xs [&_th]:px-2 [&_td]:px-2">
+            <CompactTable>
               <TableHeader>
                 <TableRow>
                   <TableHead
-                    className="min-w-[120px] cursor-pointer select-none"
+                    className="cursor-pointer"
                     onClick={() => handleSort("projectNumber")}
                   >
                     案件番号<SortIcon column="projectNumber" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[110px] cursor-pointer select-none"
+                    className="cursor-pointer"
                     onClick={() => handleSort("projectType")}
                   >
                     案件種別<SortIcon column="projectType" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[180px] cursor-pointer select-none"
+                    className="cursor-pointer min-w-[150px]"
                     onClick={() => handleSort("projectName")}
                   >
                     案件名<SortIcon column="projectName" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[150px] cursor-pointer select-none"
+                    className="cursor-pointer"
                     onClick={() => handleSort("departmentName")}
                   >
                     担当部署<SortIcon column="departmentName" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    className="cursor-pointer text-center"
                     onClick={() => handleSort("status")}
                   >
                     ステータス<SortIcon column="status" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    className="cursor-pointer text-center"
                     onClick={() => handleSort("plannedStartDate")}
                   >
                     開始予定<SortIcon column="plannedStartDate" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    className="cursor-pointer text-center"
                     onClick={() => handleSort("plannedEndDate")}
                   >
                     終了予定<SortIcon column="plannedEndDate" />
                   </TableHead>
                   <TableHead
-                    className="min-w-[110px] cursor-pointer select-none text-right"
+                    className="cursor-pointer text-right"
                     onClick={() => handleSort("budget")}
                   >
                     予算<SortIcon column="budget" />
                   </TableHead>
-                  <TableHead className="min-w-[180px]">関連発注書</TableHead>
+                  <TableHead>関連発注書</TableHead>
                   <TableHead
-                    className="min-w-[110px] cursor-pointer select-none text-center"
+                    className="cursor-pointer text-center"
                     onClick={() => handleSort("updatedAt")}
                   >
                     最終更新<SortIcon column="updatedAt" />
                   </TableHead>
-                  <TableHead className="min-w-[120px] text-center">操作</TableHead>
+                  <TableHead className="text-center">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -467,12 +469,12 @@ export default function ProjectsPage() {
                   </TableRow>
                 ) : (
                   projects.map((project) => (
-                    <TableRow
+                    <CompactTableRow
                       key={project.id}
-                      className="hover:bg-muted/40 cursor-pointer"
+                      className="cursor-pointer"
                       onDoubleClick={() => router.push(`/projects/${project.id}/edit`)}
                     >
-                      <TableCell className="font-semibold">
+                      <TableCell className="font-medium">
                         <Link href={`/projects/${project.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
                           {project.projectNumber}
                         </Link>
@@ -486,17 +488,17 @@ export default function ProjectsPage() {
                       <TableCell className="font-medium">{project.projectName}</TableCell>
                       <TableCell>{project.department?.name || "-"}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={statusVariants[project.status as keyof typeof statusVariants] || "secondary"}>
+                        <Badge variant={statusVariants[project.status as keyof typeof statusVariants] || "secondary"} className="text-xs">
                           {statusLabels[project.status as keyof typeof statusLabels] || project.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">{formatDate(project.plannedStartDate)}</TableCell>
                       <TableCell className="text-center">{formatDate(project.plannedEndDate)}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatCurrency(project.budget)}</TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(project.budget)}</TableCell>
                       <TableCell>
                         {project.purchaseOrder ? (
                           <div className="flex flex-col">
-                            <span className="font-semibold">{project.purchaseOrder.orderNumber}</span>
+                            <span className="font-medium">{project.purchaseOrder.orderNumber}</span>
                             <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">
                               {project.purchaseOrder.subject}
                             </span>
@@ -509,22 +511,15 @@ export default function ProjectsPage() {
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
                           {session.user.isAdmin && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => setDeleteProjectId(project.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <DeleteButton onClick={() => setDeleteProjectId(project.id)} />
                           )}
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </CompactTableRow>
                   ))
                 )}
               </TableBody>
-            </Table>
+            </CompactTable>
           </div>
         </CardContent>
       </Card>

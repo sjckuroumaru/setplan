@@ -12,13 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
-  Table,
+  CompactTable,
+  CompactTableRow,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/compact-table"
+import { DeleteButton } from "@/components/ui/action-buttons"
 import {
   Alert,
   AlertDescription,
@@ -33,11 +34,9 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2,
+import {
+  Plus,
+  Search,
   AlertCircle
 } from "lucide-react"
 
@@ -196,9 +195,9 @@ export default function UsersPage() {
       {/* ユーザー一覧テーブル */}
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <CompactTable>
             <TableHeader>
-              <TableRow>
+              <CompactTableRow>
                 <TableHead>社員番号</TableHead>
                 <TableHead>氏名</TableHead>
                 <TableHead>ユーザー名</TableHead>
@@ -207,29 +206,29 @@ export default function UsersPage() {
                 <TableHead>権限</TableHead>
                 <TableHead>状態</TableHead>
                 <TableHead>作成日時</TableHead>
-                <TableHead>操作</TableHead>
-              </TableRow>
+                <TableHead className="text-center">操作</TableHead>
+              </CompactTableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
+                  <CompactTableRow key={i}>
                     {Array.from({ length: 9 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
                     ))}
-                  </TableRow>
+                  </CompactTableRow>
                 ))
               ) : users.length === 0 ? (
-                <TableRow>
+                <CompactTableRow>
                   <TableCell colSpan={9} className="text-center py-8">
                     ユーザーが見つかりません
                   </TableCell>
-                </TableRow>
+                </CompactTableRow>
               ) : (
                 users.map((user) => (
-                  <TableRow key={user.id}>
+                  <CompactTableRow key={user.id}>
                     <TableCell>
                       <Link href={`/users/${user.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
                         {user.employeeNumber}
@@ -240,12 +239,12 @@ export default function UsersPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.departmentRef?.name ||  "-"}</TableCell>
                     <TableCell>
-                      <Badge variant={user.isAdmin ? "default" : "secondary"}>
+                      <Badge variant={user.isAdmin ? "default" : "secondary"} className="text-xs">
                         {user.isAdmin ? "管理者" : "一般"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.status === "active" ? "default" : "secondary"}>
+                      <Badge variant={user.status === "active" ? "default" : "secondary"} className="text-xs">
                         {user.status === "active" ? "有効" : "無効"}
                       </Badge>
                     </TableCell>
@@ -253,24 +252,17 @@ export default function UsersPage() {
                       {new Date(user.createdAt).toLocaleDateString("ja-JP")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         {user.id !== session?.user.id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setDeleteUserId(user.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <DeleteButton onClick={() => setDeleteUserId(user.id)} />
                         )}
                       </div>
                     </TableCell>
-                  </TableRow>
+                  </CompactTableRow>
                 ))
               )}
             </TableBody>
-          </Table>
+          </CompactTable>
         </CardContent>
       </Card>
 
