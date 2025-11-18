@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { ProjectSelect, Project } from "@/components/ui/project-select"
 import { useActiveProjects } from "@/hooks/use-active-projects"
+import { getJapanDate, getTodayDateString, formatTimeToHHmm, roundToNearest15Minutes } from "@/lib/attendance-utils"
 import {
   Form,
   FormControl,
@@ -176,17 +177,15 @@ export function ScheduleForm({ schedule, onSubmit, onCancel, isLoading, isEdit =
       }
     }
 
-    // 新規作成モードの場合は現在日時を使用
-    const now = new Date()
+    // 新規作成モードの場合は現在の日本時刻を使用
+    const now = getJapanDate()
 
     // 現在時刻を15分単位で切り上げ
-    const totalMinutes = now.getHours() * 60 + now.getMinutes()
-    const roundedMinutes = Math.ceil(totalMinutes / 15) * 15
-    const hour = Math.floor(roundedMinutes / 60).toString().padStart(2, "0")
-    const minute = (roundedMinutes % 60).toString().padStart(2, "0")
-    const time = `${hour}:${minute}`
+    const roundedDate = roundToNearest15Minutes(now)
+    const time = formatTimeToHHmm(roundedDate)
 
-    const date = now.toISOString().split("T")[0]
+    // 日本時刻ベースの日付を取得
+    const date = getTodayDateString()
 
     return {
       scheduleDate: date,

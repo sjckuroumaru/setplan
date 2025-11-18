@@ -215,7 +215,11 @@ export default function DepartmentsPage() {
               ) : (
                 departments.map((department) => (
                   <TableRow key={department.id}>
-                    <TableCell className="font-medium">{department.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/settings/departments/${department.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                        {department.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
@@ -233,15 +237,6 @@ export default function DepartmentsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <Link href={`/settings/departments/${department.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
                         <Button
                           variant="outline"
                           size="sm"

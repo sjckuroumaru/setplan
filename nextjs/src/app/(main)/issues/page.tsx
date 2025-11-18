@@ -500,7 +500,9 @@ export default function IssuesPage() {
                       onDoubleClick={() => router.push(`/issues/${issue.id}`)}
                     >
                       <TableCell className="font-mono text-sm">
-                        {issue.id.slice(0, 8)}
+                        <Link href={`/issues/${issue.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                          {issue.id.slice(0, 8)}
+                        </Link>
                       </TableCell>
                       <TableCell className="max-w-md">
                         <div>
@@ -567,29 +569,14 @@ export default function IssuesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/issues/${issue.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                詳細
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/issues/${issue.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                編集
-                              </Link>
-                            </DropdownMenuItem>
                             {session?.user?.isAdmin && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={() => setDeleteIssueId(issue.id)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  削除
-                                </DropdownMenuItem>
-                              </>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setDeleteIssueId(issue.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                削除
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>

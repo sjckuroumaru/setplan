@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowLeft, AlertCircle } from "lucide-react"
 import { ScheduleForm } from "@/components/features/schedules/schedule-form"
+import { getTodayDateString } from "@/lib/attendance-utils"
 import { toast } from "sonner"
 import { mutate } from "swr"
 
@@ -68,12 +69,8 @@ function NewSchedulePageContent() {
           return response.json()
         })
         .then((data) => {
-          // 今日の日付を取得
-          const today = new Date()
-          const year = today.getFullYear()
-          const month = String(today.getMonth() + 1).padStart(2, '0')
-          const day = String(today.getDate()).padStart(2, '0')
-          const todayStr = `${year}-${month}-${day}`
+          // 今日の日付を取得（日本時刻ベース）
+          const todayStr = getTodayDateString()
 
           // 複製用データを作成（IDと退社時間と所感を除外、日付は今日に設定）
           const duplicateData = {

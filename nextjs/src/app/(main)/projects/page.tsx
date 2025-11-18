@@ -473,7 +473,9 @@ export default function ProjectsPage() {
                       onDoubleClick={() => router.push(`/projects/${project.id}/edit`)}
                     >
                       <TableCell className="font-semibold">
-                        {project.projectNumber}
+                        <Link href={`/projects/${project.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                          {project.projectNumber}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         {project.projectType
@@ -506,11 +508,6 @@ export default function ProjectsPage() {
                       <TableCell className="text-center">{formatDate(project.updatedAt)}</TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
-                          <Button variant="outline" size="icon" asChild>
-                            <Link href={`/projects/${project.id}/edit`}>
-                              <Edit className="h-4 w-4" />
-                            </Link>
-                          </Button>
                           {session.user.isAdmin && (
                             <Button
                               variant="outline"

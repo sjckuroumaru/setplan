@@ -7,13 +7,14 @@ import { useSession } from "next-auth/react"
 import useSWR from "swr"
 import { useIssues } from "@/hooks/use-issues"
 import { AttendanceButtons } from "@/components/features/schedules/attendance-buttons"
+import { getTodayDateString } from "@/lib/attendance-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { fetcher } from "@/lib/fetcher"
-import { 
+import {
   AlertCircle,
   ArrowRight,
   Clock,
@@ -96,15 +97,6 @@ export default function DashboardPage() {
     return formattedDate
   }
 
-  // 今日の日付を取得（YYYY-MM-DD形式）
-  const getTodayDate = () => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
   const departmentId = session?.user?.departmentId || null
   const shouldFetchDepartmentNotes = Boolean(departmentId)
 
@@ -140,7 +132,7 @@ export default function DashboardPage() {
     data: todayScheduleData,
   } = useSWR<TodayScheduleResponse>(
     session?.user?.id
-      ? `/api/schedules/date/${getTodayDate()}`
+      ? `/api/schedules/date/${getTodayDateString()}`
       : null,
     fetcher,
     {
@@ -154,7 +146,7 @@ export default function DashboardPage() {
   // 予定実績の登録/編集の切り替え
   const scheduleActionHref = hasScheduleToday
     ? `/schedules/${todayScheduleId}/edit`
-    : `/schedules/new?date=${getTodayDate()}`
+    : `/schedules/new?date=${getTodayDateString()}`
   const scheduleActionLabel = hasScheduleToday ? '編集' : '登録'
   const scheduleButtonText = hasScheduleToday ? '今日の予定実績を編集' : '今日の予定実績を登録'
   const scheduleCardTitle = hasScheduleToday ? '予定実績編集' : '予定実績登録'

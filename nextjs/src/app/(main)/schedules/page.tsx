@@ -538,7 +538,9 @@ export default function SchedulesPage() {
                         onDoubleClick={() => router.push(`/schedules/${schedule.id}/edit`)}
                       >
                         <TableCell className="font-medium">
-                          {formatDate(schedule.scheduleDate)}
+                          <Link href={`/schedules/${schedule.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                            {formatDate(schedule.scheduleDate)}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           {schedule.user.lastName} {schedule.user.firstName}
@@ -614,15 +616,6 @@ export default function SchedulesPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                            >
-                              <Link href={`/schedules/${schedule.id}/edit`}>
-                                <Edit className="h-4 w-4" />
-                              </Link>
-                            </Button>
                             <Button
                               variant="outline"
                               size="sm"

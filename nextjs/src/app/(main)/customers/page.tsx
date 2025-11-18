@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useCustomers } from "@/hooks/use-customers"
 import { usePagination } from "@/hooks/use-pagination"
 import {
@@ -184,7 +185,9 @@ export default function CustomersPage() {
                 {customers.map((customer) => (
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">
-                      {customer.name}
+                      <Link href={`/customers/${customer.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                        {customer.name}
+                      </Link>
                     </TableCell>
                     <TableCell>{customer.representative || "-"}</TableCell>
                     <TableCell>
@@ -224,12 +227,6 @@ export default function CustomersPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>操作</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => router.push(`/customers/${customer.id}/edit`)}
-                          >
-                            <Edit className="mr-2 h-4 w-4" />
-                            編集
-                          </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDelete(customer.id)}
                             className="text-destructive"

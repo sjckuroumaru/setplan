@@ -230,7 +230,11 @@ export default function UsersPage() {
               ) : (
                 users.map((user) => (
                   <TableRow key={user.id}>
-                    <TableCell>{user.employeeNumber}</TableCell>
+                    <TableCell>
+                      <Link href={`/users/${user.id}/edit`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                        {user.employeeNumber}
+                      </Link>
+                    </TableCell>
                     <TableCell>{user.lastName} {user.firstName}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
@@ -250,15 +254,6 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          asChild
-                        >
-                          <Link href={`/users/${user.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                        </Button>
                         {user.id !== session?.user.id && (
                           <Button
                             variant="outline"
