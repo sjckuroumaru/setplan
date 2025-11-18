@@ -35,6 +35,7 @@ import {
   Package,
 } from "lucide-react"
 import { toast } from "sonner"
+import { FileAttachments } from "@/components/estimates/file-attachments"
 
 interface EstimateDetail {
   id: string
@@ -296,7 +297,6 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           {/* 1段目：編集・複製・PDF出力 */}
           <div className="flex gap-2">
             <Button
-              variant="outline"
               onClick={() => router.push(`/estimates/${resolvedParams.id}/edit`)}
             >
               <Edit className="mr-2 h-4 w-4" />
@@ -532,6 +532,9 @@ export default function EstimateDetailPage({ params }: { params: Promise<{ id: s
           </CardContent>
         </Card>
       )}
+
+      {/* ファイル添付 */}
+      <FileAttachments estimateId={resolvedParams.id} isEditable={false} />
     </div>
   )
 }

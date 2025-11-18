@@ -570,8 +570,8 @@ export default function NewEstimatePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <Textarea
+                        {...field}
                         className="min-h-[100px]"
                         placeholder="備考を入力してください"
                       />
@@ -582,6 +582,11 @@ export default function NewEstimatePage() {
               />
             </CardContent>
           </Card>
+
+          {/* 添付ファイル案内 */}
+          <div className="text-sm text-muted-foreground text-center py-2">
+            ※ 関連ファイルの添付は新規登録後、編集画面でできます
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button

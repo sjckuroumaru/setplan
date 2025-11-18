@@ -28,16 +28,17 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   // Relations
-  departmentRef      Department? @relation(fields: [departmentId], references: [id])
-  dailySchedules     DailySchedule[]
-  issues             Issue[]
-  assignedIssues     Issue[]    @relation("AssignedUser")
-  comments           Comment[]
-  estimates          Estimate[]
-  invoices           Invoice[]
-  purchaseOrders     PurchaseOrder[]
-  orderConfirmations OrderConfirmation[]
-  deliveryNotes      DeliveryNote[]
+  departmentRef        Department? @relation(fields: [departmentId], references: [id])
+  dailySchedules       DailySchedule[]
+  issues               Issue[]
+  assignedIssues       Issue[]    @relation("AssignedUser")
+  comments             Comment[]
+  estimates            Estimate[]
+  estimateAttachments  EstimateAttachment[]
+  invoices             Invoice[]
+  purchaseOrders       PurchaseOrder[]
+  orderConfirmations   OrderConfirmation[]
+  deliveryNotes        DeliveryNote[]
 
   @@map("users")
 }
@@ -269,6 +270,7 @@ model Estimate {
   customer        Customer  @relation(fields: [customerId], references: [id])
   user            User      @relation(fields: [userId], references: [id])
   items           EstimateItem[]
+  attachments     EstimateAttachment[]
   invoice         Invoice?  // 変換後の請求書
   deliveryNote    DeliveryNote? // 変換後の納品書
 
@@ -294,6 +296,28 @@ model EstimateItem {
   estimate        Estimate  @relation(fields: [estimateId], references: [id], onDelete: Cascade)
 
   @@map("estimate_items")
+}
+
+// 見積書添付ファイルテーブル
+model EstimateAttachment {
+  id          String   @id @default(uuid())
+  estimateId  String
+  fileName    String   @db.VarChar(255)
+  fileSize    Int
+  mimeType    String   @db.VarChar(100)
+  blobPath    String   @db.VarChar(500)
+  blobUrl     String   @db.Text
+  uploadedBy  String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  uploader    User     @relation(fields: [uploadedBy], references: [id])
+
+  @@index([estimateId, createdAt])
+  @@map("estimate_attachments")
 }
 
 // 請求書テーブル

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { calculateEstimateAmount } from "@/lib/estimate-calc"
 import { z } from "zod"
 import { Decimal } from "@prisma/client/runtime/library"
+import { del } from "@vercel/blob"
 
 const EstimateItemSchema = z.object({
   id: z.string().optional(),
@@ -224,6 +225,23 @@ export async function DELETE(
       return NextResponse.json({ error: "権限がありません" }, { status: 403 })
     }
 
+    // 添付ファイルを取得
+    const attachments = await prisma.estimateAttachment.findMany({
+      where: { estimateId: resolvedParams.id },
+      select: { blobUrl: true },
+    })
+
+    // Vercel Blobからファイルを削除
+    for (const attachment of attachments) {
+      try {
+        await del(attachment.blobUrl)
+      } catch (error) {
+        console.error("Failed to delete blob file:", error)
+        // Blob削除失敗でも処理を続行
+      }
+    }
+
+    // 見積書を削除（CASCADE DELETEで添付ファイルのレコードも削除される）
     await prisma.estimate.delete({
       where: { id: resolvedParams.id },
     })

@@ -48,6 +48,7 @@ import {
   Trash2,
   Save,
 } from "lucide-react"
+import { FileAttachments } from "@/components/estimates/file-attachments"
 
 const estimateItemSchema = z.object({
   id: z.string().optional(),
@@ -647,8 +648,8 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <Textarea
+                        {...field}
                         className="min-h-[100px]"
                         placeholder="備考を入力してください"
                       />
@@ -659,6 +660,9 @@ export default function EditEstimatePage({ params }: { params: Promise<{ id: str
               />
             </CardContent>
           </Card>
+
+          {/* ファイル添付 */}
+          <FileAttachments estimateId={resolvedParams.id} isEditable={true} />
 
           <div className="flex justify-end gap-2">
             <Button
